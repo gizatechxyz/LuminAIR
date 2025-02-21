@@ -2,6 +2,10 @@ use add::{
     component::{AddComponent, AddEval},
     table::{AddColumn, AddElements},
 };
+use mul::{
+    component::{MulComponent, MulEval},
+    table::{MulColumn, MulElements},
+};
 use serde::{Deserialize, Serialize};
 use stwo_prover::{
     constraint_framework::{preprocessed_columns::PreprocessedColumn, TraceLocationAllocator},
@@ -23,6 +27,7 @@ use crate::{
 };
 
 pub mod add;
+pub mod mul;
 
 /// Errors related to trace operations.
 #[derive(Debug, Error, Eq, PartialEq)]
@@ -37,6 +42,8 @@ pub type TraceEval = ColumnVec<CircleEvaluation<SimdBackend, BaseField, BitRever
 
 /// Claim for the Add trace.
 pub type AddClaim = Claim<AddColumn>;
+/// Claim for the Mul trace.
+pub type MulClaim = Claim<MulColumn>;
 
 /// Represents columns of a trace.
 pub trait TraceColumn {
@@ -93,6 +100,7 @@ impl<T: TraceColumn> Claim<T> {
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum ClaimType {
     Add(Claim<AddColumn>),
+    Mul(Claim<MulColumn>),
 }
 
 /// The claim of the interaction phase 2 (with the logUp protocol).
@@ -122,6 +130,7 @@ impl InteractionClaim {
 #[derive(Clone, Debug)]
 pub struct LuminairInteractionElements {
     pub add_lookup_elements: AddElements,
+    pub mul_lookup_elements: MulElements,
 }
 
 impl LuminairInteractionElements {
@@ -129,14 +138,21 @@ impl LuminairInteractionElements {
     /// all the components of the system.
     pub fn draw(channel: &mut impl Channel, op_counter: &OpCounter) -> Self {
         // Only draw elements once and reuse them
-        let add_elements = if op_counter.add.unwrap_or(0) > 0 {
+        let add_lookup_elements = if op_counter.add.unwrap_or(0) > 0 {
             AddElements::draw(channel)
         } else {
             AddElements::dummy()
         };
 
+        let mul_lookup_elements = if op_counter.mul.unwrap_or(0) > 0 {
+            MulElements::draw(channel)
+        } else {
+            MulElements::dummy()
+        };
+
         Self {
-            add_lookup_elements: add_elements,
+            add_lookup_elements,
+            mul_lookup_elements,
         }
     }
 }
@@ -147,6 +163,7 @@ impl LuminairInteractionElements {
 /// and by the verifier as a `Component`.
 pub struct LuminairComponents {
     add: Vec<AddComponent>,
+    mul: Vec<MulComponent>,
 }
 
 impl LuminairComponents {
@@ -178,8 +195,22 @@ impl LuminairComponents {
             })
             .collect();
 
+        let mul_components = claims
+            .mul
+            .iter()
+            .zip(interaction_claim.add.iter())
+            .map(|(cl, int_cl)| {
+                MulComponent::new(
+                    tree_span_provider,
+                    MulEval::new(cl, interaction_elements.mul_lookup_elements.clone()),
+                    (int_cl.claimed_sum, None),
+                )
+            })
+            .collect();
+
         Self {
             add: add_components,
+            mul: mul_components,
         }
     }
 
@@ -188,11 +219,20 @@ impl LuminairComponents {
         self.add
             .iter()
             .map(|c| c as &dyn ComponentProver<SimdBackend>)
+            .chain(
+                self.mul
+                    .iter()
+                    .map(|c| c as &dyn ComponentProver<SimdBackend>),
+            )
             .collect()
     }
 
     /// Returns the `Component` of each components used by the verifier.
     pub fn components(&self) -> Vec<&dyn Component> {
-        self.add.iter().map(|c| c as &dyn Component).collect()
+        self.add
+            .iter()
+            .map(|c| c as &dyn Component)
+            .chain(self.mul.iter().map(|c| c as &dyn Component))
+            .collect()
     }
 }

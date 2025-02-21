@@ -19,6 +19,10 @@ pub fn lookup_sum_valid(interaction_claim: &LuminairInteractionClaim) -> bool {
         .add
         .iter()
         .for_each(|c| sum += c.claimed_sum.into());
+    interaction_claim
+        .mul
+        .iter()
+        .for_each(|c| sum += c.claimed_sum.into());
     sum.is_zero()
 }
 
