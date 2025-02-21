@@ -198,7 +198,7 @@ impl LuminairComponents {
         let mul_components = claims
             .mul
             .iter()
-            .zip(interaction_claim.add.iter())
+            .zip(interaction_claim.mul.iter())
             .map(|(cl, int_cl)| {
                 MulComponent::new(
                     tree_span_provider,
