@@ -44,7 +44,7 @@ impl FrameworkEval for AddEval {
     }
 
     /// Evaluates the AIR constraints for the addition operation.
-    fn evaluate<E: EvalAtRow>(&self, mut eval: E) -> E {
+    fn evaluate<E: EvalAtRow >(&self, mut eval: E) -> E {
         let lhs = eval.next_trace_mask();
         let rhs = eval.next_trace_mask();
         let out = eval.next_trace_mask();

@@ -1227,9 +1227,11 @@ dependencies = [
 [[package]]
 name = "numerair"
 version = "0.1.0"
-source = "git+https://github.com/gizatechxyz/NumerAir.git?rev=3d9a9b9#3d9a9b98507493330f22e0f01a9589ddd5c5c012"
+source = "git+https://github.com/gizatechxyz/NumerAir.git?rev=8731cad#8731cad64db3cfe6f09461cd9753803aa80fb677"
 dependencies = [
+ "lazy_static",
  "num-traits",
+ "once_cell",
  "rayon",
  "stwo-prover",
 ]

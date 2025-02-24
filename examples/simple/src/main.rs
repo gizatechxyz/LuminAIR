@@ -20,7 +20,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let w = cx.tensor((2, 2)).set(vec![-1.0, -1.0, -1.0, -1.0]);
 
     // Define computation operations on tensors:
-    let c = a + b;
+    let c = a * b;
     let d = c + w;
     let mut e = (c + d).retrieve();
 
