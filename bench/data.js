@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741262833633,
+  "lastUpdate": 1741713851117,
   "repoUrl": "https://github.com/gizatechxyz/LuminAIR",
   "entries": {
     "LuminAIR Benchmarks": [
@@ -479,6 +479,66 @@ window.BENCHMARK_DATA = {
             "name": "Mul Operator/Verification (32x32)",
             "value": 257847,
             "range": "± 5950",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "113879115+raphaelDkhn@users.noreply.github.com",
+            "name": "raphaelDkhn",
+            "username": "raphaelDkhn"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "91c760ca1eeee7fd2d645ca747eecd73834c0e11",
+          "message": "Merge pull request #41 from gizatechxyz/consolidation\n\nComponent Consolidation.",
+          "timestamp": "2025-03-11T19:20:46+02:00",
+          "tree_id": "0013f5ab01f7fce9ac39def0b205109f2897545a",
+          "url": "https://github.com/gizatechxyz/LuminAIR/commit/91c760ca1eeee7fd2d645ca747eecd73834c0e11"
+        },
+        "date": 1741713850811,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "Add Operator/Trace Generation (32x32)",
+            "value": 232587,
+            "range": "± 2936",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Add Operator/Proving (32x32)",
+            "value": 13894156,
+            "range": "± 85026",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Add Operator/Verification (32x32)",
+            "value": 265845,
+            "range": "± 7256",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Mul Operator/Trace Generation (32x32)",
+            "value": 246807,
+            "range": "± 2157",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Mul Operator/Proving (32x32)",
+            "value": 13954789,
+            "range": "± 85198",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Mul Operator/Verification (32x32)",
+            "value": 270813,
+            "range": "± 6255",
             "unit": "ns/iter"
           }
         ]
