@@ -34,6 +34,7 @@ pub struct ExecutionResources {
 pub struct OpCounter {
     pub add: Option<usize>,
     pub mul: Option<usize>,
+    pub lessthan: Option<usize>,
 }
 
 /// Indicates if a node input is an initializer (i.e., from initial input).
