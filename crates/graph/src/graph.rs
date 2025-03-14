@@ -8,6 +8,10 @@ use luminair_air::{
             self,
             table::{AddColumn, AddTable},
         },
+        lessthan::{
+            self,
+            table::{LessThanColumn, LessThanTable},
+        },
         mul::{
             self,
             table::{MulColumn, MulTable},
@@ -53,16 +57,16 @@ pub enum LuminairError {
 /// Provides methods to generate execution traces, retrieve outputs, and handle proof
 /// generation and verification using Stwo.
 pub trait LuminairGraph {
-    /// Generates an execution trace for the graph’s computation.
+    /// Generates an execution trace for the graph's computation.
     fn gen_trace(&mut self) -> Result<LuminairPie, TraceError>;
 
-    /// Generates a proof of the graph’s execution using the provided trace.
+    /// Generates a proof of the graph's execution using the provided trace.
     fn prove(
         &mut self,
         pie: LuminairPie,
     ) -> Result<LuminairProof<Blake2sMerkleHasher>, ProvingError>;
 
-    /// Verifies a proof to ensure integrity of graph’s computation.
+    /// Verifies a proof to ensure integrity of graph's computation.
     fn verify(&self, proof: LuminairProof<Blake2sMerkleHasher>) -> Result<(), LuminairError>;
 }
 
@@ -84,6 +88,7 @@ impl LuminairGraph for Graph {
         // Initilializes table for each operator
         let mut add_table: AddTable = AddTable::new();
         let mut mul_table: MulTable = MulTable::new();
+        let mut lessthan_table: LessThanTable = LessThanTable::new();
 
         for (node, src_ids) in self.linearized_graph.as_ref().unwrap() {
             if self.tensors.contains_key(&(*node, 0)) {
@@ -186,9 +191,21 @@ impl LuminairGraph for Graph {
                     *op_counter.mul.get_or_insert(0) += 1;
 
                     tensors
+                } else if <Box<dyn Operator> as HasProcessTrace<LessThanColumn, LessThanTable>>::has_process_trace(
+                    node_op,
+                ) {
+                    let tensors = <Box<dyn Operator> as HasProcessTrace<
+                        LessThanColumn,
+                        LessThanTable,
+                    >>::call_process_trace(
+                        node_op, srcs, &mut lessthan_table, &node_info
+                    )
+                    .unwrap();
+                    *op_counter.lessthan.get_or_insert(0) += 1;
+
+                    tensors
                 } else {
-                    // Handle other operators or fallback
-                    node_op.process(srcs)
+                    return Err(TraceError::EmptyTrace);
                 };
 
             for (i, tensor) in tensors.into_iter().enumerate() {
@@ -222,6 +239,16 @@ impl LuminairGraph for Graph {
             traces.push(Trace::new(
                 SerializableTrace::from(&trace),
                 ClaimType::Mul(claim),
+            ));
+        }
+
+        if !lessthan_table.table.is_empty() {
+            let (trace, claim) = lessthan_table.trace_evaluation()?;
+            max_log_size = max_log_size.max(claim.log_size);
+
+            traces.push(Trace::new(
+                SerializableTrace::from(&trace),
+                ClaimType::LessThan(claim),
             ));
         }
 
@@ -287,6 +314,7 @@ impl LuminairGraph for Graph {
             match trace.claim {
                 ClaimType::Add(claim) => main_claim.add = Some(claim),
                 ClaimType::Mul(claim) => main_claim.mul = Some(claim),
+                ClaimType::LessThan(claim) => main_claim.lessthan = Some(claim),
             }
         }
 
@@ -323,6 +351,13 @@ impl LuminairGraph for Graph {
                         mul::table::interaction_trace_evaluation(&trace, lookup_elements).unwrap();
                     tree_builder.extend_evals(tr);
                     interaction_claim.mul = Some(cl);
+                }
+                ClaimType::LessThan(_) => {
+                    let (tr, cl) =
+                        lessthan::table::interaction_trace_evaluation(&trace, lookup_elements)
+                            .unwrap();
+                    tree_builder.extend_evals(tr);
+                    interaction_claim.lessthan = Some(cl);
                 }
             }
         }
