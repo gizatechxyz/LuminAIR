@@ -1,36 +1,37 @@
 use serde::{Deserialize, Serialize};
 
-use crate::components::{add::table::AddTable, mul::table::MulTable, ClaimType, TraceEval, TraceError};
+use crate::components::{
+    add::table::AddTable, mul::table::MulTable, recip::table::RecipTable, ClaimType, TraceError,
+    TraceEval,
+};
 
 /// Represents an operator's trace table along with its claim before conversion
 /// to a serialized trace format. Used to defer trace evaluation until proving.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum TableTrace {
     /// Addition operator trace table.
-    Add {
-        table: AddTable,
-    },
+    Add { table: AddTable },
     /// Multiplication operator trace table.
-    Mul {
-        table: MulTable,
-    },
+    Mul { table: MulTable },
+    /// Reciprocal operator trace table.
+    Recip { table: RecipTable },
 }
 
 impl TableTrace {
     /// Creates a new [`TableTrace`] from an [`AddTable`]
     /// for use in the proof generation.
     pub fn from_add(table: AddTable) -> Self {
-        Self::Add {
-            table,
-        }
+        Self::Add { table }
     }
-    
+
     /// Creates a new [`TableTrace`] from a [`MulTable`]
     /// for use in the proof generation.
     pub fn from_mul(table: MulTable) -> Self {
-        Self::Mul {
-            table,
-        }
+        Self::Mul { table }
+    }
+
+    pub fn from_recip(table: RecipTable) -> Self {
+        Self::Recip { table }
     }
 
     pub fn to_trace(&self) -> Result<(TraceEval, ClaimType), TraceError> {
@@ -38,12 +39,17 @@ impl TableTrace {
             TableTrace::Add { table } => {
                 let (trace, claim) = table.trace_evaluation()?;
                 Ok((trace, ClaimType::Add(claim)))
-            },
+            }
 
             TableTrace::Mul { table } => {
                 let (trace, claim) = table.trace_evaluation()?;
                 Ok((trace, ClaimType::Mul(claim)))
-            },
+            }
+
+            TableTrace::Recip { table } => {
+                let (trace, claim) = table.trace_evaluation()?;
+                Ok((trace, ClaimType::Recip(claim)))
+            }
         }
     }
 }
@@ -79,6 +85,7 @@ pub struct ExecutionResources {
 pub struct OpCounter {
     pub add: Option<usize>,
     pub mul: Option<usize>,
+    pub recip: Option<usize>,
 }
 
 /// Indicates if a node input is an initializer (i.e., from initial input).

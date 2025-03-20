@@ -2,6 +2,7 @@ use luminair_air::{
     components::{
         add::table::{AddColumn, AddTable, AddTableRow},
         mul::table::{MulColumn, MulTable, MulTableRow},
+        recip::table::{RecipColumn, RecipTable, RecipTableRow},
     },
     pie::NodeInfo,
 };
@@ -277,6 +278,85 @@ impl Operator for LuminairMul {
         unimplemented!()
     }
 }
+
+/// Implements element-wise reciprocal for LuminAIR.
+#[derive(Debug, Clone, Default, PartialEq)]
+struct LuminairRecip {}
+
+impl LuminairRecip {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl LuminairOperator<RecipColumn, RecipTable> for LuminairRecip {
+    fn process_trace(
+        &mut self,
+        inp: Vec<(InputTensor, ShapeTracker)>,
+        table: &mut RecipTable,
+        node_info: &NodeInfo,
+    ) -> Vec<Tensor> {
+        let x_buf = get_buffer_from_tensor(&inp[0].0);
+        let output_size = inp[0].1.n_elements().to_usize().unwrap();
+        let mut out_data = vec![Fixed::zero(); output_size];
+
+        let node_id: BaseField = node_info.id.into();
+        let lhs_id: BaseField = node_info.inputs[0].id.into();
+        let rhs_id: BaseField = BaseField::one();
+
+        let one = Fixed::from_f64(1.0);
+
+        let mut stack: Vec<i64> = vec![];
+        for idx in 0..output_size {
+            let x_val = get_index(x_buf, &(inp[0].1.index_expression(), inp[0].1.valid_expression()), &mut stack, idx);
+            let y_val = one / x_val;
+            out_data[idx] = y_val;
+
+            let lhs_mult = if node_info.inputs[0].is_initializer {
+                BaseField::zero()
+            } else {
+                -BaseField::one()
+            };
+            let rhs_mult = BaseField::zero();
+            let out_mult = if node_info.output.is_final_output {
+                BaseField::zero()
+            } else {
+                BaseField::one() * BaseField::from_u32_unchecked(node_info.num_consumers)
+            };
+
+            let is_last_idx: u32 = if idx == (output_size - 1) { 1 } else { 0 };
+
+            table.add_row(RecipTableRow {
+                node_id,
+                lhs_id,
+                rhs_id,
+                idx: idx.into(),
+                is_last_idx: (is_last_idx).into(),
+                next_idx: (idx + 1).into(),
+                next_node_id: node_id,
+                next_lhs_id: lhs_id,
+                next_rhs_id: rhs_id,
+                lhs: x_val.to_m31(),
+                rhs: BaseField::one(),
+                out: y_val.to_m31(),
+                lhs_mult,
+                rhs_mult,
+                out_mult,
+            });
+        }
+
+        vec![Tensor::new(StwoData(Arc::new(out_data)))]
+    }
+}
+
+impl Operator for LuminairRecip {
+    fn process(&mut self, _inp: Vec<(InputTensor, ShapeTracker)>) -> Vec<Tensor> {
+        unimplemented!()
+    }
+}
+
+
+
 // ================== COMPILER ==================
 
 /// Compiles primitive operations into provable forms for LuminAIR.
@@ -394,6 +474,8 @@ impl Compiler for PrimitiveCompiler {
                 *op_ref = LuminairAdd::new().into_operator()
             } else if is::<luminal::op::Mul>(op) {
                 *op_ref = LuminairMul::new().into_operator()
+            } else if is::<luminal::op::Recip>(op) {
+                *op_ref = LuminairRecip::new().into_operator()
             } else if is::<luminal::op::Contiguous>(op) {
                 *op_ref = Box::new(Contiguous)
             }
