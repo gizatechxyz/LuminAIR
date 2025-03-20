@@ -66,11 +66,11 @@ impl FrameworkEval for RecipEval {
         // The output value must equal the product of the input values.
         eval.eval_fixed_mul(
             lhs_val.clone(),
-            rhs_val.clone(),
+            out_val.clone(),
             E::F::one(),
             E::F::one(),
             E::F::zero(),
-        ); //TODO: check rem equal zero
+        ); //TODO: check rem equal zero 
 
         // ┌────────────────────────────┐
         // │   Transition Constraints   │
