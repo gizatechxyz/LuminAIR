@@ -6,6 +6,10 @@ use mul::{
     component::{MulComponent, MulEval},
     table::MulColumn,
 };
+use recip::{
+    component::{RecipComponent, RecipEval},
+    table::RecipColumn,
+};
 use serde::{Deserialize, Serialize};
 use stwo_prover::{
     constraint_framework::{preprocessed_columns::IsFirst, TraceLocationAllocator},
@@ -26,7 +30,7 @@ use crate::{LuminairClaim, LuminairInteractionClaim};
 
 pub mod add;
 pub mod mul;
-
+pub mod recip;
 /// Errors related to trace operations.
 #[derive(Debug, Error, Eq, PartialEq)]
 pub enum TraceError {
@@ -42,6 +46,8 @@ pub type TraceEval = ColumnVec<CircleEvaluation<SimdBackend, BaseField, BitRever
 pub type AddClaim = Claim<AddColumn>;
 /// Claim for the Mul trace.
 pub type MulClaim = Claim<MulColumn>;
+/// Claim for the Recip trace.
+pub type RecipClaim = Claim<RecipColumn>;
 
 /// Represents columns of a trace.
 pub trait TraceColumn {
@@ -96,6 +102,7 @@ impl<T: TraceColumn> Claim<T> {
 pub enum ClaimType {
     Add(Claim<AddColumn>),
     Mul(Claim<MulColumn>),
+    Recip(Claim<RecipColumn>),
 }
 
 /// The claim of the interaction phase 2 (with the logUp protocol).
@@ -150,6 +157,7 @@ impl LuminairInteractionElements {
 pub struct LuminairComponents {
     add: Option<AddComponent>,
     mul: Option<MulComponent>,
+    recip: Option<RecipComponent>,
 }
 
 impl LuminairComponents {
@@ -194,7 +202,20 @@ impl LuminairComponents {
             None
         };
 
-        Self { add, mul }
+        let recip = if let Some(ref recip_claim) = claim.recip {
+            Some(RecipComponent::new(
+                tree_span_provider,
+                RecipEval::new(
+                    &recip_claim,
+                    interaction_elements.node_lookup_elements.clone(),
+                ),
+                interaction_claim.recip.as_ref().unwrap().claimed_sum,
+            ))
+        } else {
+            None
+        };
+
+        Self { add, mul, recip }
     }
 
     /// Returns the `ComponentProver` of each components, used by the prover.
@@ -206,6 +227,9 @@ impl LuminairComponents {
         }
         if let Some(ref mul_component) = self.mul {
             components.push(mul_component);
+        }
+        if let Some(ref recip_component) = self.recip {
+            components.push(recip_component);
         }
         components
     }

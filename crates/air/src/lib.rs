@@ -3,7 +3,7 @@
 use std::vec;
 
 use ::serde::{Deserialize, Serialize};
-use components::{AddClaim, InteractionClaim, MulClaim};
+use components::{AddClaim, InteractionClaim, MulClaim, RecipClaim};
 use pie::ExecutionResources;
 use stwo_prover::constraint_framework::PREPROCESSED_TRACE_IDX;
 use stwo_prover::core::{
@@ -31,6 +31,7 @@ pub struct LuminairProof<H: MerkleHasher> {
 pub struct LuminairClaim {
     pub add: Option<AddClaim>,
     pub mul: Option<MulClaim>,
+    pub recip: Option<RecipClaim>,
     pub is_first_log_sizes: Vec<u32>,
 }
 
@@ -40,6 +41,7 @@ impl LuminairClaim {
         Self {
             add: None,
             mul: None,
+            recip: None,
             is_first_log_sizes,
         }
     }
@@ -64,6 +66,9 @@ impl LuminairClaim {
         if let Some(ref mul) = self.mul {
             log_sizes.push(mul.log_sizes());
         }
+        if let Some(ref recip) = self.recip {
+            log_sizes.push(recip.log_sizes());
+        }
 
         let mut log_sizes = TreeVec::concat_cols(log_sizes.into_iter());
         log_sizes[PREPROCESSED_TRACE_IDX] = self.is_first_log_sizes.clone();
@@ -78,13 +83,20 @@ impl LuminairClaim {
 pub struct LuminairInteractionClaim {
     pub add: Option<InteractionClaim>,
     pub mul: Option<InteractionClaim>,
+    pub recip: Option<InteractionClaim>,
 }
 
 impl LuminairInteractionClaim {
     /// Mixes interaction claim data into a Fiat-Shamir channel.
     pub fn mix_into(&self, channel: &mut impl Channel) {
+        if let Some(ref add) = self.add {
+            add.mix_into(channel);
+        }
         if let Some(ref mul) = self.mul {
             mul.mix_into(channel);
+        }
+        if let Some(ref recip) = self.recip {
+            recip.mix_into(channel);
         }
     }
 }

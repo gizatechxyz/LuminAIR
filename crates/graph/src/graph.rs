@@ -12,6 +12,10 @@ use luminair_air::{
             self,
             table::{MulColumn, MulTable},
         },
+        recip::{
+            self,
+            table::{RecipColumn, RecipTable},
+        },
         ClaimType, LuminairComponents, LuminairInteractionElements, TraceError, TraceEval,
     },
     pie::{ExecutionResources, InputInfo, LuminairPie, NodeInfo, OpCounter, OutputInfo, Trace},
@@ -84,7 +88,7 @@ impl LuminairGraph for Graph {
         // Initilializes table for each operator
         let mut add_table: AddTable = AddTable::new();
         let mut mul_table: MulTable = MulTable::new();
-
+        let mut recip_table: RecipTable = RecipTable::new();
         for (node, src_ids) in self.linearized_graph.as_ref().unwrap() {
             if self.tensors.contains_key(&(*node, 0)) {
                 continue;
@@ -186,11 +190,22 @@ impl LuminairGraph for Graph {
                     *op_counter.mul.get_or_insert(0) += 1;
 
                     tensors
+                } else if <Box<dyn Operator> as HasProcessTrace<RecipColumn, RecipTable>>::has_process_trace(
+                    node_op,
+                ) {
+                    let tensors = <Box<dyn Operator> as HasProcessTrace<
+                        RecipColumn,
+                        RecipTable,
+                    >>::call_process_trace(
+                        node_op, srcs, &mut recip_table, &node_info
+                    )
+                    .unwrap();
+                    *op_counter.recip.get_or_insert(0) += 1;
+
+                    tensors
                 } else {
-                    // Handle other operators or fallback
                     node_op.process(srcs)
                 };
-
             for (i, tensor) in tensors.into_iter().enumerate() {
                 self.tensors.insert((*node, i as u8), tensor);
             }
@@ -222,6 +237,15 @@ impl LuminairGraph for Graph {
             traces.push(Trace::new(
                 SerializableTrace::from(&trace),
                 ClaimType::Mul(claim),
+            ));
+        }
+        if !recip_table.table.is_empty() {
+            let (trace, claim) = recip_table.trace_evaluation()?;
+            max_log_size = max_log_size.max(claim.log_size);
+
+            traces.push(Trace::new(
+                SerializableTrace::from(&trace),
+                ClaimType::Recip(claim),
             ));
         }
 
@@ -287,6 +311,7 @@ impl LuminairGraph for Graph {
             match trace.claim {
                 ClaimType::Add(claim) => main_claim.add = Some(claim),
                 ClaimType::Mul(claim) => main_claim.mul = Some(claim),
+                ClaimType::Recip(claim) => main_claim.recip = Some(claim),
             }
         }
 
@@ -323,6 +348,13 @@ impl LuminairGraph for Graph {
                         mul::table::interaction_trace_evaluation(&trace, lookup_elements).unwrap();
                     tree_builder.extend_evals(tr);
                     interaction_claim.mul = Some(cl);
+                }
+                ClaimType::Recip(_) => {
+                    let (tr, cl) =
+                        recip::table::interaction_trace_evaluation(&trace, lookup_elements)
+                            .unwrap();
+                    tree_builder.extend_evals(tr);
+                    interaction_claim.recip = Some(cl);
                 }
             }
         }
