@@ -163,3 +163,46 @@ pub fn assert_close_precision(a_vec: &[f32], b_vec: &[f32], threshold: f32) {
         }
     }
 }
+
+#[macro_export]
+macro_rules! single_unary_test {
+    ($func:expr, $name:ident, $type:ty, ($rows:expr, $cols:expr)) => {
+        paste::paste! {
+            #[test]
+            fn [<$name _ $rows x $cols>]() {
+                let mut rng = StdRng::seed_from_u64(42);
+                let a_data = random_vec_rng($rows * $cols, &mut rng);
+
+                let mut cx = Graph::new();
+                let a = cx.tensor(($rows, $cols)).set(a_data.clone());
+
+                let f: fn(GraphTensor) -> GraphTensor = $func;
+                let mut c = f(a).retrieve();
+
+                cx.compile(<(GenericCompiler, StwoCompiler)>::default(), &mut c);
+                let trace = cx.gen_trace().expect("Trace generation failed");
+                let proof = cx.prove(trace).expect("Proof generation failed");
+                cx.verify(proof).expect("Proof verification failed");
+                let stwo_output = c.data();
+
+                let mut cx_cpu = Graph::new();
+                let a_cpu = cx_cpu.tensor(($rows, $cols)).set(a_data);
+                let mut c_cpu = f(a_cpu).retrieve();
+                cx_cpu.compile(<(GenericCompiler, CPUCompiler)>::default(), &mut c_cpu);
+                cx_cpu.execute();
+                let cpu_output = c_cpu.data();
+
+                assert_close(&stwo_output, &cpu_output);
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! unary_test {
+    ($func:expr, $name:ident, $type:ty) => {
+        $crate::single_unary_test!($func, $name, $type, (3, 4));
+        $crate::single_unary_test!($func, $name, $type, (32, 32));
+        $crate::single_unary_test!($func, $name, $type, (17, 13));       $crate::single_unary_test!($func, $name, $type, (1, 1));
+    };
+}
