@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1741965612639,
+  "lastUpdate": 1742468686459,
   "repoUrl": "https://github.com/gizatechxyz/LuminAIR",
   "entries": {
     "LuminAIR Benchmarks": [
@@ -599,6 +599,66 @@ window.BENCHMARK_DATA = {
             "name": "Mul Operator/Verification (32x32)",
             "value": 282315,
             "range": "± 8928",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "113879115+raphaelDkhn@users.noreply.github.com",
+            "name": "raphaelDkhn",
+            "username": "raphaelDkhn"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ee0c42249d0ab7df39b4cca51e68a1566fa564f4",
+          "message": "Merge pull request #45 from blewater/lazy_trace_generation\n\nrefactor: Optimize trace generation by storing tables directly in LuminairPie",
+          "timestamp": "2025-03-20T13:01:24+02:00",
+          "tree_id": "2f56ca8965fc09923342c902cff7087f897fbc89",
+          "url": "https://github.com/gizatechxyz/LuminAIR/commit/ee0c42249d0ab7df39b4cca51e68a1566fa564f4"
+        },
+        "date": 1742468686139,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "Add Operator/Trace Generation (32x32)",
+            "value": 94702,
+            "range": "± 1284",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Add Operator/Proving (32x32)",
+            "value": 13671079,
+            "range": "± 108014",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Add Operator/Verification (32x32)",
+            "value": 266125,
+            "range": "± 6499",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Mul Operator/Trace Generation (32x32)",
+            "value": 97977,
+            "range": "± 773",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Mul Operator/Proving (32x32)",
+            "value": 13717296,
+            "range": "± 53622",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Mul Operator/Verification (32x32)",
+            "value": 271896,
+            "range": "± 8815",
             "unit": "ns/iter"
           }
         ]
