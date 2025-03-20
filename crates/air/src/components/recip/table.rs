@@ -19,14 +19,14 @@ use num_traits::One;
 
 /// Represents the trace for the Recip component, containing the required registers for its
 /// constraints.
-#[derive(Debug, Default, PartialEq, Eq, Clone)]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct RecipTable {
     /// A vector of [`RecipTableRow`] representing the table rows.
     pub table: Vec<RecipTableRow>,
 }
 
 /// Represents a single row of the [`RecipTable`]
-#[derive(Debug, Default, PartialEq, Eq, Clone)]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub struct RecipTableRow {
     pub node_id: BaseField,
     pub lhs_id: BaseField,

@@ -16,11 +16,12 @@ use luminair_air::{
             self,
             table::{RecipColumn, RecipTable},
         },
-        ClaimType, LuminairComponents, LuminairInteractionElements, TraceError, TraceEval,
+        ClaimType, LuminairComponents, LuminairInteractionElements, TraceError,
     },
-    pie::{ExecutionResources, InputInfo, LuminairPie, NodeInfo, OpCounter, OutputInfo, Trace},
-    serde::SerializableTrace,
-    utils::{get_is_first_log_sizes, lookup_sum_valid},
+    pie::{
+        ExecutionResources, InputInfo, LuminairPie, NodeInfo, OpCounter, OutputInfo, TableTrace,
+    },
+    utils::{calculate_log_size, get_is_first_log_sizes, lookup_sum_valid},
     LuminairClaim, LuminairInteractionClaim, LuminairProof,
 };
 use luminal::{
@@ -80,8 +81,9 @@ impl LuminairGraph for Graph {
         let mut consumers = self.consumers_map.as_ref().unwrap().clone();
         let mut dim_stack = Vec::new();
 
-        // Initialize trace collectors for different operators
-        let mut traces = Vec::new();
+        // Initialize table traces for different operators
+        let mut table_traces = Vec::new();
+
         // Initializes operator counter
         let mut op_counter = OpCounter::default();
 
@@ -222,35 +224,27 @@ impl LuminairGraph for Graph {
         let mut max_log_size = 0;
 
         if !add_table.table.is_empty() {
-            let (trace, claim) = add_table.trace_evaluation()?;
-            max_log_size = max_log_size.max(claim.log_size);
+            let log_size = calculate_log_size(add_table.table.len());
+            max_log_size = max_log_size.max(log_size);
 
-            traces.push(Trace::new(
-                SerializableTrace::from(&trace),
-                ClaimType::Add(claim),
-            ));
+            table_traces.push(TableTrace::from_add(add_table));
         }
-        if !mul_table.table.is_empty() {
-            let (trace, claim) = mul_table.trace_evaluation()?;
-            max_log_size = max_log_size.max(claim.log_size);
 
-            traces.push(Trace::new(
-                SerializableTrace::from(&trace),
-                ClaimType::Mul(claim),
-            ));
+        if !mul_table.table.is_empty() {
+            let log_size = calculate_log_size(mul_table.table.len());
+            max_log_size = max_log_size.max(log_size);
+
+            table_traces.push(TableTrace::from_mul(mul_table));
         }
         if !recip_table.table.is_empty() {
-            let (trace, claim) = recip_table.trace_evaluation()?;
-            max_log_size = max_log_size.max(claim.log_size);
+            let log_size = calculate_log_size(recip_table.table.len());
+            max_log_size = max_log_size.max(log_size);
 
-            traces.push(Trace::new(
-                SerializableTrace::from(&trace),
-                ClaimType::Recip(claim),
-            ));
+            table_traces.push(TableTrace::from_recip(recip_table));
         }
 
         Ok(LuminairPie {
-            traces,
+            table_traces,
             execution_resources: ExecutionResources {
                 op_counter,
                 max_log_size,
@@ -303,12 +297,24 @@ impl LuminairGraph for Graph {
         tracing::info!("Main Trace");
         let mut tree_builder = commitment_scheme.tree_builder();
         let mut main_claim = LuminairClaim::new(is_first_log_sizes.clone());
+        let mut processed_traces = Vec::new();
 
-        for trace in pie.traces.clone().into_iter() {
-            // Add the components' trace evaluation to the commit tree.
-            tree_builder.extend_evals(trace.eval.to_trace());
+        for table_trace in pie.table_traces {
+            let (trace, claim_type) = match table_trace.to_trace() {
+                Ok(result) => result,
+                Err(err) => {
+                    tracing::error!("Trace evaluation failed: {:?}", err);
+                    return Err(ProvingError::ConstraintsNotSatisfied);
+                }
+            };
 
-            match trace.claim {
+            processed_traces.push((trace.clone(), claim_type.clone()));
+
+            // Add the trace to the commit tree.
+            tree_builder.extend_evals(trace.clone());
+
+            // Update the main claim based the correct claim type
+            match claim_type {
                 ClaimType::Add(claim) => main_claim.add = Some(claim),
                 ClaimType::Mul(claim) => main_claim.mul = Some(claim),
                 ClaimType::Recip(claim) => main_claim.recip = Some(claim),
@@ -330,16 +336,13 @@ impl LuminairGraph for Graph {
         let mut tree_builder = commitment_scheme.tree_builder();
         let mut interaction_claim = LuminairInteractionClaim::default();
 
-        for trace in pie.traces.into_iter() {
-            let claim = trace.claim;
-            let trace: TraceEval = trace.eval.to_trace();
-            let lookup_elements = &interaction_elements.node_lookup_elements;
+        let lookup_elements = &interaction_elements.node_lookup_elements;
 
-            match claim {
+        for (trace, claim_type) in processed_traces {
+            match claim_type {
                 ClaimType::Add(_) => {
                     let (tr, cl) =
                         add::table::interaction_trace_evaluation(&trace, lookup_elements).unwrap();
-
                     tree_builder.extend_evals(tr);
                     interaction_claim.add = Some(cl);
                 }
@@ -459,4 +462,40 @@ impl LuminairGraph for Graph {
 
         Ok(())
     }
+}
+
+#[test]
+fn test_direct_table_trace_processing() {
+    use crate::StwoCompiler;
+
+    let mut cx = Graph::new();
+    let a = cx.tensor((10, 10)).set(vec![1.0; 100]);
+    let b = cx.tensor((10, 10)).set(vec![2.0; 100]);
+    let c = a * b;
+    let mut d = (c + a).retrieve();
+
+    cx.compile(<(GenericCompiler, StwoCompiler)>::default(), &mut d);
+
+    // Generate trace with direct table storage
+    let trace = cx.gen_trace().expect("Trace generation failed");
+
+    // Verify that table traces contain both operation types
+    let has_add = trace
+        .table_traces
+        .iter()
+        .any(|t| matches!(t, TableTrace::Add { .. }));
+    let has_mul = trace
+        .table_traces
+        .iter()
+        .any(|t| matches!(t, TableTrace::Mul { .. }));
+
+    assert!(has_add, "Should contain Add table traces");
+    assert!(has_mul, "Should contain Mul table traces");
+
+    // Verify the end-to-end proof pipeline
+    let proof = cx.prove(trace).expect("Proof generation failed");
+    assert!(
+        cx.verify(proof).is_ok(),
+        "Proof verification should succeed"
+    );
 }

@@ -1,24 +1,75 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{components::ClaimType, serde::SerializableTrace};
+use crate::components::{
+    add::table::AddTable, mul::table::MulTable, recip::table::RecipTable, ClaimType, TraceError,
+    TraceEval,
+};
+
+/// Represents an operator's trace table along with its claim before conversion
+/// to a serialized trace format. Used to defer trace evaluation until proving.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub enum TableTrace {
+    /// Addition operator trace table.
+    Add { table: AddTable },
+    /// Multiplication operator trace table.
+    Mul { table: MulTable },
+    /// Reciprocal operator trace table.
+    Recip { table: RecipTable },
+}
+
+impl TableTrace {
+    /// Creates a new [`TableTrace`] from an [`AddTable`]
+    /// for use in the proof generation.
+    pub fn from_add(table: AddTable) -> Self {
+        Self::Add { table }
+    }
+
+    /// Creates a new [`TableTrace`] from a [`MulTable`]
+    /// for use in the proof generation.
+    pub fn from_mul(table: MulTable) -> Self {
+        Self::Mul { table }
+    }
+
+    pub fn from_recip(table: RecipTable) -> Self {
+        Self::Recip { table }
+    }
+
+    pub fn to_trace(&self) -> Result<(TraceEval, ClaimType), TraceError> {
+        match self {
+            TableTrace::Add { table } => {
+                let (trace, claim) = table.trace_evaluation()?;
+                Ok((trace, ClaimType::Add(claim)))
+            }
+
+            TableTrace::Mul { table } => {
+                let (trace, claim) = table.trace_evaluation()?;
+                Ok((trace, ClaimType::Mul(claim)))
+            }
+
+            TableTrace::Recip { table } => {
+                let (trace, claim) = table.trace_evaluation()?;
+                Ok((trace, ClaimType::Recip(claim)))
+            }
+        }
+    }
+}
 
 /// Container for traces and execution resources of a computational graph.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LuminairPie {
-    pub traces: Vec<Trace>,
+    pub table_traces: Vec<TableTrace>,
     pub execution_resources: ExecutionResources,
 }
 
 /// Represents a single trace with its evaluation, claim, and node information.
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Trace {
-    pub eval: SerializableTrace,
     pub claim: ClaimType,
 }
 
 impl Trace {
-    pub fn new(eval: SerializableTrace, claim: ClaimType) -> Self {
-        Self { eval, claim }
+    pub fn new(claim: ClaimType) -> Self {
+        Self { claim }
     }
 }
 

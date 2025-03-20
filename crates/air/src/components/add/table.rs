@@ -19,14 +19,14 @@ use crate::{
 
 /// Represents the trace for the Add component, containing the required registers for its
 /// constraints.
-#[derive(Debug, Default, PartialEq, Eq, Clone)]
+#[derive(Debug, Default, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AddTable {
     /// A vector of [`AddTableRow`] representing the table rows.
     pub table: Vec<AddTableRow>,
 }
 
 /// Represents a single row of the [`AddTable`]
-#[derive(Debug, Default, PartialEq, Eq, Clone)]
+#[derive(Debug, Default, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AddTableRow {
     pub node_id: BaseField,
     pub lhs_id: BaseField,

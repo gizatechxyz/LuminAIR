@@ -12,7 +12,6 @@ use stwo_prover::core::{
 
 pub mod components;
 pub mod pie;
-pub mod serde;
 pub mod utils;
 
 /// STARK proof for a Luminair computational graph execution.

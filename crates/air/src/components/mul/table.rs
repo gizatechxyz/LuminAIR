@@ -19,14 +19,14 @@ use num_traits::One;
 
 /// Represents the trace for the Mul component, containing the required registers for its
 /// constraints.
-#[derive(Debug, Default, PartialEq, Eq, Clone)]
+#[derive(Debug, Default, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct MulTable {
     /// A vector of [`MulTableRow`] representing the table rows.
     pub table: Vec<MulTableRow>,
 }
 
 /// Represents a single row of the [`MulTable`]
-#[derive(Debug, Default, PartialEq, Eq, Clone)]
+#[derive(Debug, Default, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
 pub struct MulTableRow {
     pub node_id: BaseField,
     pub lhs_id: BaseField,

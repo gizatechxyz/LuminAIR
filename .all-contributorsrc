@@ -23,6 +23,15 @@
       "contributions": [
         "doc"
       ]
+    },
+    {
+      "login": "blewater",
+      "name": "Mario Karagiorgas",
+      "avatar_url": "https://avatars.githubusercontent.com/u/2580304?v=4",
+      "profile": "https://github.com/blewater",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
