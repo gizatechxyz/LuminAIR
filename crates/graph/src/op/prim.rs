@@ -1,6 +1,7 @@
 use luminair_air::{
     components::{
         add::table::{AddColumn, AddTable, AddTableRow},
+        max_reduce::table::{MaxReduceColumn, MaxReduceTable, MaxReduceTableRow},
         mul::table::{MulColumn, MulTable, MulTableRow},
     },
     pie::NodeInfo,
@@ -277,6 +278,122 @@ impl Operator for LuminairMul {
         unimplemented!()
     }
 }
+
+/// Implements max-reduce operation for LuminAIR.
+/// This computes the maximum value across an input tensor along a specific dimension.
+#[derive(Debug, Clone, Default, PartialEq)]
+struct LuminairMaxReduce {}
+
+impl LuminairMaxReduce {
+    /// Creates a new `LuminairMaxReduce` instance.
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl LuminairOperator<MaxReduceColumn, MaxReduceTable> for LuminairMaxReduce {
+    /// Processes an input tensor, generating a trace, claim, and output tensor.
+    fn process_trace(
+        &mut self,
+        inp: Vec<(InputTensor, ShapeTracker)>,
+        table: &mut MaxReduceTable,
+        node_info: &NodeInfo,
+    ) -> Vec<Tensor> {
+        // Get the input buffer and its shape information
+        let input = get_buffer_from_tensor(&inp[0].0);
+        let expr = (inp[0].1.index_expression(), inp[0].1.valid_expression());
+        
+        let mut stack: Vec<i64> = vec![];
+        let input_size = inp[0].1.n_elements().to_usize().unwrap();
+        
+        if input_size == 0 {
+            // Return a zero tensor if input is empty
+            return vec![Tensor::new(StwoData(Arc::new(vec![Fixed::zero()])))];
+        }
+        
+        // Set up node IDs
+        let node_id: BaseField = node_info.id.into();
+        let input_id: BaseField = node_info.inputs[0].id.into();
+        
+        // Initialize with the first element as the current max
+        let mut current_max = get_index(input, &expr, &mut stack, 0);
+        
+        // Process each row in the table
+        for idx in 0..input_size {
+            let input_val = get_index(input, &expr, &mut stack, idx);
+            
+            // For idx=0, current_max_val == input_val (constraint in the AIR)
+            // For idx>0, current_max_val is the running max from previous iterations
+            let current_max_val = if idx == 0 {
+                input_val.to_m31()
+            } else {
+                current_max.to_m31()
+            };
+            
+            // Flag is_new_max if the current input is greater than the running max
+            let is_new_max = if idx == 0 || input_val.0 > current_max.0 {
+                BaseField::one()
+            } else {
+                BaseField::zero()
+            };
+            
+            // Update current_max if we found a new maximum
+            if is_new_max == BaseField::one() && idx > 0 {
+                current_max = input_val;
+            }
+            
+            // Calculate next_max_val based on whether this is a new max
+            let next_max_val = if is_new_max == BaseField::one() {
+                input_val.to_m31()
+            } else {
+                current_max_val
+            };
+            
+            // Multiplicities for interaction constraints
+            let input_mult = if node_info.inputs[0].is_initializer {
+                BaseField::zero()
+            } else {
+                -BaseField::one()
+            };
+            
+            let out_mult = if node_info.output.is_final_output {
+                BaseField::zero()
+            } else {
+                BaseField::one() * BaseField::from_u32_unchecked(node_info.num_consumers)
+            };
+            
+            // Is this the last idx in the operation?
+            let is_last_idx: u32 = if idx == (input_size - 1) { 1 } else { 0 };
+            
+            // Add row to the trace table
+            table.add_row(MaxReduceTableRow {
+                node_id,
+                input_id,
+                idx: idx.into(),
+                is_last_idx: is_last_idx.into(),
+                next_node_id: node_id,
+                next_input_id: input_id,
+                next_idx: (idx + 1).into(),
+                input_val: input_val.to_m31(),
+                current_max_val,
+                next_max_val,
+                is_new_max,
+                input_mult,
+                out_mult,
+            });
+        }
+        
+        // Return a tensor with the maximum value
+        vec![Tensor::new(StwoData(Arc::new(vec![current_max])))]
+    }
+}
+
+impl Operator for LuminairMaxReduce {
+    /// This method is not used as `process_trace` handles all computation for this operator.
+    fn process(&mut self, _inp: Vec<(InputTensor, ShapeTracker)>) -> Vec<Tensor> {
+        unimplemented!()
+    }
+}
 // ================== COMPILER ==================
 
 /// Compiles primitive operations into provable forms for LuminAIR.
@@ -394,6 +511,8 @@ impl Compiler for PrimitiveCompiler {
                 *op_ref = LuminairAdd::new().into_operator()
             } else if is::<luminal::op::Mul>(op) {
                 *op_ref = LuminairMul::new().into_operator()
+            } else if is::<luminal::op::MaxReduce>(op) {
+                *op_ref = LuminairMaxReduce::new().into_operator()
             } else if is::<luminal::op::Contiguous>(op) {
                 *op_ref = Box::new(Contiguous)
             }

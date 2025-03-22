@@ -8,6 +8,10 @@ use luminair_air::{
             self,
             table::{AddColumn, AddTable},
         },
+        max_reduce::{
+            self,
+            table::{MaxReduceColumn, MaxReduceTable},
+        },
         mul::{
             self,
             table::{MulColumn, MulTable},
@@ -84,6 +88,7 @@ impl LuminairGraph for Graph {
         // Initilializes table for each operator
         let mut add_table: AddTable = AddTable::new();
         let mut mul_table: MulTable = MulTable::new();
+        let mut max_reduce_table: MaxReduceTable = MaxReduceTable::new();
 
         for (node, src_ids) in self.linearized_graph.as_ref().unwrap() {
             if self.tensors.contains_key(&(*node, 0)) {
@@ -173,7 +178,7 @@ impl LuminairGraph for Graph {
                     *op_counter.add.get_or_insert(0) += 1;
 
                     tensors
-                }  else if <Box<dyn Operator> as HasProcessTrace<MulColumn, MulTable>>::has_process_trace(
+                } else if <Box<dyn Operator> as HasProcessTrace<MulColumn, MulTable>>::has_process_trace(
                     node_op,
                 ) {
                     let tensors = <Box<dyn Operator> as HasProcessTrace<
@@ -184,6 +189,19 @@ impl LuminairGraph for Graph {
                     )
                     .unwrap();
                     *op_counter.mul.get_or_insert(0) += 1;
+
+                    tensors
+                } else if <Box<dyn Operator> as HasProcessTrace<MaxReduceColumn, MaxReduceTable>>::has_process_trace(
+                    node_op,
+                ) {
+                    let tensors = <Box<dyn Operator> as HasProcessTrace<
+                        MaxReduceColumn,
+                        MaxReduceTable,
+                    >>::call_process_trace(
+                        node_op, srcs, &mut max_reduce_table, &node_info
+                    )
+                    .unwrap();
+                    *op_counter.max_reduce.get_or_insert(0) += 1;
 
                     tensors
                 } else {
@@ -222,6 +240,15 @@ impl LuminairGraph for Graph {
             traces.push(Trace::new(
                 SerializableTrace::from(&trace),
                 ClaimType::Mul(claim),
+            ));
+        }
+        if !max_reduce_table.table.is_empty() {
+            let (trace, claim) = max_reduce_table.trace_evaluation()?;
+            max_log_size = max_log_size.max(claim.log_size);
+
+            traces.push(Trace::new(
+                SerializableTrace::from(&trace),
+                ClaimType::MaxReduce(claim),
             ));
         }
 
@@ -287,6 +314,7 @@ impl LuminairGraph for Graph {
             match trace.claim {
                 ClaimType::Add(claim) => main_claim.add = Some(claim),
                 ClaimType::Mul(claim) => main_claim.mul = Some(claim),
+                ClaimType::MaxReduce(claim) => main_claim.max_reduce = Some(claim),
             }
         }
 
@@ -323,6 +351,12 @@ impl LuminairGraph for Graph {
                         mul::table::interaction_trace_evaluation(&trace, lookup_elements).unwrap();
                     tree_builder.extend_evals(tr);
                     interaction_claim.mul = Some(cl);
+                }
+                ClaimType::MaxReduce(_) => {
+                    let (tr, cl) =
+                        max_reduce::table::interaction_trace_evaluation(&trace, lookup_elements).unwrap();
+                    tree_builder.extend_evals(tr);
+                    interaction_claim.max_reduce = Some(cl);
                 }
             }
         }
