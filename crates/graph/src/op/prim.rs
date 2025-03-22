@@ -2,6 +2,7 @@ use luminair_air::{
     components::{
         add::table::{AddColumn, AddTable, AddTableRow},
         mul::table::{MulColumn, MulTable, MulTableRow},
+        sum_reduce::table::{SumReduceColumn, SumReduceTable, SumReduceTableRow},
     },
     pie::NodeInfo,
 };
@@ -11,7 +12,7 @@ use luminal::{
 };
 use num_traits::{identities::Zero, One};
 use numerair::Fixed;
-use std::sync::Arc;
+use std::{ops::Deref, sync::Arc};
 use stwo_prover::core::fields::m31::BaseField;
 
 use crate::{
@@ -277,6 +278,113 @@ impl Operator for LuminairMul {
         unimplemented!()
     }
 }
+
+
+/// Implements element-wise Sum Reduce for LuminAIR.
+#[derive(Debug, Clone, Default, PartialEq)]
+struct LuminairSumReduce(pub usize);
+
+impl LuminairSumReduce {
+    /// Creates a new `LuminairSumReduce` instance.
+    pub fn new(value: usize) -> Self {
+        Self(value)
+    }
+}
+
+impl LuminairOperator<SumReduceColumn, SumReduceTable> for LuminairSumReduce {
+    /// Processes two input tensors, generating a trace, claim, and output tensor.
+    fn process_trace(
+        &mut self,
+        inp: Vec<(InputTensor, ShapeTracker)>,
+        table: &mut SumReduceTable,
+        node_info: &NodeInfo,
+    ) -> Vec<Tensor> {
+        let sh = inp[0].1.shape_usize();
+        let front_size = sh.iter().take(self.0).product::<usize>().max(1);
+        let back_size = sh.iter().skip(self.0 + 1).product::<usize>().max(1);
+        let dim_size = sh[self.0];
+
+        let output_size = front_size * back_size;
+        let mut out_data = vec![Fixed::zero(); output_size];
+        let input= get_buffer_from_tensor(&inp[0].0);
+        let expr = (inp[0].1.index_expression(), inp[0].1.valid_expression());
+        let mut stack: Vec<i64> = vec![];
+
+        let node_id: BaseField = node_info.id.into();
+        let lhs_id: BaseField = node_info.inputs[0].id.into();
+        let rhs_id: BaseField = BaseField::zero();
+
+        for i in 0..front_size {
+
+            for j in 0..back_size {
+
+                let mut acc = Fixed::zero(); // Initialize accumulator for each (i, j)
+                for k in 0..dim_size {
+                    let orig_index = i * dim_size * back_size + k * back_size + j;
+                    let lhs_val = get_index(input, &expr, &mut stack, orig_index);
+                    let next_acc = acc + lhs_val; // Compute next accumulator
+
+                    // Set out_data only in the last reduction step
+                    let (out_val, is_last_step )= if k == dim_size - 1 {
+                        out_data[i * back_size + j] = next_acc;
+                        (next_acc, BaseField::one())
+                    } else {
+                        (Fixed::zero(), BaseField::zero()) // Placeholder for incomplete reductions
+                    };
+
+                    let lhs_mult = if node_info.inputs[0].is_initializer {
+                        BaseField::zero()
+                    } else {
+                        -BaseField::one()
+                    };
+                    let rhs_mult = BaseField::zero();
+                    let out_mult = if node_info.output.is_final_output {
+                        BaseField::zero()
+                    } else {
+                        BaseField::one() * BaseField::from_u32_unchecked(node_info.num_consumers)
+                    };
+                    let idx = i * back_size + j; // Correct index for out_data
+                    // let is_last_idx: u32 = if (front_size * back_size) == output_size - 1 { 1 } else { 0 };
+
+                    let is_last_idx: u32 = if idx == (output_size - 1) { 1 } else { 0 };
+    
+                    // Add row to the trace table with acc and next_acc
+                    table.add_row(SumReduceTableRow {
+                        node_id,
+                        lhs_id,
+                        rhs_id,
+                        idx: idx.into(),
+                        is_last_idx: (is_last_idx).into(),
+                        next_idx: (idx + 1).into(),
+                        next_node_id: node_id,
+                        next_lhs_id: lhs_id,
+                        next_rhs_id: rhs_id,
+                        lhs: lhs_val.to_m31(),
+                        rhs: BaseField::zero(),
+                        out: out_val.to_m31(),
+                        acc: acc.to_m31(),
+                        next_acc: next_acc.to_m31(),
+                        is_last_step: is_last_step,
+                        lhs_mult,
+                        rhs_mult,
+                        out_mult,
+                    });
+                    acc = next_acc;
+                }
+
+            }
+        }
+        vec![Tensor::new(StwoData(Arc::new(out_data)))]
+    }
+}
+
+impl Operator for LuminairSumReduce {
+    /// This method is not used as `process_trace` handles all computation for this operator.
+    fn process(&mut self, _inp: Vec<(InputTensor, ShapeTracker)>) -> Vec<Tensor> {
+        unimplemented!()
+    }
+}
+
 // ================== COMPILER ==================
 
 /// Compiles primitive operations into provable forms for LuminAIR.
@@ -385,6 +493,7 @@ impl Compiler for PrimitiveCompiler {
 
         // Replace Luminal's ops with LuminAIR ops
         for id in graph.node_indices().collect::<Vec<_>>() {
+
             let op = graph.node_weight(id).unwrap().as_any().type_id();
             let op_ref = graph.graph.node_weight_mut(id).unwrap();
 
@@ -394,7 +503,20 @@ impl Compiler for PrimitiveCompiler {
                 *op_ref = LuminairAdd::new().into_operator()
             } else if is::<luminal::op::Mul>(op) {
                 *op_ref = LuminairMul::new().into_operator()
-            } else if is::<luminal::op::Contiguous>(op) {
+            } else if is::<luminal::op::SumReduce>(op) {
+                // TODO
+                // How to instatntiate without hardcoding
+
+                let new_op = op_ref.deref();
+
+                let dim_index = if let Some(sum_reduce) = new_op.as_any().downcast_ref::<SumReduce>() {
+                    sum_reduce.0 // Access the usize field (the 0 in SumReduce(0))
+                } else {
+                    0
+                };
+
+                *op_ref = LuminairSumReduce::new(dim_index).into_operator() 
+            }  else if is::<luminal::op::Contiguous>(op) {
                 *op_ref = Box::new(Contiguous)
             }
         }
