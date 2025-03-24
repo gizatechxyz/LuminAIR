@@ -301,23 +301,26 @@ impl LuminairOperator<RecipColumn, RecipTable> for LuminairRecip {
         let mut out_data = vec![Fixed::zero(); output_size];
 
         let node_id: BaseField = node_info.id.into();
-        let lhs_id: BaseField = node_info.inputs[0].id.into();
-        let rhs_id: BaseField = BaseField::one();
+        let input_id: BaseField = node_info.inputs[0].id.into();
 
         let one = Fixed::from_f64(1.0);
 
         let mut stack: Vec<i64> = vec![];
         for idx in 0..output_size {
-            let x_val = get_index(x_buf, &(inp[0].1.index_expression(), inp[0].1.valid_expression()), &mut stack, idx);
+            let x_val = get_index(
+                x_buf,
+                &(inp[0].1.index_expression(), inp[0].1.valid_expression()),
+                &mut stack,
+                idx,
+            );
             let y_val = one / x_val;
             out_data[idx] = y_val;
 
-            let lhs_mult = if node_info.inputs[0].is_initializer {
+            let input_mult = if node_info.inputs[0].is_initializer {
                 BaseField::zero()
             } else {
                 -BaseField::one()
             };
-            let rhs_mult = BaseField::zero();
             let out_mult = if node_info.output.is_final_output {
                 BaseField::zero()
             } else {
@@ -328,19 +331,15 @@ impl LuminairOperator<RecipColumn, RecipTable> for LuminairRecip {
 
             table.add_row(RecipTableRow {
                 node_id,
-                lhs_id,
-                rhs_id,
+                input_id,
                 idx: idx.into(),
                 is_last_idx: (is_last_idx).into(),
                 next_idx: (idx + 1).into(),
                 next_node_id: node_id,
-                next_lhs_id: lhs_id,
-                next_rhs_id: rhs_id,
-                lhs: x_val.to_m31(),
-                rhs: BaseField::one(),
+                next_input_id: input_id,
+                input: x_val.to_m31(),
+                input_mult,
                 out: y_val.to_m31(),
-                lhs_mult,
-                rhs_mult,
                 out_mult,
             });
         }
@@ -354,8 +353,6 @@ impl Operator for LuminairRecip {
         unimplemented!()
     }
 }
-
-
 
 // ================== COMPILER ==================
 
