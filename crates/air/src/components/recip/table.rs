@@ -97,7 +97,6 @@ impl RecipTable {
         for i in self.table.len()..trace_size {
             is_last_idx.set(i, BaseField::one());
         }
-        
 
         // Create domain
         let domain = CanonicCoset::new(log_size).circle_domain();

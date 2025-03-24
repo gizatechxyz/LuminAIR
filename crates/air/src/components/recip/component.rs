@@ -1,6 +1,6 @@
 use crate::components::{NodeElements, RecipClaim};
-use num_traits::{One, Zero};
-use numerair::eval::EvalFixedPoint;
+use num_traits::One;
+use numerair::{eval::EvalFixedPoint, SCALE_FACTOR};
 use stwo_prover::constraint_framework::{
     EvalAtRow, FrameworkComponent, FrameworkEval, RelationEntry,
 };
@@ -47,8 +47,8 @@ impl FrameworkEval for RecipEval {
         // Values for consistency constraints
         let input_val = eval.next_trace_mask(); // Value from first tensor at index.
         let out_val = eval.next_trace_mask(); // Value in output tensor at index.
-
-        // Multiplicities for interaction constraints
+        let rem_val = eval.next_trace_mask(); // Rem value in result tensor at index.
+                                              // Multiplicities for interaction constraints
         let input_mult = eval.next_trace_mask();
         let out_mult = eval.next_trace_mask();
 
@@ -63,9 +63,9 @@ impl FrameworkEval for RecipEval {
         eval.eval_fixed_mul(
             input_val.clone(),
             out_val.clone(),
+            SCALE_FACTOR.into(),
             E::F::one(),
-            E::F::one(),
-            E::F::zero(),
+            rem_val,
         ); //TODO: check rem equal zero
 
         // ┌────────────────────────────┐
