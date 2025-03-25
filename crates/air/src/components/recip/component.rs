@@ -39,6 +39,7 @@ impl FrameworkEval for RecipEval {
         let input_id = eval.next_trace_mask(); // ID of the input tensor.
         let idx = eval.next_trace_mask(); // Index in the flattened tensor.
         let is_last_idx = eval.next_trace_mask(); // Flag if this is the last index for this operation.
+        
 
         // Next IDs for transition constraints
         let next_node_id = eval.next_trace_mask();
@@ -71,9 +72,12 @@ impl FrameworkEval for RecipEval {
         //     rem_val,
         // ); //TODO: check rem equal zero
 
-        let prod = eval.add_intermediate(input_val.clone() * out_val.clone());
-        eval.eval_fixed_div_rem(prod, SCALE_FACTOR.into(), SCALE_FACTOR.into(), E::F::zero());
-        
+        eval.eval_fixed_div_rem(
+            input_val.clone(),
+            SCALE_FACTOR.into(),
+            SCALE_FACTOR.into(),
+            E::F::one(),
+        );
 
         // ┌────────────────────────────┐
         // │   Transition Constraints   │
