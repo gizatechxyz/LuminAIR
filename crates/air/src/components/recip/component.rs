@@ -1,7 +1,6 @@
 use crate::components::{NodeElements, RecipClaim};
-use num_traits::{One, Zero};
+use num_traits::One;
 use numerair::{eval::EvalFixedPoint, SCALE_FACTOR};
-use numerair::Fixed;
 use stwo_prover::constraint_framework::{
     EvalAtRow, FrameworkComponent, FrameworkEval, RelationEntry,
 };
@@ -47,13 +46,15 @@ impl FrameworkEval for RecipEval {
         let next_idx = eval.next_trace_mask();
 
         // Values for consistency constraints
-        let input_val = eval.next_trace_mask(); // Value from first tensor at index.
+        let input_val = eval.next_trace_mask(); // Value from tensor at index.
         let out_val = eval.next_trace_mask(); // Value in output tensor at index.
-        let rem_val = eval.next_trace_mask(); // Rem value in result tensor at index.
 
         // Multiplicities for interaction constraints
         let input_mult = eval.next_trace_mask();
         let out_mult = eval.next_trace_mask();
+
+        // Remainder for consistency constraints
+        let rem = eval.next_trace_mask();
 
         // ┌─────────────────────────────┐
         // │   Consistency Constraints   │
@@ -72,12 +73,17 @@ impl FrameworkEval for RecipEval {
         //     rem_val,
         // ); //TODO: check rem equal zero
 
+        let prod = input_val.clone() * out_val.clone();
         eval.eval_fixed_div_rem(
-            input_val.clone(),
+            prod.clone(),
             SCALE_FACTOR.into(),
             SCALE_FACTOR.into(),
-            E::F::one(),
+            rem.clone(),
         );
+        println!("Input: {:?}", input_val);
+        println!("Out: {:?}", out_val);
+        println!("Prod: {:?}", prod);
+        println!("Rem: {:?}", rem);
 
         // ┌────────────────────────────┐
         // │   Transition Constraints   │

@@ -39,6 +39,7 @@ pub struct RecipTableRow {
     pub out: BaseField,
     pub input_mult: BaseField,
     pub out_mult: BaseField,
+    pub rem: BaseField,
 }
 
 impl RecipTable {
@@ -78,7 +79,7 @@ impl RecipTable {
         let mut out = BaseColumn::zeros(trace_size);
         let mut input_mult = BaseColumn::zeros(trace_size);
         let mut out_mult = BaseColumn::zeros(trace_size);
-
+        let mut rem = BaseColumn::zeros(trace_size);
         // Fill columns
         for (vec_row, row) in self.table.iter().enumerate() {
             node_id.set(vec_row, row.node_id);
@@ -92,6 +93,7 @@ impl RecipTable {
             out.set(vec_row, row.out);
             input_mult.set(vec_row, row.input_mult);
             out_mult.set(vec_row, row.out_mult);
+            rem.set(vec_row, row.rem);
         }
 
         for i in self.table.len()..trace_size {
@@ -114,6 +116,7 @@ impl RecipTable {
         trace.push(CircleEvaluation::new(domain, out));
         trace.push(CircleEvaluation::new(domain, input_mult));
         trace.push(CircleEvaluation::new(domain, out_mult));
+        trace.push(CircleEvaluation::new(domain, rem));
 
         assert_eq!(trace.len(), RecipColumn::count().0);
 
@@ -135,6 +138,7 @@ pub enum RecipColumn {
     Out,
     InputMult,
     OutMult,
+    Rem,
 }
 
 impl RecipColumn {
@@ -152,6 +156,7 @@ impl RecipColumn {
             Self::Out => 8,
             Self::InputMult => 9,
             Self::OutMult => 10,
+            Self::Rem => 11,
         }
     }
 }
@@ -159,7 +164,7 @@ impl RecipColumn {
 impl TraceColumn for RecipColumn {
     /// Returns the number of columns in the main trace and interaction trace.
     fn count() -> (usize, usize) {
-        (11, 3)
+        (12, 3)
     }
 }
 
@@ -192,6 +197,24 @@ pub fn interaction_trace_evaluation(
         );
     }
     input_int_col.finalize_col();
+
+    // Create trace for output
+    let output_main_col = &main_trace_eval[RecipColumn::Out.index()].data;
+    let node_id_col = &main_trace_eval[RecipColumn::NodeId.index()].data;
+    let output_mult_col = &main_trace_eval[RecipColumn::OutMult.index()].data;
+    let mut output_int_col = logup_gen.new_col();
+    for row in 0..1 << (log_size - LOG_N_LANES) {
+        let output = output_main_col[row];
+        let id = node_id_col[row];
+        let multiplicity = output_mult_col[row];
+
+        output_int_col.write_frac(
+            row,
+            multiplicity.into(),
+            lookup_elements.combine(&[output, id]),
+        );
+    }
+    output_int_col.finalize_col();
 
     let (trace, claimed_sum) = logup_gen.finalize_last();
 

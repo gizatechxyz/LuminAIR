@@ -303,7 +303,7 @@ impl LuminairOperator<RecipColumn, RecipTable> for LuminairRecip {
         let node_id: BaseField = node_info.id.into();
         let input_id: BaseField = node_info.inputs[0].id.into();
 
-        let one = Fixed::from_f64(4096.0);
+        let one = Fixed::from_f64(1.0);
 
         let mut stack: Vec<i64> = vec![];
         for idx in 0..output_size {
@@ -313,7 +313,8 @@ impl LuminairOperator<RecipColumn, RecipTable> for LuminairRecip {
                 &mut stack,
                 idx,
             );
-            let (y_val, _rem_val) = one.div_rem(x_val);
+            let (y_val, rem_val) = one.div_rem(x_val);
+            println!("input {:?}, output {:?}, Rem: {:?}", x_val, y_val, rem_val);
             out_data[idx] = y_val;
 
             let input_mult = if node_info.inputs[0].is_initializer {
@@ -341,6 +342,7 @@ impl LuminairOperator<RecipColumn, RecipTable> for LuminairRecip {
                 input_mult,
                 out: y_val.to_m31(),
                 out_mult,
+                rem: rem_val.to_m31(),
             });
         }
 
