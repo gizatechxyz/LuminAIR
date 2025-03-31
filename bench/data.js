@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1742468700725,
+  "lastUpdate": 1743426463167,
   "repoUrl": "https://github.com/gizatechxyz/LuminAIR",
   "entries": {
     "LuminAIR Benchmarks": [
@@ -719,6 +719,84 @@ window.BENCHMARK_DATA = {
             "name": "Mul Operator/Verification (32x32)",
             "value": 273836,
             "range": "± 4639",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "113879115+raphaelDkhn@users.noreply.github.com",
+            "name": "raphaelDkhn",
+            "username": "raphaelDkhn"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "cc1ca8b01aeefd0e32abfe4113232bed20b657f2",
+          "message": "Merge pull request #51 from gizatechxyz/recip-op\n\nRecip Op",
+          "timestamp": "2025-03-31T16:03:49+03:00",
+          "tree_id": "1ebe74aa00dac78ee9d62009885a5af1f8e6b894",
+          "url": "https://github.com/gizatechxyz/LuminAIR/commit/cc1ca8b01aeefd0e32abfe4113232bed20b657f2"
+        },
+        "date": 1743426462830,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "Add Operator/Trace Generation (32x32)",
+            "value": 97326,
+            "range": "± 1605",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Add Operator/Proving (32x32)",
+            "value": 13671623,
+            "range": "± 102010",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Add Operator/Verification (32x32)",
+            "value": 270215,
+            "range": "± 18680",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Mul Operator/Trace Generation (32x32)",
+            "value": 102157,
+            "range": "± 1208",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Mul Operator/Proving (32x32)",
+            "value": 13728796,
+            "range": "± 451636",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Mul Operator/Verification (32x32)",
+            "value": 279642,
+            "range": "± 7511",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Recip Operator/Trace Generation (32x32)",
+            "value": 69329,
+            "range": "± 507",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Recip Operator/Proving (32x32)",
+            "value": 13322760,
+            "range": "± 150034",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Recip Operator/Verification (32x32)",
+            "value": 265837,
+            "range": "± 4276",
             "unit": "ns/iter"
           }
         ]
