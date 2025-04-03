@@ -11,8 +11,14 @@ use luminair_air::{
         mul::{
             self,
             table::{MulColumn, MulTable},
+        }, 
+        sum_reduce::{
+            self,
+            table::{SumReduceColumn, SumReduceTable},
+        }, 
+        recip::{self, 
+            table::{RecipColumn, RecipTable},
         },
-        recip::{self, table::{RecipColumn, RecipTable}},
         ClaimType, LuminairComponents, LuminairInteractionElements, TraceError,
     },
     pie::{
@@ -85,8 +91,9 @@ impl LuminairGraph for Graph {
         let mut op_counter = OpCounter::default();
 
         // Initilializes table for each operator
-        let mut add_table = AddTable::new();
-        let mut mul_table = MulTable::new();
+        let mut add_table: AddTable = AddTable::new();
+        let mut mul_table: MulTable = MulTable::new();
+        let mut sum_reduce_table: SumReduceTable = SumReduceTable::new();
         let mut recip_table = RecipTable::new();
 
         for (node, src_ids) in self.linearized_graph.as_ref().unwrap() {
@@ -190,6 +197,19 @@ impl LuminairGraph for Graph {
                     *op_counter.mul.get_or_insert(0) += 1;
 
                     tensors
+                } else if <Box<dyn Operator> as HasProcessTrace<SumReduceColumn, SumReduceTable>>::has_process_trace(
+                    node_op,
+                ) {
+                    let tensors = <Box<dyn Operator> as HasProcessTrace<
+                        SumReduceColumn,
+                        SumReduceTable,
+                    >>::call_process_trace(
+                        node_op, srcs, &mut sum_reduce_table, &node_info
+                    )
+                    .unwrap();
+                    *op_counter.sum_reduce.get_or_insert(0) += 1;
+
+                    tensors
                 } else if <Box<dyn Operator> as HasProcessTrace<RecipColumn, RecipTable>>::has_process_trace(
                     node_op,
                 ) {
@@ -204,8 +224,6 @@ impl LuminairGraph for Graph {
 
                     tensors
                 }
-                
-                
                 else {
                     // Handle other operators or fallback
                     node_op.process(srcs)
@@ -243,6 +261,13 @@ impl LuminairGraph for Graph {
             max_log_size = max_log_size.max(log_size);
 
             table_traces.push(TableTrace::from_recip(recip_table));
+        }
+
+        if !sum_reduce_table.table.is_empty() {
+            let log_size = calculate_log_size(sum_reduce_table.table.len());
+            max_log_size = max_log_size.max(log_size);
+            
+            table_traces.push(TableTrace::from_sum_reduce(sum_reduce_table));
         }
 
         Ok(LuminairPie {
@@ -319,6 +344,7 @@ impl LuminairGraph for Graph {
             match claim_type {
                 ClaimType::Add(claim) => main_claim.add = Some(claim),
                 ClaimType::Mul(claim) => main_claim.mul = Some(claim),
+                ClaimType::SumReduce(claim) => main_claim.sum_reduce = Some(claim),
                 ClaimType::Recip(claim) => main_claim.recip = Some(claim),
             }
         }
@@ -353,6 +379,12 @@ impl LuminairGraph for Graph {
                         mul::table::interaction_trace_evaluation(&trace, lookup_elements).unwrap();
                     tree_builder.extend_evals(tr);
                     interaction_claim.mul = Some(cl);
+                }
+                ClaimType::SumReduce(_) => {
+                    let (tr, cl) =
+                        sum_reduce::table::interaction_trace_evaluation(&trace, lookup_elements).unwrap();
+                    tree_builder.extend_evals(tr);
+                    interaction_claim.sum_reduce = Some(cl);
                 }
                 ClaimType::Recip(_) => {
                     let (tr, cl) =
@@ -474,25 +506,22 @@ fn test_direct_table_trace_processing() {
     let b = cx.tensor((10, 10)).set(vec![2.0; 100]);
     let c = a * b;
     let mut d = (c + a).retrieve();
+    let _e = a.sum_reduce(0).retrieve();
 
-    cx.compile(<(GenericCompiler, StwoCompiler)>::default(), &mut d);
+  cx.compile(<(GenericCompiler, StwoCompiler)>::default(), &mut d);
 
     // Generate trace with direct table storage
     let trace = cx.gen_trace().expect("Trace generation failed");
 
     // Verify that table traces contain both operation types
-    let has_add = trace
-        .table_traces
-        .iter()
-        .any(|t| matches!(t, TableTrace::Add { .. }));
-    let has_mul = trace
-        .table_traces
-        .iter()
-        .any(|t| matches!(t, TableTrace::Mul { .. }));
-
+    let has_add = trace.table_traces.iter().any(|t| matches!(t, TableTrace::Add { .. }));
+    let has_mul = trace.table_traces.iter().any(|t| matches!(t, TableTrace::Mul { .. }));
+    let has_sum_reduce = trace.table_traces.iter().any(|t| matches!(t, TableTrace::SumReduce { .. }));
+    
     assert!(has_add, "Should contain Add table traces");
     assert!(has_mul, "Should contain Mul table traces");
-
+    assert!(has_sum_reduce, "Should contain SumReduce table traces");
+    
     // Verify the end-to-end proof pipeline
     let proof = cx.prove(trace).expect("Proof generation failed");
     assert!(

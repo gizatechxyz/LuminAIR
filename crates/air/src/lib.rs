@@ -3,7 +3,7 @@
 use std::vec;
 
 use ::serde::{Deserialize, Serialize};
-use components::{AddClaim, InteractionClaim, MulClaim, RecipClaim};
+use components::{AddClaim, InteractionClaim, MulClaim, SumReduceClaim, RecipClaim};
 use pie::ExecutionResources;
 use stwo_prover::constraint_framework::PREPROCESSED_TRACE_IDX;
 use stwo_prover::core::{
@@ -30,6 +30,7 @@ pub struct LuminairProof<H: MerkleHasher> {
 pub struct LuminairClaim {
     pub add: Option<AddClaim>,
     pub mul: Option<MulClaim>,
+    pub sum_reduce: Option<SumReduceClaim>,
     pub recip: Option<RecipClaim>,
     pub is_first_log_sizes: Vec<u32>,
 }
@@ -40,6 +41,7 @@ impl LuminairClaim {
         Self {
             add: None,
             mul: None,
+            sum_reduce: None,
             recip: None,
             is_first_log_sizes,
         }
@@ -53,7 +55,10 @@ impl LuminairClaim {
         if let Some(ref mul) = self.mul {
             mul.mix_into(channel);
         }
-        if let Some(ref recip) = self.recip {
+        if let Some(ref sum_reduce) = self.sum_reduce {
+            sum_reduce.mix_into(channel);
+        }
+         if let Some(ref recip) = self.recip {
             recip.mix_into(channel);
         }
     }
@@ -67,6 +72,9 @@ impl LuminairClaim {
         }
         if let Some(ref mul) = self.mul {
             log_sizes.push(mul.log_sizes());
+        }
+        if let Some(ref sum_reduce) = self.sum_reduce {
+            log_sizes.push(sum_reduce.log_sizes());
         }
         if let Some(ref recip) = self.recip {
             log_sizes.push(recip.log_sizes());
@@ -85,6 +93,7 @@ impl LuminairClaim {
 pub struct LuminairInteractionClaim {
     pub add: Option<InteractionClaim>,
     pub mul: Option<InteractionClaim>,
+    pub sum_reduce: Option<InteractionClaim>,
     pub recip: Option<InteractionClaim>,
 }
 
@@ -96,6 +105,9 @@ impl LuminairInteractionClaim {
         }
         if let Some(ref mul) = self.mul {
             mul.mix_into(channel);
+        }
+        if let Some(ref sum_reduce) = self.sum_reduce {
+            sum_reduce.mix_into(channel);
         }
         if let Some(ref recip) = self.recip {
             recip.mix_into(channel);
