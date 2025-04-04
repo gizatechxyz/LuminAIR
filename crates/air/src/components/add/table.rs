@@ -56,7 +56,7 @@ impl AddTable {
         self.table.push(row);
     }
 
-    /// Transforms the [`AddTable`] into [`TraceEval`] to be commited
+    /// Transforms the [`AddTable`] into [`TraceEval`] to be committed
     /// when generating a STARK proof.
     pub fn trace_evaluation(&self) -> Result<(TraceEval, AddClaim), TraceError> {
         let n_rows = self.table.len();

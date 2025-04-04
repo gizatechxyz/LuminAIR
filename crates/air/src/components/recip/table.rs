@@ -53,7 +53,7 @@ impl RecipTable {
         self.table.push(row);
     }
 
-    /// Transforms the [`RecipTable`] into [`TraceEval`] to be commited
+    /// Transforms the [`RecipTable`] into [`TraceEval`] to be committed
     /// when generating a STARK proof.
     pub fn trace_evaluation(&self) -> Result<(TraceEval, RecipClaim), TraceError> {
         let n_rows = self.table.len();

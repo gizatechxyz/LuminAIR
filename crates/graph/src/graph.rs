@@ -84,7 +84,7 @@ impl LuminairGraph for Graph {
         // Initializes operator counter
         let mut op_counter = OpCounter::default();
 
-        // Initilializes table for each operator
+        // Initializes table for each operator
         let mut add_table = AddTable::new();
         let mut mul_table = MulTable::new();
         let mut recip_table = RecipTable::new();

@@ -119,4 +119,4 @@ A special thanks to the developers and maintainers of the foundational projects 
 
 ## License
 
-LuminAIR is is open-source software released under the [MIT](https://opensource.org/license/mit) License.
+LuminAIR is open-source software released under the [MIT](https://opensource.org/license/mit) License.
