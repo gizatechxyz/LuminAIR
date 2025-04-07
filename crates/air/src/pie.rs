@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::components::{
-    add::table::AddTable, mul::table::MulTable, recip::table::RecipTable, ClaimType, TraceError,
-    TraceEval,
+    add::table::AddTable, mul::table::MulTable, recip::table::RecipTable, sin::table::SinTable,
+    ClaimType, TraceError, TraceEval,
 };
 
 /// Represents an operator's trace table along with its claim before conversion
@@ -15,6 +15,8 @@ pub enum TableTrace {
     Mul { table: MulTable },
     /// Recip operator trace table.
     Recip { table: RecipTable },
+    /// Sin operator trace table.
+    Sin { table: SinTable },
 }
 
 impl TableTrace {
@@ -36,6 +38,12 @@ impl TableTrace {
         Self::Recip { table }
     }
 
+    /// Creates a new [`TableTrace`] from a [`SinTable`]
+    /// for use in the proof generation.
+    pub fn from_sin(table: SinTable) -> Self {
+        Self::Sin { table }
+    }
+
     pub fn to_trace(&self) -> Result<(TraceEval, ClaimType), TraceError> {
         match self {
             TableTrace::Add { table } => {
@@ -51,6 +59,11 @@ impl TableTrace {
             TableTrace::Recip { table } => {
                 let (trace, claim) = table.trace_evaluation()?;
                 Ok((trace, ClaimType::Recip(claim)))
+            }
+
+            TableTrace::Sin { table } => {
+                let (trace, claim) = table.trace_evaluation()?;
+                Ok((trace, ClaimType::Sin(claim)))
             }
         }
     }
@@ -88,6 +101,7 @@ pub struct OpCounter {
     pub add: Option<usize>,
     pub mul: Option<usize>,
     pub recip: Option<usize>,
+    pub sin: Option<usize>,
 }
 
 /// Indicates if a node input is an initializer (i.e., from initial input).

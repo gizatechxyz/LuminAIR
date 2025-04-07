@@ -10,6 +10,11 @@ use recip::{
     component::{RecipComponent, RecipEval},
     table::RecipColumn,
 };
+use sin::{
+    component::{SinComponent, SinEval},
+    table::SinColumn,
+};
+
 use serde::{Deserialize, Serialize};
 use stwo_prover::{
     constraint_framework::{preprocessed_columns::IsFirst, TraceLocationAllocator},
@@ -31,6 +36,7 @@ use crate::{LuminairClaim, LuminairInteractionClaim};
 pub mod add;
 pub mod mul;
 pub mod recip;
+pub mod sin;
 
 /// Errors related to trace operations.
 #[derive(Debug, Error, Eq, PartialEq)]
@@ -49,6 +55,8 @@ pub type AddClaim = Claim<AddColumn>;
 pub type MulClaim = Claim<MulColumn>;
 /// Claim for the Recip trace.
 pub type RecipClaim = Claim<RecipColumn>;
+/// Claim for the Sin trace.
+pub type SinClaim = Claim<SinColumn>;
 
 /// Represents columns of a trace.
 pub trait TraceColumn {
@@ -104,6 +112,7 @@ pub enum ClaimType {
     Add(Claim<AddColumn>),
     Mul(Claim<MulColumn>),
     Recip(Claim<RecipColumn>),
+    Sin(Claim<SinColumn>),
 }
 
 /// The claim of the interaction phase 2 (with the logUp protocol).
@@ -159,6 +168,7 @@ pub struct LuminairComponents {
     add: Option<AddComponent>,
     mul: Option<MulComponent>,
     recip: Option<RecipComponent>,
+    sin: Option<SinComponent>,
 }
 
 impl LuminairComponents {
@@ -215,7 +225,26 @@ impl LuminairComponents {
         } else {
             None
         };
-        Self { add, mul, recip }
+
+        let sin = if let Some(ref sin_claim) = claim.sin {
+            Some(SinComponent::new(
+                tree_span_provider,
+                SinEval::new(
+                    &sin_claim,
+                    interaction_elements.node_lookup_elements.clone(),
+                ),
+                interaction_claim.sin.as_ref().unwrap().claimed_sum,
+            ))
+        } else {
+            None
+        };
+
+        Self {
+            add,
+            mul,
+            recip,
+            sin,
+        }
     }
 
     /// Returns the `ComponentProver` of each components, used by the prover.
@@ -230,6 +259,9 @@ impl LuminairComponents {
         }
         if let Some(ref recip_component) = self.recip {
             components.push(recip_component);
+        }
+        if let Some(ref sin_component) = self.sin {
+            components.push(sin_component);
         }
         components
     }

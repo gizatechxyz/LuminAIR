@@ -3,6 +3,7 @@ use luminair_air::{
         add::table::{AddColumn, AddTable, AddTableRow},
         mul::table::{MulColumn, MulTable, MulTableRow},
         recip::table::{RecipColumn, RecipTable, RecipTableRow},
+        sin::table::{SinColumn, SinTable, SinTableRow},
     },
     pie::NodeInfo,
 };
@@ -174,6 +175,82 @@ impl LuminairOperator<RecipColumn, RecipTable> for LuminairRecip {
 
 impl Operator for LuminairRecip {
     /// This method is not used as `process_trace` handles all computation for this operator.
+    fn process(&mut self, _inp: Vec<(InputTensor, ShapeTracker)>) -> Vec<Tensor> {
+        unimplemented!()
+    }
+}
+/// Implements element-wise sine for LuminAIR.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct LuminairSin {}
+
+impl LuminairSin {
+    /// Creates a new `LuminairSin` instance.
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl LuminairOperator<SinColumn, SinTable> for LuminairSin {
+    /// Processes one input tensor, generating a trace, claim, and output tensor.
+    fn process_trace(
+        &mut self,
+        inp: Vec<(InputTensor, ShapeTracker)>,
+        table: &mut SinTable,
+        node_info: &NodeInfo,
+    ) -> Vec<Tensor> {
+        let input = get_buffer_from_tensor(&inp[0].0);
+        let iexpr = (inp[0].1.index_expression(), inp[0].1.valid_expression());
+
+        let mut stack: Vec<i64> = vec![];
+        let output_size = inp[0].1.n_elements().to_usize().unwrap();
+        let mut out_data = vec![Fixed::zero(); output_size];
+
+        let node_id: BaseField = node_info.id.into();
+        let input_id: BaseField = node_info.inputs[0].id.into();
+
+        for (idx, out) in out_data.iter_mut().enumerate() {
+            let input_val = get_index(input, &iexpr, &mut stack, idx);
+            let input_val_f64 = input_val.to_f64();
+            let result = input_val_f64.sin(); // standard f64 sine
+            let sin_val = Fixed::from_f64(result);
+
+            let input_mult = if node_info.inputs[0].is_initializer {
+                BaseField::zero()
+            } else {
+                -BaseField::one()
+            };
+
+            let output_mult = if node_info.output.is_final_output {
+                BaseField::zero()
+            } else {
+                BaseField::one() * BaseField::from_u32_unchecked(node_info.num_consumers)
+            };
+
+            let is_last_idx: u32 = if idx == (output_size - 1) { 1 } else { 0 };
+
+            *out = sin_val;
+
+            table.add_row(SinTableRow {
+                node_id,
+                input_id,
+                idx: idx.into(),
+                is_last_idx: is_last_idx.into(),
+                next_node_id: node_id,
+                next_input_id: input_id,
+                next_idx: (idx + 1).into(),
+                input: input_val.to_m31(),
+                output: sin_val.to_m31(),
+                input_mult,
+                output_mult,
+            });
+        }
+
+        vec![Tensor::new(StwoData(Arc::new(out_data)))]
+    }
+}
+
+impl Operator for LuminairSin {
+    /// This method is not used; `process_trace` handles all computation for this operator.
     fn process(&mut self, _inp: Vec<(InputTensor, ShapeTracker)>) -> Vec<Tensor> {
         unimplemented!()
     }
@@ -474,6 +551,8 @@ impl Compiler for PrimitiveCompiler {
                 *op_ref = LuminairMul::new().into_operator()
             } else if is::<luminal::op::Recip>(op) {
                 *op_ref = LuminairRecip::new().into_operator()
+            } else if is::<luminal::op::Sin>(op) {
+                *op_ref = LuminairSin::new().into_operator()
             } else if is::<luminal::op::Contiguous>(op) {
                 *op_ref = Box::new(Contiguous)
             }
