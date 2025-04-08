@@ -3,7 +3,7 @@
 use std::vec;
 
 use ::serde::{Deserialize, Serialize};
-use components::{AddClaim, InteractionClaim, MulClaim, SumReduceClaim, RecipClaim};
+use components::{AddClaim, Exp2Claim, InteractionClaim, MulClaim, SumReduceClaim, RecipClaim};
 use pie::ExecutionResources;
 use stwo_prover::constraint_framework::PREPROCESSED_TRACE_IDX;
 use stwo_prover::core::{
@@ -32,6 +32,7 @@ pub struct LuminairClaim {
     pub mul: Option<MulClaim>,
     pub sum_reduce: Option<SumReduceClaim>,
     pub recip: Option<RecipClaim>,
+    pub exp2: Option<Exp2Claim>,
     pub is_first_log_sizes: Vec<u32>,
 }
 
@@ -43,6 +44,7 @@ impl LuminairClaim {
             mul: None,
             sum_reduce: None,
             recip: None,
+            exp2: None,
             is_first_log_sizes,
         }
     }
@@ -60,6 +62,9 @@ impl LuminairClaim {
         }
          if let Some(ref recip) = self.recip {
             recip.mix_into(channel);
+        }
+        if let Some(ref exp2) = self.exp2 {
+            exp2.mix_into(channel);
         }
     }
 
@@ -79,6 +84,9 @@ impl LuminairClaim {
         if let Some(ref recip) = self.recip {
             log_sizes.push(recip.log_sizes());
         }
+        if let Some(ref exp2) = self.exp2 {
+            log_sizes.push(exp2.log_sizes());
+        }
 
         let mut log_sizes = TreeVec::concat_cols(log_sizes.into_iter());
         log_sizes[PREPROCESSED_TRACE_IDX] = self.is_first_log_sizes.clone();
@@ -95,6 +103,7 @@ pub struct LuminairInteractionClaim {
     pub mul: Option<InteractionClaim>,
     pub sum_reduce: Option<InteractionClaim>,
     pub recip: Option<InteractionClaim>,
+    pub exp2: Option<InteractionClaim>,
 }
 
 impl LuminairInteractionClaim {
@@ -111,6 +120,9 @@ impl LuminairInteractionClaim {
         }
         if let Some(ref recip) = self.recip {
             recip.mix_into(channel);
+        }
+        if let Some(ref exp2) = self.exp2 {
+            exp2.mix_into(channel);
         }
     }
 }

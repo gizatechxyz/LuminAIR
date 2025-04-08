@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::components::{add::table::AddTable, mul::table::MulTable, sum_reduce::table::SumReduceTable, recip::table::RecipTable, ClaimType, TraceEval, TraceError};
+use crate::components::{add::table::AddTable, mul::table::MulTable, sum_reduce::table::SumReduceTable, recip::table::RecipTable, exp2::table::Exp2Table, ClaimType, TraceEval, TraceError};
 
 /// Represents an operator's trace table along with its claim before conversion
 /// to a serialized trace format. Used to defer trace evaluation until proving.
@@ -18,6 +18,8 @@ pub enum TableTrace {
     },
     /// Recip operator trace table.
     Recip { table: RecipTable },
+    /// Base-2 exponentiation operator trace table.
+    Exp2 { table: Exp2Table },
 }
 
 impl TableTrace {
@@ -47,6 +49,12 @@ impl TableTrace {
         }
     }
 
+    /// Creates a new [`TableTrace`] from an [`Exp2Table`]
+    /// for use in the proof generation.
+    pub fn from_exp2(table: Exp2Table) -> Self {
+        Self::Exp2 { table }
+    }
+
     pub fn to_trace(&self) -> Result<(TraceEval, ClaimType), TraceError> {
         match self {
             TableTrace::Add { table } => {
@@ -67,6 +75,11 @@ impl TableTrace {
             TableTrace::Recip { table } => {
                 let (trace, claim) = table.trace_evaluation()?;
                 Ok((trace, ClaimType::Recip(claim)))
+            },
+
+            TableTrace::Exp2 { table } => {
+                let (trace, claim) = table.trace_evaluation()?;
+                Ok((trace, ClaimType::Exp2(claim)))
             }
         }
     }
@@ -105,6 +118,7 @@ pub struct OpCounter {
     pub mul: Option<usize>,
     pub sum_reduce: Option<usize>,
     pub recip: Option<usize>,
+    pub exp2: Option<usize>,
 }
 
 /// Indicates if a node input is an initializer (i.e., from initial input).
