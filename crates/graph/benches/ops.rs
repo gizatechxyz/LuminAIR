@@ -278,6 +278,70 @@ fn benchmark_recip(c: &mut Criterion) {
     group.finish();
 }
 
+// Benchmark for Exp2 operator
+fn benchmark_exp2(c: &mut Criterion) {
+    let mut group = c.benchmark_group("Exp2 Operator");
+    group
+        .plot_config(PlotConfiguration::default().summary_scale(criterion::AxisScale::Logarithmic));
+
+    let sizes = [(32, 32)];
+
+    for &size in &sizes {
+        let (rows, cols) = size;
+
+        // Trace generation
+        let params = BenchParams {
+            stage: Stage::TraceGeneration,
+            size,
+        };
+        group.bench_function(params.to_string(), |b| {
+            b.iter(|| {
+                let mut graph = create_unary!(|a: GraphTensor| a.exp2(), (rows, cols), false);
+                let _trace = graph.gen_trace();
+            })
+        });
+
+        // Proof generation
+        let params = BenchParams {
+            stage: Stage::Proving,
+            size,
+        };
+        group.bench_function(params.to_string(), |b| {
+            b.iter_with_setup(
+                || {
+                    let mut graph = create_unary!(|a: GraphTensor| a.exp2(), (rows, cols), false);
+                    let trace = graph.gen_trace().expect("Trace generation failed");
+                    (graph, trace)
+                },
+                |(mut graph, trace)| {
+                    let _proof = graph.prove(trace).expect("Proof generation failed");
+                },
+            )
+        });
+
+        // Verification
+        let params = BenchParams {
+            stage: Stage::Verification,
+            size,
+        };
+        group.bench_function(params.to_string(), |b| {
+            b.iter_with_setup(
+                || {
+                    let mut graph = create_unary!(|a: GraphTensor| a.exp2(), (rows, cols), false);
+                    let trace = graph.gen_trace().expect("Trace generation failed");
+                    let proof = graph.prove(trace).expect("Proof generation failed");
+                    (graph, proof)
+                },
+                |(graph, proof)| {
+                    graph.verify(proof).expect("Proof verification failed");
+                },
+            )
+        });
+    }
+
+    group.finish();
+}
+
 
 // Benchmark for Sum Reduce operator
 fn benchmark_sum_reduce(c: &mut Criterion) {
@@ -343,5 +407,5 @@ fn benchmark_sum_reduce(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, benchmark_add, benchmark_mul, benchmark_recip, benchmark_sum_reduce);
+criterion_group!(benches, benchmark_add, benchmark_mul, benchmark_recip, benchmark_exp2, benchmark_sum_reduce);
 criterion_main!(benches);

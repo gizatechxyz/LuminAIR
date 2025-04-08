@@ -4,6 +4,7 @@ use luminair_air::{
         mul::table::{MulColumn, MulTable, MulTableRow},
         recip::table::{RecipColumn, RecipTable, RecipTableRow},
         sum_reduce::table::{SumReduceColumn, SumReduceTable, SumReduceTableRow},
+        exp2::table::{Exp2Column, Exp2Table, Exp2TableRow},
     },
     pie::NodeInfo,
 };
@@ -18,7 +19,7 @@ use stwo_prover::core::fields::m31::BaseField;
 
 use crate::{
     data::StwoData,
-    utils::{get_buffer_from_tensor, get_index, is},
+    utils::{get_buffer_from_tensor, get_index, is, FixedExp2, BaseFieldExt},
 };
 
 use super::{IntoOperator, LuminairOperator};
@@ -105,7 +106,97 @@ impl Operator for LuminairConstant {
 
 // ================== UNARY ==================
 
-/// Implements element-wise addition for LuminAIR.
+/// Implements base-2 exponentiation for LuminAIR.
+#[derive(Debug, Clone, Default, PartialEq)]
+struct LuminairExp2 {}
+
+impl LuminairExp2 {
+    /// Creates a new `LuminairExp2` instance.
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl LuminairOperator<Exp2Column, Exp2Table> for LuminairExp2 {
+    /// Processes input tensor, generating a trace, claim, and output tensor.
+    fn process_trace(
+        &mut self,
+        inp: Vec<(InputTensor, ShapeTracker)>,
+        table: &mut Exp2Table,
+        node_info: &NodeInfo,
+    ) -> Vec<Tensor> {
+        let input = get_buffer_from_tensor(&inp[0].0);
+        let expr = (inp[0].1.index_expression(), inp[0].1.valid_expression());
+
+        let mut stack: Vec<i64> = vec![];
+        let output_size = inp[0].1.n_elements().to_usize().unwrap();
+        let mut out_data = vec![Fixed::zero(); output_size];
+
+        let node_id: BaseField = node_info.id.into();
+        let input_id: BaseField = node_info.inputs[0].id.into();
+
+        for (idx, out) in out_data.iter_mut().enumerate() {
+            let input_val = get_index(input, &expr, &mut stack, idx);
+            // Calculate 2^x and handle any remainder according to the fixed-point representation
+            let (out_val, rem_val) = input_val.exp2();
+
+            let input_mult = if node_info.inputs[0].is_initializer {
+                BaseField::zero()
+            } else {
+                -BaseField::one()
+            };
+            let out_mult = if node_info.output.is_final_output {
+                BaseField::zero()
+            } else {
+                BaseField::one() * BaseField::from_u32_unchecked(node_info.num_consumers)
+            };
+
+            let is_last_idx: u32 = if idx == (output_size - 1) { 1 } else { 0 };
+
+            *out = out_val;
+            table.add_row(Exp2TableRow {
+                node_id,
+                input_id,
+                idx: idx.into(),
+                is_last_idx: (is_last_idx).into(),
+                next_idx: (idx + 1).into(),
+                next_node_id: node_id,
+                next_input_id: input_id,
+                input: input_val.to_m31(),
+                out: out_val.to_m31(),
+                rem: rem_val.to_m31(),
+                scale: SCALE_FACTOR,
+                input_mult,
+                out_mult,
+            })
+        }
+
+        vec![Tensor::new(StwoData(Arc::new(out_data)))]
+    }
+}
+
+impl Operator for LuminairExp2 {
+    /// Process method implementation - used for direct execution
+    fn process(&mut self, inp: Vec<(InputTensor, ShapeTracker)>) -> Vec<Tensor> {
+        let input = get_buffer_from_tensor(&inp[0].0);
+        let expr = (inp[0].1.index_expression(), inp[0].1.valid_expression());
+
+        let mut stack: Vec<i64> = vec![];
+        let output_size = inp[0].1.n_elements().to_usize().unwrap();
+        let mut out_data = vec![Fixed::zero(); output_size];
+
+        for (idx, out) in out_data.iter_mut().enumerate() {
+            let input_val = get_index(input, &expr, &mut stack, idx);
+            // Calculate 2^x for direct execution (without trace generation)
+            let (out_val, _) = input_val.exp2();
+            *out = out_val;
+        }
+
+        vec![Tensor::new(StwoData(Arc::new(out_data)))]
+    }
+}
+
+/// Implements element-wise reciprocal for LuminAIR.
 #[derive(Debug, Clone, Default, PartialEq)]
 struct LuminairRecip {}
 
@@ -580,6 +671,8 @@ impl Compiler for PrimitiveCompiler {
                 *op_ref = LuminairSumReduce::new(dim_index).into_operator()
             } else if is::<luminal::op::Recip>(op) {
                 *op_ref = LuminairRecip::new().into_operator()
+            } else if is::<luminal::op::Exp2>(op) {
+                *op_ref = LuminairExp2::new().into_operator()
             } else if is::<luminal::op::Contiguous>(op) {
                 *op_ref = Box::new(Contiguous)
             }

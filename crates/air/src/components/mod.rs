@@ -14,6 +14,10 @@ use recip::{
     component::{RecipComponent, RecipEval},
     table::RecipColumn,
 };
+use exp2::{
+    component::{Exp2Component, Exp2Eval},
+    table::Exp2Column,
+};
 use serde::{Deserialize, Serialize};
 use stwo_prover::{
     constraint_framework::{preprocessed_columns::IsFirst, TraceLocationAllocator},
@@ -36,6 +40,7 @@ pub mod add;
 pub mod mul;
 pub mod sum_reduce;
 pub mod recip;
+pub mod exp2;
 
 /// Errors related to trace operations.
 #[derive(Debug, Error, Eq, PartialEq)]
@@ -56,6 +61,8 @@ pub type MulClaim = Claim<MulColumn>;
 pub type SumReduceClaim = Claim<SumReduceColumn>;
 /// Claim for the Recip trace.
 pub type RecipClaim = Claim<RecipColumn>;
+/// Claim for the Exp2 trace.
+pub type Exp2Claim = Claim<Exp2Column>;
 
 /// Represents columns of a trace.
 pub trait TraceColumn {
@@ -112,6 +119,7 @@ pub enum ClaimType {
     Mul(Claim<MulColumn>),
     SumReduce(Claim<SumReduceColumn>),
     Recip(Claim<RecipColumn>),
+    Exp2(Claim<Exp2Column>),
 }
 
 /// The claim of the interaction phase 2 (with the logUp protocol).
@@ -168,6 +176,7 @@ pub struct LuminairComponents {
     mul: Option<MulComponent>,
     sum_reduce: Option<SumReduceComponent>,
     recip: Option<RecipComponent>,
+    exp2: Option<Exp2Component>,
 }
 
 impl LuminairComponents {
@@ -238,7 +247,20 @@ impl LuminairComponents {
             None
         };
 
-        Self { add, mul, sum_reduce, recip }
+        let exp2 = if let Some(ref exp2_claim) = claim.exp2 {
+            Some(Exp2Component::new(
+                tree_span_provider,
+                Exp2Eval::new(
+                    &exp2_claim,
+                    interaction_elements.node_lookup_elements.clone(),
+                ),
+                interaction_claim.exp2.as_ref().unwrap().claimed_sum,
+            ))
+        } else {
+            None
+        };
+
+        Self { add, mul, sum_reduce, recip, exp2 }
     }
 
     /// Returns the `ComponentProver` of each components, used by the prover.
@@ -256,6 +278,9 @@ impl LuminairComponents {
         }
         if let Some(ref recip_component) = self.recip {
             components.push(recip_component);
+        }
+        if let Some(ref exp2_component) = self.exp2 {
+            components.push(exp2_component);
         }
         components
     }
