@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744101692606,
+  "lastUpdate": 1744101886326,
   "repoUrl": "https://github.com/gizatechxyz/LuminAIR",
   "entries": {
     "LuminAIR Benchmarks": [
@@ -1187,6 +1187,102 @@ window.BENCHMARK_DATA = {
             "name": "Recip Operator/Verification (32x32)",
             "value": 265000,
             "range": "± 5084",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "113879115+raphaelDkhn@users.noreply.github.com",
+            "name": "raphaelDkhn",
+            "username": "raphaelDkhn"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b625dd88fbc44ac5a326d1e1a9376ece8ac36eef",
+          "message": "Merge pull request #49 from hakymulla/sum_reduce\n\nSum Reduce Operator",
+          "timestamp": "2025-04-08T11:40:21+03:00",
+          "tree_id": "11b8ec15599e3b1b74b34304078447b3c9c935b2",
+          "url": "https://github.com/gizatechxyz/LuminAIR/commit/b625dd88fbc44ac5a326d1e1a9376ece8ac36eef"
+        },
+        "date": 1744101885894,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "Add Operator/Trace Generation (32x32)",
+            "value": 99786,
+            "range": "± 2430",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Add Operator/Proving (32x32)",
+            "value": 13712844,
+            "range": "± 543930",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Add Operator/Verification (32x32)",
+            "value": 273156,
+            "range": "± 12540",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Mul Operator/Trace Generation (32x32)",
+            "value": 104933,
+            "range": "± 1566",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Mul Operator/Proving (32x32)",
+            "value": 13798272,
+            "range": "± 57410",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Mul Operator/Verification (32x32)",
+            "value": 275514,
+            "range": "± 7448",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Recip Operator/Trace Generation (32x32)",
+            "value": 69068,
+            "range": "± 3386",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Recip Operator/Proving (32x32)",
+            "value": 13348777,
+            "range": "± 64414",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Recip Operator/Verification (32x32)",
+            "value": 260561,
+            "range": "± 3259",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Sum Reduce Operator/Trace Generation (32x32)",
+            "value": 63504,
+            "range": "± 1118",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Sum Reduce Operator/Proving (32x32)",
+            "value": 13538351,
+            "range": "± 78775",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Sum Reduce Operator/Verification (32x32)",
+            "value": 278241,
+            "range": "± 6887",
             "unit": "ns/iter"
           }
         ]
