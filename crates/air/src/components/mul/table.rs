@@ -57,7 +57,7 @@ impl MulTable {
         self.table.push(row);
     }
 
-    /// Transforms the [`MulTable`] into [`TraceEval`] to be commited
+    /// Transforms the [`MulTable`] into [`TraceEval`] to be committed
     /// when generating a STARK proof.
     pub fn trace_evaluation(&self) -> Result<(TraceEval, MulClaim), TraceError> {
         let n_rows = self.table.len();

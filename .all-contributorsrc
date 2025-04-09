@@ -32,6 +32,33 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "Tbelleng",
+      "name": "Tbelleng",
+      "avatar_url": "https://avatars.githubusercontent.com/u/117627242?v=4",
+      "profile": "https://github.com/Tbelleng",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "sukrucildirr",
+      "name": "sukrucildirr",
+      "avatar_url": "https://avatars.githubusercontent.com/u/32969880?v=4",
+      "profile": "https://github.com/sukrucildirr",
+      "contributions": [
+        "doc"
+      ]
+    },
+    {
+      "login": "hakymulla",
+      "name": "Kazeem Hakeem",
+      "avatar_url": "https://avatars.githubusercontent.com/u/25408889?v=4",
+      "profile": "https://github.com/hakymulla",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,
