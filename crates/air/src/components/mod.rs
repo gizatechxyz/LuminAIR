@@ -2,13 +2,13 @@ use add::{
     component::{AddComponent, AddEval},
     table::AddColumn,
 };
+use max_reduce::{
+    component::{MaxReduceComponent, MaxReduceEval},
+    table::MaxReduceColumn,
+};
 use mul::{
     component::{MulComponent, MulEval},
     table::MulColumn,
-};
-use sum_reduce::{
-    component::{SumReduceComponent, SumReduceEval},
-    table::SumReduceColumn,
 };
 use recip::{
     component::{RecipComponent, RecipEval},
@@ -28,14 +28,20 @@ use stwo_prover::{
     },
     relation,
 };
+use sum_reduce::{
+    component::{SumReduceComponent, SumReduceEval},
+    table::SumReduceColumn,
+};
+
 use thiserror::Error;
 
 use crate::{LuminairClaim, LuminairInteractionClaim};
 
 pub mod add;
+pub mod max_reduce;
 pub mod mul;
-pub mod sum_reduce;
 pub mod recip;
+pub mod sum_reduce;
 
 /// Errors related to trace operations.
 #[derive(Debug, Error, Eq, PartialEq)]
@@ -56,6 +62,8 @@ pub type MulClaim = Claim<MulColumn>;
 pub type SumReduceClaim = Claim<SumReduceColumn>;
 /// Claim for the Recip trace.
 pub type RecipClaim = Claim<RecipColumn>;
+/// Claim for the MaxReduce trace.
+pub type MaxReduceClaim = Claim<MaxReduceColumn>;
 
 /// Represents columns of a trace.
 pub trait TraceColumn {
@@ -112,6 +120,7 @@ pub enum ClaimType {
     Mul(Claim<MulColumn>),
     SumReduce(Claim<SumReduceColumn>),
     Recip(Claim<RecipColumn>),
+    MaxReduce(Claim<MaxReduceColumn>),
 }
 
 /// The claim of the interaction phase 2 (with the logUp protocol).
@@ -168,6 +177,7 @@ pub struct LuminairComponents {
     mul: Option<MulComponent>,
     sum_reduce: Option<SumReduceComponent>,
     recip: Option<RecipComponent>,
+    max_reduce: Option<MaxReduceComponent>,
 }
 
 impl LuminairComponents {
@@ -220,11 +230,11 @@ impl LuminairComponents {
                     interaction_elements.node_lookup_elements.clone(),
                 ),
                 interaction_claim.sum_reduce.as_ref().unwrap().claimed_sum,
-              ))
+            ))
         } else {
             None
         };
-      
+
         let recip = if let Some(ref recip_claim) = claim.recip {
             Some(RecipComponent::new(
                 tree_span_provider,
@@ -238,7 +248,26 @@ impl LuminairComponents {
             None
         };
 
-        Self { add, mul, sum_reduce, recip }
+        let max_reduce = if let Some(ref max_reduce_claim) = claim.max_reduce {
+            Some(MaxReduceComponent::new(
+                tree_span_provider,
+                MaxReduceEval::new(
+                    &max_reduce_claim,
+                    interaction_elements.node_lookup_elements.clone(),
+                ),
+                interaction_claim.max_reduce.as_ref().unwrap().claimed_sum,
+            ))
+        } else {
+            None
+        };
+
+        Self {
+            add,
+            mul,
+            sum_reduce,
+            recip,
+            max_reduce,
+        }
     }
 
     /// Returns the `ComponentProver` of each components, used by the prover.
@@ -256,6 +285,9 @@ impl LuminairComponents {
         }
         if let Some(ref recip_component) = self.recip {
             components.push(recip_component);
+        }
+        if let Some(ref max_reduce_component) = self.max_reduce {
+            components.push(max_reduce_component);
         }
         components
     }

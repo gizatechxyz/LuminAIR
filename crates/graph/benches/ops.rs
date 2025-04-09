@@ -278,7 +278,6 @@ fn benchmark_recip(c: &mut Criterion) {
     group.finish();
 }
 
-
 // Benchmark for Sum Reduce operator
 fn benchmark_sum_reduce(c: &mut Criterion) {
     let mut group = c.benchmark_group("Sum Reduce Operator");
@@ -310,7 +309,8 @@ fn benchmark_sum_reduce(c: &mut Criterion) {
         group.bench_function(params.to_string(), |b| {
             b.iter_with_setup(
                 || {
-                    let mut graph = create_unary!(|a: GraphTensor| a.sum_reduce(0), (rows, cols), true);
+                    let mut graph =
+                        create_unary!(|a: GraphTensor| a.sum_reduce(0), (rows, cols), true);
                     let trace = graph.gen_trace().expect("Trace generation failed");
                     (graph, trace)
                 },
@@ -328,7 +328,8 @@ fn benchmark_sum_reduce(c: &mut Criterion) {
         group.bench_function(params.to_string(), |b| {
             b.iter_with_setup(
                 || {
-                    let mut graph = create_unary!(|a: GraphTensor| a.sum_reduce(0), (rows, cols), true);
+                    let mut graph =
+                        create_unary!(|a: GraphTensor| a.sum_reduce(0), (rows, cols), true);
                     let trace = graph.gen_trace().expect("Trace generation failed");
                     let proof = graph.prove(trace).expect("Proof generation failed");
                     (graph, proof)
@@ -343,5 +344,78 @@ fn benchmark_sum_reduce(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, benchmark_add, benchmark_mul, benchmark_recip, benchmark_sum_reduce);
+// Benchmark for Max Reduce operator
+fn benchmark_max_reduce(c: &mut Criterion) {
+    let mut group = c.benchmark_group("Max Reduce Operator");
+    group
+        .plot_config(PlotConfiguration::default().summary_scale(criterion::AxisScale::Logarithmic));
+
+    let sizes = [(32, 32)];
+
+    for &size in &sizes {
+        let (rows, cols) = size;
+
+        // Trace generation
+        let params = BenchParams {
+            stage: Stage::TraceGeneration,
+            size,
+        };
+        group.bench_function(params.to_string(), |b| {
+            b.iter(|| {
+                let mut graph = create_unary!(|a: GraphTensor| a.max_reduce(0), (rows, cols), true);
+                let _trace = graph.gen_trace();
+            })
+        });
+
+        // Proof generation
+        let params = BenchParams {
+            stage: Stage::Proving,
+            size,
+        };
+        group.bench_function(params.to_string(), |b| {
+            b.iter_with_setup(
+                || {
+                    let mut graph =
+                        create_unary!(|a: GraphTensor| a.max_reduce(0), (rows, cols), true);
+                    let trace = graph.gen_trace().expect("Trace generation failed");
+                    (graph, trace)
+                },
+                |(mut graph, trace)| {
+                    let _proof = graph.prove(trace).expect("Proof generation failed");
+                },
+            )
+        });
+
+        // Verification
+        let params = BenchParams {
+            stage: Stage::Verification,
+            size,
+        };
+        group.bench_function(params.to_string(), |b| {
+            b.iter_with_setup(
+                || {
+                    let mut graph =
+                        create_unary!(|a: GraphTensor| a.max_reduce(0), (rows, cols), true);
+                    let trace = graph.gen_trace().expect("Trace generation failed");
+                    let proof = graph.prove(trace).expect("Proof generation failed");
+                    (graph, proof)
+                },
+                |(graph, proof)| {
+                    graph.verify(proof).expect("Proof verification failed");
+                },
+            )
+        });
+    }
+
+    group.finish();
+}
+
+criterion_group!(
+    benches,
+    benchmark_add,
+    benchmark_mul,
+    benchmark_recip,
+    benchmark_sum_reduce,
+    benchmark_max_reduce
+);
 criterion_main!(benches);

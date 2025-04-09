@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-use crate::components::{add::table::AddTable, mul::table::MulTable, sum_reduce::table::SumReduceTable, recip::table::RecipTable, ClaimType, TraceEval, TraceError};
+use crate::components::{
+    add::table::AddTable, max_reduce::table::MaxReduceTable, mul::table::MulTable,
+    recip::table::RecipTable, sum_reduce::table::SumReduceTable, ClaimType, TraceError, TraceEval,
+};
 
 /// Represents an operator's trace table along with its claim before conversion
 /// to a serialized trace format. Used to defer trace evaluation until proving.
@@ -9,15 +12,13 @@ pub enum TableTrace {
     /// Addition operator trace table.
     Add { table: AddTable },
     /// Multiplication operator trace table.
-    Mul {
-        table: MulTable,
-    },
+    Mul { table: MulTable },
     /// Sum Reduce operator trace table.
-    SumReduce {
-        table: SumReduceTable,
-    },
+    SumReduce { table: SumReduceTable },
     /// Recip operator trace table.
     Recip { table: RecipTable },
+    /// Max Reduce operator trace table.
+    MaxReduce { table: MaxReduceTable },
 }
 
 impl TableTrace {
@@ -42,9 +43,13 @@ impl TableTrace {
     /// Creates a new [`TableTrace`] from a [`SumReduceTable`]
     /// for use in the proof generation.
     pub fn from_sum_reduce(table: SumReduceTable) -> Self {
-        Self::SumReduce {
-            table,
-        }
+        Self::SumReduce { table }
+    }
+
+    /// Creates a new [`TableTrace`] from a [`MaxReduceTable`]
+    /// for use in the proof generation.
+    pub fn from_max_reduce(table: MaxReduceTable) -> Self {
+        Self::MaxReduce { table }
     }
 
     pub fn to_trace(&self) -> Result<(TraceEval, ClaimType), TraceError> {
@@ -57,16 +62,21 @@ impl TableTrace {
             TableTrace::Mul { table } => {
                 let (trace, claim) = table.trace_evaluation()?;
                 Ok((trace, ClaimType::Mul(claim)))
-            },
+            }
 
             TableTrace::SumReduce { table } => {
                 let (trace, claim) = table.trace_evaluation()?;
                 Ok((trace, ClaimType::SumReduce(claim)))
-            },
+            }
 
             TableTrace::Recip { table } => {
                 let (trace, claim) = table.trace_evaluation()?;
                 Ok((trace, ClaimType::Recip(claim)))
+            }
+
+            TableTrace::MaxReduce { table } => {
+                let (trace, claim) = table.trace_evaluation()?;
+                Ok((trace, ClaimType::MaxReduce(claim)))
             }
         }
     }
@@ -105,6 +115,7 @@ pub struct OpCounter {
     pub mul: Option<usize>,
     pub sum_reduce: Option<usize>,
     pub recip: Option<usize>,
+    pub max_reduce: Option<usize>,
 }
 
 /// Indicates if a node input is an initializer (i.e., from initial input).
