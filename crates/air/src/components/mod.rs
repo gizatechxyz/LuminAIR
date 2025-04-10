@@ -2,13 +2,13 @@ use add::{
     component::{AddComponent, AddEval},
     table::AddColumn,
 };
+use lessthan::{
+    component::{LessThanComponent, LessThanEval},
+    table::LessThanColumn,
+};
 use mul::{
     component::{MulComponent, MulEval},
     table::MulColumn,
-};
-use sum_reduce::{
-    component::{SumReduceComponent, SumReduceEval},
-    table::SumReduceColumn,
 };
 use recip::{
     component::{RecipComponent, RecipEval},
@@ -28,14 +28,19 @@ use stwo_prover::{
     },
     relation,
 };
+use sum_reduce::{
+    component::{SumReduceComponent, SumReduceEval},
+    table::SumReduceColumn,
+};
 use thiserror::Error;
 
 use crate::{LuminairClaim, LuminairInteractionClaim};
 
 pub mod add;
+pub mod lessthan;
 pub mod mul;
-pub mod sum_reduce;
 pub mod recip;
+pub mod sum_reduce;
 
 /// Errors related to trace operations.
 #[derive(Debug, Error, Eq, PartialEq)]
@@ -52,6 +57,8 @@ pub type TraceEval = ColumnVec<CircleEvaluation<SimdBackend, BaseField, BitRever
 pub type AddClaim = Claim<AddColumn>;
 /// Claim for the Mul trace.
 pub type MulClaim = Claim<MulColumn>;
+/// Claim for the LessThan trace.
+pub type LessThanClaim = Claim<LessThanColumn>;
 /// Claim for the SumReduce trace.
 pub type SumReduceClaim = Claim<SumReduceColumn>;
 /// Claim for the Recip trace.
@@ -110,6 +117,7 @@ impl<T: TraceColumn> Claim<T> {
 pub enum ClaimType {
     Add(Claim<AddColumn>),
     Mul(Claim<MulColumn>),
+    LessThan(Claim<LessThanColumn>),
     SumReduce(Claim<SumReduceColumn>),
     Recip(Claim<RecipColumn>),
 }
@@ -166,6 +174,7 @@ impl LuminairInteractionElements {
 pub struct LuminairComponents {
     add: Option<AddComponent>,
     mul: Option<MulComponent>,
+    lessthan: Option<LessThanComponent>,
     sum_reduce: Option<SumReduceComponent>,
     recip: Option<RecipComponent>,
 }
@@ -212,6 +221,19 @@ impl LuminairComponents {
             None
         };
 
+        let lessthan = if let Some(ref lessthan_claim) = claim.lessthan {
+            Some(LessThanComponent::new(
+                tree_span_provider,
+                LessThanEval::new(
+                    &lessthan_claim,
+                    interaction_elements.node_lookup_elements.clone(),
+                ),
+                interaction_claim.lessthan.as_ref().unwrap().claimed_sum,
+            ))
+        } else {
+            None
+        };
+
         let sum_reduce = if let Some(ref sum_reduce_claim) = claim.sum_reduce {
             Some(SumReduceComponent::new(
                 tree_span_provider,
@@ -220,11 +242,11 @@ impl LuminairComponents {
                     interaction_elements.node_lookup_elements.clone(),
                 ),
                 interaction_claim.sum_reduce.as_ref().unwrap().claimed_sum,
-              ))
+            ))
         } else {
             None
         };
-      
+
         let recip = if let Some(ref recip_claim) = claim.recip {
             Some(RecipComponent::new(
                 tree_span_provider,
@@ -238,7 +260,13 @@ impl LuminairComponents {
             None
         };
 
-        Self { add, mul, sum_reduce, recip }
+        Self {
+            add,
+            mul,
+            lessthan,
+            sum_reduce,
+            recip,
+        }
     }
 
     /// Returns the `ComponentProver` of each components, used by the prover.
@@ -250,6 +278,9 @@ impl LuminairComponents {
         }
         if let Some(ref mul_component) = self.mul {
             components.push(mul_component);
+        }
+        if let Some(ref lessthan_component) = self.lessthan {
+            components.push(lessthan_component);
         }
         if let Some(ref sum_reduce_component) = self.sum_reduce {
             components.push(sum_reduce_component);

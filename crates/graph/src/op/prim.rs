@@ -1,6 +1,7 @@
 use luminair_air::{
     components::{
         add::table::{AddColumn, AddTable, AddTableRow},
+        lessthan::table::{LessThanColumn, LessThanTable, LessThanTableRow},
         mul::table::{MulColumn, MulTable, MulTableRow},
         recip::table::{RecipColumn, RecipTable, RecipTableRow},
         sum_reduce::table::{SumReduceColumn, SumReduceTable, SumReduceTableRow},
@@ -357,6 +358,100 @@ impl Operator for LuminairMul {
     }
 }
 
+/// Implements element-wise less than comparison for LuminAIR.
+#[derive(Debug, Clone, Default, PartialEq)]
+struct LuminairLessThan {}
+
+impl LuminairLessThan {
+    /// Creates a new `LuminairLessThan` instance.
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl LuminairOperator<LessThanColumn, LessThanTable> for LuminairLessThan {
+    /// Processes two input tensors, generating a trace, claim, and output tensor.
+    fn process_trace(
+        &mut self,
+        inp: Vec<(InputTensor, ShapeTracker)>,
+        table: &mut LessThanTable,
+        node_info: &NodeInfo,
+    ) -> Vec<Tensor> {
+        let (lhs, rhs) = (
+            get_buffer_from_tensor(&inp[0].0),
+            get_buffer_from_tensor(&inp[1].0),
+        );
+        let lexpr = (inp[0].1.index_expression(), inp[0].1.valid_expression());
+        let rexpr = (inp[1].1.index_expression(), inp[1].1.valid_expression());
+
+        let mut stack: Vec<i64> = vec![];
+        let output_size = inp[0].1.n_elements().to_usize().unwrap();
+        let mut out_data = vec![Fixed::zero(); output_size];
+
+        let node_id: BaseField = node_info.id.into();
+        let lhs_id: BaseField = node_info.inputs[0].id.into();
+        let rhs_id: BaseField = node_info.inputs[1].id.into();
+
+        for (idx, out) in out_data.iter_mut().enumerate() {
+            let lhs_val = get_index(lhs, &lexpr, &mut stack, idx);
+            let rhs_val = get_index(rhs, &rexpr, &mut stack, idx);
+
+            // Compare lhs < rhs and set output to 1 if true, 0 if false
+            let out_val = if lhs_val.to_m31() < rhs_val.to_m31() {
+                Fixed::from_f64(1.0)
+            } else {
+                Fixed::from_f64(0.0)
+            };
+
+            let lhs_mult = if node_info.inputs[0].is_initializer {
+                BaseField::zero()
+            } else {
+                -BaseField::one()
+            };
+            let rhs_mult = if node_info.inputs[1].is_initializer {
+                BaseField::zero()
+            } else {
+                -BaseField::one()
+            };
+            let out_mult = if node_info.output.is_final_output {
+                BaseField::zero()
+            } else {
+                BaseField::one() * BaseField::from_u32_unchecked(node_info.num_consumers)
+            };
+
+            let is_last_idx: u32 = if idx == (output_size - 1) { 1 } else { 0 };
+
+            *out = out_val;
+            table.add_row(LessThanTableRow {
+                node_id,
+                lhs_id,
+                rhs_id,
+                idx: idx.into(),
+                is_last_idx: (is_last_idx).into(),
+                next_idx: (idx + 1).into(),
+                next_node_id: node_id,
+                next_lhs_id: lhs_id,
+                next_rhs_id: rhs_id,
+                lhs: lhs_val.to_m31(),
+                rhs: rhs_val.to_m31(),
+                out: out_val.to_m31(),
+                lhs_mult,
+                rhs_mult,
+                out_mult,
+            })
+        }
+
+        vec![Tensor::new(StwoData(Arc::new(out_data)))]
+    }
+}
+
+impl Operator for LuminairLessThan {
+    /// This method is not used as `process_trace` handles all computation for this operator.
+    fn process(&mut self, _inp: Vec<(InputTensor, ShapeTracker)>) -> Vec<Tensor> {
+        unimplemented!()
+    }
+}
+
 // ================== REDUCE ==================
 
 /// Implements SumReduce for LuminAIR.
@@ -570,6 +665,8 @@ impl Compiler for PrimitiveCompiler {
                 *op_ref = LuminairAdd::new().into_operator()
             } else if is::<luminal::op::Mul>(op) {
                 *op_ref = LuminairMul::new().into_operator()
+            } else if is::<luminal::op::LessThan>(op) {
+                *op_ref = LuminairLessThan::new().into_operator()
             } else if is::<luminal::op::SumReduce>(op) {
                 let dim_index =
                     if let Some(sum_reduce) = op_ref.deref().as_any().downcast_ref::<SumReduce>() {

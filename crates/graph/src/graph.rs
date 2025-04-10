@@ -8,16 +8,21 @@ use luminair_air::{
             self,
             table::{AddColumn, AddTable},
         },
+        lessthan::{
+            self,
+            table::{LessThanColumn, LessThanTable},
+        },
         mul::{
             self,
             table::{MulColumn, MulTable},
-        }, 
+        },
+        recip::{
+            self,
+            table::{RecipColumn, RecipTable},
+        },
         sum_reduce::{
             self,
             table::{SumReduceColumn, SumReduceTable},
-        }, 
-        recip::{self, 
-            table::{RecipColumn, RecipTable},
         },
         ClaimType, LuminairComponents, LuminairInteractionElements, TraceError,
     },
@@ -93,6 +98,7 @@ impl LuminairGraph for Graph {
         // Initializes table for each operator
         let mut add_table = AddTable::new();
         let mut mul_table = MulTable::new();
+        let mut lessthan_table = LessThanTable::new();
         let mut recip_table = RecipTable::new();
         let mut sum_reduce_table = SumReduceTable::new();
 
@@ -171,7 +177,8 @@ impl LuminairGraph for Graph {
             let node_op = &mut *self.graph.node_weight_mut(*node).unwrap();
 
             let tensors =
-                if <Box<dyn Operator> as HasProcessTrace<AddColumn, AddTable>>::has_process_trace(
+                if <Box<dyn Operator> as HasProcessTrace<AddColumn,
+        AddTable>>::has_process_trace(
                     node_op,
                 ) {
                     let tensors = <Box<dyn Operator> as HasProcessTrace<
@@ -184,7 +191,8 @@ impl LuminairGraph for Graph {
                     *op_counter.add.get_or_insert(0) += 1;
 
                     tensors
-                }  else if <Box<dyn Operator> as HasProcessTrace<MulColumn, MulTable>>::has_process_trace(
+                }  else if <Box<dyn Operator> as HasProcessTrace<MulColumn,
+        MulTable>>::has_process_trace(
                     node_op,
                 ) {
                     let tensors = <Box<dyn Operator> as HasProcessTrace<
@@ -197,7 +205,22 @@ impl LuminairGraph for Graph {
                     *op_counter.mul.get_or_insert(0) += 1;
 
                     tensors
-                } else if <Box<dyn Operator> as HasProcessTrace<SumReduceColumn, SumReduceTable>>::has_process_trace(
+                } else if <Box<dyn Operator> as HasProcessTrace<LessThanColumn,
+        LessThanTable>>::has_process_trace(
+                    node_op,
+                ) {
+                    let tensors = <Box<dyn Operator> as HasProcessTrace<
+                        LessThanColumn,
+                        LessThanTable,
+                    >>::call_process_trace(
+                        node_op, srcs, &mut lessthan_table, &node_info
+                    )
+                    .unwrap();
+                    *op_counter.lessthan.get_or_insert(0) += 1;
+
+                    tensors
+                } else if <Box<dyn Operator> as HasProcessTrace<SumReduceColumn,
+        SumReduceTable>>::has_process_trace(
                     node_op,
                 ) {
                     let tensors = <Box<dyn Operator> as HasProcessTrace<
@@ -210,7 +233,8 @@ impl LuminairGraph for Graph {
                     *op_counter.sum_reduce.get_or_insert(0) += 1;
 
                     tensors
-                } else if <Box<dyn Operator> as HasProcessTrace<RecipColumn, RecipTable>>::has_process_trace(
+                } else if <Box<dyn Operator> as HasProcessTrace<RecipColumn,
+        RecipTable>>::has_process_trace(
                     node_op,
                 ) {
                     let tensors = <Box<dyn Operator> as HasProcessTrace<
@@ -266,8 +290,15 @@ impl LuminairGraph for Graph {
         if !sum_reduce_table.table.is_empty() {
             let log_size = calculate_log_size(sum_reduce_table.table.len());
             max_log_size = max_log_size.max(log_size);
-            
+
             table_traces.push(TableTrace::from_sum_reduce(sum_reduce_table));
+        }
+
+        if !lessthan_table.table.is_empty() {
+            let log_size = calculate_log_size(lessthan_table.table.len());
+            max_log_size = max_log_size.max(log_size);
+
+            table_traces.push(TableTrace::from_lessthan(lessthan_table));
         }
 
         Ok(LuminairPie {
@@ -344,6 +375,7 @@ impl LuminairGraph for Graph {
             match claim_type {
                 ClaimType::Add(claim) => main_claim.add = Some(claim),
                 ClaimType::Mul(claim) => main_claim.mul = Some(claim),
+                ClaimType::LessThan(claim) => main_claim.lessthan = Some(claim),
                 ClaimType::SumReduce(claim) => main_claim.sum_reduce = Some(claim),
                 ClaimType::Recip(claim) => main_claim.recip = Some(claim),
             }
@@ -380,15 +412,24 @@ impl LuminairGraph for Graph {
                     tree_builder.extend_evals(tr);
                     interaction_claim.mul = Some(cl);
                 }
+                ClaimType::LessThan(_) => {
+                    let (tr, cl) =
+                        lessthan::table::interaction_trace_evaluation(&trace, lookup_elements)
+                            .unwrap();
+                    tree_builder.extend_evals(tr);
+                    interaction_claim.lessthan = Some(cl);
+                }
                 ClaimType::SumReduce(_) => {
                     let (tr, cl) =
-                        sum_reduce::table::interaction_trace_evaluation(&trace, lookup_elements).unwrap();
+                        sum_reduce::table::interaction_trace_evaluation(&trace, lookup_elements)
+                            .unwrap();
                     tree_builder.extend_evals(tr);
                     interaction_claim.sum_reduce = Some(cl);
                 }
                 ClaimType::Recip(_) => {
                     let (tr, cl) =
-                        recip::table::interaction_trace_evaluation(&trace, lookup_elements).unwrap();
+                        recip::table::interaction_trace_evaluation(&trace, lookup_elements)
+                            .unwrap();
                     tree_builder.extend_evals(tr);
                     interaction_claim.recip = Some(cl);
                 }
@@ -505,23 +546,43 @@ fn test_direct_table_trace_processing() {
     let a = cx.tensor((10, 10)).set(vec![1.0; 100]);
     let b = cx.tensor((10, 10)).set(vec![2.0; 100]);
     let c = a * b;
+    let less = a.less_than(b);
     let mut d = (c + a).retrieve();
+    let mut l = less.retrieve();
+
+    cx.compile(<(GenericCompiler, StwoCompiler)>::default(), &mut d);
+    cx.compile(<(GenericCompiler, StwoCompiler)>::default(), &mut l);
     let _e = a.sum_reduce(0).retrieve();
 
-  cx.compile(<(GenericCompiler, StwoCompiler)>::default(), &mut d);
+    cx.compile(<(GenericCompiler, StwoCompiler)>::default(), &mut d);
 
     // Generate trace with direct table storage
     let trace = cx.gen_trace().expect("Trace generation failed");
 
     // Verify that table traces contain both operation types
-    let has_add = trace.table_traces.iter().any(|t| matches!(t, TableTrace::Add { .. }));
-    let has_mul = trace.table_traces.iter().any(|t| matches!(t, TableTrace::Mul { .. }));
-    let has_sum_reduce = trace.table_traces.iter().any(|t| matches!(t, TableTrace::SumReduce { .. }));
-    
+
+    let has_add = trace
+        .table_traces
+        .iter()
+        .any(|t| matches!(t, TableTrace::Add { .. }));
+    let has_mul = trace
+        .table_traces
+        .iter()
+        .any(|t| matches!(t, TableTrace::Mul { .. }));
+    let has_lessthan = trace
+        .table_traces
+        .iter()
+        .any(|t| matches!(t, TableTrace::LessThan { .. }));
+    let has_sum_reduce = trace
+        .table_traces
+        .iter()
+        .any(|t| matches!(t, TableTrace::SumReduce { .. }));
+
     assert!(has_add, "Should contain Add table traces");
     assert!(has_mul, "Should contain Mul table traces");
+    assert!(has_lessthan, "Should contain LessThan table traces");
     assert!(has_sum_reduce, "Should contain SumReduce table traces");
-    
+
     // Verify the end-to-end proof pipeline
     let proof = cx.prove(trace).expect("Proof generation failed");
     assert!(
