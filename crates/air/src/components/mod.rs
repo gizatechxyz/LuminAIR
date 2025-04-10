@@ -10,10 +10,6 @@ use mul::{
     component::{MulComponent, MulEval},
     table::MulColumn,
 };
-use sum_reduce::{
-    component::{SumReduceComponent, SumReduceEval},
-    table::SumReduceColumn,
-};
 use recip::{
     component::{RecipComponent, RecipEval},
     table::RecipColumn,
@@ -32,6 +28,10 @@ use stwo_prover::{
     },
     relation,
 };
+use sum_reduce::{
+    component::{SumReduceComponent, SumReduceEval},
+    table::SumReduceColumn,
+};
 use thiserror::Error;
 
 use crate::{LuminairClaim, LuminairInteractionClaim};
@@ -39,8 +39,8 @@ use crate::{LuminairClaim, LuminairInteractionClaim};
 pub mod add;
 pub mod lessthan;
 pub mod mul;
-pub mod sum_reduce;
 pub mod recip;
+pub mod sum_reduce;
 
 /// Errors related to trace operations.
 #[derive(Debug, Error, Eq, PartialEq)]
@@ -229,6 +229,11 @@ impl LuminairComponents {
                     interaction_elements.node_lookup_elements.clone(),
                 ),
                 interaction_claim.lessthan.as_ref().unwrap().claimed_sum,
+            ))
+        } else {
+            None
+        };
+
         let sum_reduce = if let Some(ref sum_reduce_claim) = claim.sum_reduce {
             Some(SumReduceComponent::new(
                 tree_span_provider,
@@ -237,11 +242,11 @@ impl LuminairComponents {
                     interaction_elements.node_lookup_elements.clone(),
                 ),
                 interaction_claim.sum_reduce.as_ref().unwrap().claimed_sum,
-              ))
+            ))
         } else {
             None
         };
-      
+
         let recip = if let Some(ref recip_claim) = claim.recip {
             Some(RecipComponent::new(
                 tree_span_provider,
@@ -255,8 +260,13 @@ impl LuminairComponents {
             None
         };
 
-        Self { add, mul, lessthan }
-        Self { add, mul, sum_reduce, recip }
+        Self {
+            add,
+            mul,
+            lessthan,
+            sum_reduce,
+            recip,
+        }
     }
 
     /// Returns the `ComponentProver` of each components, used by the prover.
@@ -271,6 +281,7 @@ impl LuminairComponents {
         }
         if let Some(ref lessthan_component) = self.lessthan {
             components.push(lessthan_component);
+        }
         if let Some(ref sum_reduce_component) = self.sum_reduce {
             components.push(sum_reduce_component);
         }

@@ -1,6 +1,7 @@
 use crate::components::{LessThanClaim, NodeElements};
 use num_traits::One;
-use numerair::{eval::EvalFixedPoint, SCALE_FACTOR};
+#[allow(unused_imports)]
+use numerair::eval::EvalFixedPoint;
 use stwo_prover::constraint_framework::{
     EvalAtRow, FrameworkComponent, FrameworkEval, RelationEntry,
 };
@@ -84,11 +85,11 @@ impl FrameworkEval for LessThanEval {
         // where epsilon is a small positive value to handle the strict inequality
 
         // For fixed-point comparisons, we can use the following constraint:
+        let diff = rhs_val.clone() - lhs_val.clone();
+
+        // Enforce that when out_val is 0, lhs_val >= rhs_val
         eval.add_constraint(
-            out_val.clone() * out_val.clone() * (lhs_val.clone() - rhs_val.clone())
-                + (E::F::one() - out_val.clone())
-                    * (E::F::one() - out_val.clone())
-                    * (rhs_val.clone() - lhs_val.clone()),
+            out_val.clone() * (-diff.clone()) * (E::F::one() - out_val.clone()) * diff.clone(),
         );
 
         // ┌────────────────────────────┐

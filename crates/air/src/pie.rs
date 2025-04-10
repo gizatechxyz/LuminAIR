@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-use crate::components::{add::table::AddTable, mul::table::MulTable, sum_reduce::table::SumReduceTable, recip::table::RecipTable, ClaimType, TraceEval, TraceError};
+use crate::components::{
+    add::table::AddTable, lessthan::table::LessThanTable, mul::table::MulTable,
+    recip::table::RecipTable, sum_reduce::table::SumReduceTable, ClaimType, TraceError, TraceEval,
+};
 
 /// Represents an operator's trace table along with its claim before conversion
 /// to a serialized trace format. Used to defer trace evaluation until proving.
@@ -9,13 +12,11 @@ pub enum TableTrace {
     /// Addition operator trace table.
     Add { table: AddTable },
     /// Multiplication operator trace table.
-    Mul {
-        table: MulTable,
-    },
+    Mul { table: MulTable },
+    /// LessThan operator trace table.
+    LessThan { table: LessThanTable },
     /// Sum Reduce operator trace table.
-    SumReduce {
-        table: SumReduceTable,
-    },
+    SumReduce { table: SumReduceTable },
     /// Recip operator trace table.
     Recip { table: RecipTable },
 }
@@ -33,6 +34,12 @@ impl TableTrace {
         Self::Mul { table }
     }
 
+    /// Creates a new [`TableTrace`] from a [`LessThanTable`]
+    /// for use in the proof generation.
+    pub fn from_lessthan(table: LessThanTable) -> Self {
+        Self::LessThan { table }
+    }
+
     /// Creates a new [`TableTrace`] from a [`RecipTable`]
     /// for use in the proof generation.
     pub fn from_recip(table: RecipTable) -> Self {
@@ -42,9 +49,7 @@ impl TableTrace {
     /// Creates a new [`TableTrace`] from a [`SumReduceTable`]
     /// for use in the proof generation.
     pub fn from_sum_reduce(table: SumReduceTable) -> Self {
-        Self::SumReduce {
-            table,
-        }
+        Self::SumReduce { table }
     }
 
     pub fn to_trace(&self) -> Result<(TraceEval, ClaimType), TraceError> {
@@ -57,12 +62,17 @@ impl TableTrace {
             TableTrace::Mul { table } => {
                 let (trace, claim) = table.trace_evaluation()?;
                 Ok((trace, ClaimType::Mul(claim)))
-            },
+            }
+
+            TableTrace::LessThan { table } => {
+                let (trace, claim) = table.trace_evaluation()?;
+                Ok((trace, ClaimType::LessThan(claim)))
+            }
 
             TableTrace::SumReduce { table } => {
                 let (trace, claim) = table.trace_evaluation()?;
                 Ok((trace, ClaimType::SumReduce(claim)))
-            },
+            }
 
             TableTrace::Recip { table } => {
                 let (trace, claim) = table.trace_evaluation()?;

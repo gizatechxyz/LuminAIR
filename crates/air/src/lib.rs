@@ -3,8 +3,7 @@
 use std::vec;
 
 use ::serde::{Deserialize, Serialize};
-use components::{AddClaim, InteractionClaim, LessThanClaim, MulClaim};
-use components::{AddClaim, InteractionClaim, MulClaim, SumReduceClaim, RecipClaim};
+use components::{AddClaim, InteractionClaim, LessThanClaim, MulClaim, RecipClaim, SumReduceClaim};
 use pie::ExecutionResources;
 use stwo_prover::constraint_framework::PREPROCESSED_TRACE_IDX;
 use stwo_prover::core::{
@@ -60,10 +59,11 @@ impl LuminairClaim {
         }
         if let Some(ref lessthan) = self.lessthan {
             lessthan.mix_into(channel);
+        }
         if let Some(ref sum_reduce) = self.sum_reduce {
             sum_reduce.mix_into(channel);
         }
-         if let Some(ref recip) = self.recip {
+        if let Some(ref recip) = self.recip {
             recip.mix_into(channel);
         }
     }
@@ -80,6 +80,7 @@ impl LuminairClaim {
         }
         if let Some(ref lessthan) = self.lessthan {
             log_sizes.push(lessthan.log_sizes());
+        }
         if let Some(ref sum_reduce) = self.sum_reduce {
             log_sizes.push(sum_reduce.log_sizes());
         }
@@ -119,6 +120,7 @@ impl LuminairInteractionClaim {
         }
         if let Some(ref lessthan) = self.lessthan {
             lessthan.mix_into(channel);
+        }
         if let Some(ref sum_reduce) = self.sum_reduce {
             sum_reduce.mix_into(channel);
         }
