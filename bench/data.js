@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744101886326,
+  "lastUpdate": 1744554526471,
   "repoUrl": "https://github.com/gizatechxyz/LuminAIR",
   "entries": {
     "LuminAIR Benchmarks": [
@@ -1283,6 +1283,120 @@ window.BENCHMARK_DATA = {
             "name": "Sum Reduce Operator/Verification (32x32)",
             "value": 278241,
             "range": "± 6887",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "113879115+raphaelDkhn@users.noreply.github.com",
+            "name": "raphaelDkhn",
+            "username": "raphaelDkhn"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5be13a4d01fcb12685b04541c4405505efa254a3",
+          "message": "Merge pull request #58 from guha-rahul/Max_Reuce\n\nfeat: Add Support for  MaxReduce Operator",
+          "timestamp": "2025-04-13T17:23:45+03:00",
+          "tree_id": "01cbd5121acc0e7294761fdae87a61d32f1d41de",
+          "url": "https://github.com/gizatechxyz/LuminAIR/commit/5be13a4d01fcb12685b04541c4405505efa254a3"
+        },
+        "date": 1744554526052,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "Add Operator/Trace Generation (32x32)",
+            "value": 98405,
+            "range": "± 1306",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Add Operator/Proving (32x32)",
+            "value": 13862887,
+            "range": "± 279532",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Add Operator/Verification (32x32)",
+            "value": 273924,
+            "range": "± 14468",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Mul Operator/Trace Generation (32x32)",
+            "value": 100150,
+            "range": "± 1870",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Mul Operator/Proving (32x32)",
+            "value": 13756742,
+            "range": "± 420193",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Mul Operator/Verification (32x32)",
+            "value": 271084,
+            "range": "± 9183",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Recip Operator/Trace Generation (32x32)",
+            "value": 69281,
+            "range": "± 2267",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Recip Operator/Proving (32x32)",
+            "value": 13354414,
+            "range": "± 103165",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Recip Operator/Verification (32x32)",
+            "value": 264950,
+            "range": "± 11011",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Sum Reduce Operator/Trace Generation (32x32)",
+            "value": 63435,
+            "range": "± 350",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Sum Reduce Operator/Proving (32x32)",
+            "value": 13388441,
+            "range": "± 511899",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Sum Reduce Operator/Verification (32x32)",
+            "value": 271446,
+            "range": "± 7284",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Max Reduce Operator/Trace Generation (32x32)",
+            "value": 66582,
+            "range": "± 495",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Max Reduce Operator/Proving (32x32)",
+            "value": 13456441,
+            "range": "± 44277",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Max Reduce Operator/Verification (32x32)",
+            "value": 272501,
+            "range": "± 9377",
             "unit": "ns/iter"
           }
         ]
