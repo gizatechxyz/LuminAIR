@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744554526471,
+  "lastUpdate": 1744554536463,
   "repoUrl": "https://github.com/gizatechxyz/LuminAIR",
   "entries": {
     "LuminAIR Benchmarks": [
@@ -1397,6 +1397,120 @@ window.BENCHMARK_DATA = {
             "name": "Max Reduce Operator/Verification (32x32)",
             "value": 272501,
             "range": "± 9377",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "113879115+raphaelDkhn@users.noreply.github.com",
+            "name": "raphaelDkhn",
+            "username": "raphaelDkhn"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d86d81c584eba932fd830d6fd89ccb888adc0a2b",
+          "message": "Merge pull request #59 from gizatechxyz/all-contributors/add-guha-rahul\n\ndocs: add guha-rahul as a contributor for code",
+          "timestamp": "2025-04-13T17:23:58+03:00",
+          "tree_id": "411ea92a6143688539e3421b1ba42fa52b773624",
+          "url": "https://github.com/gizatechxyz/LuminAIR/commit/d86d81c584eba932fd830d6fd89ccb888adc0a2b"
+        },
+        "date": 1744554536155,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "Add Operator/Trace Generation (32x32)",
+            "value": 94800,
+            "range": "± 1850",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Add Operator/Proving (32x32)",
+            "value": 13707583,
+            "range": "± 63261",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Add Operator/Verification (32x32)",
+            "value": 270541,
+            "range": "± 6377",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Mul Operator/Trace Generation (32x32)",
+            "value": 100725,
+            "range": "± 1975",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Mul Operator/Proving (32x32)",
+            "value": 13758601,
+            "range": "± 310698",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Mul Operator/Verification (32x32)",
+            "value": 273000,
+            "range": "± 13312",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Recip Operator/Trace Generation (32x32)",
+            "value": 69039,
+            "range": "± 2811",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Recip Operator/Proving (32x32)",
+            "value": 13348174,
+            "range": "± 61559",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Recip Operator/Verification (32x32)",
+            "value": 264566,
+            "range": "± 4097",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Sum Reduce Operator/Trace Generation (32x32)",
+            "value": 62616,
+            "range": "± 221",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Sum Reduce Operator/Proving (32x32)",
+            "value": 13383044,
+            "range": "± 566704",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Sum Reduce Operator/Verification (32x32)",
+            "value": 268572,
+            "range": "± 5268",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Max Reduce Operator/Trace Generation (32x32)",
+            "value": 68413,
+            "range": "± 7994",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Max Reduce Operator/Proving (32x32)",
+            "value": 13448525,
+            "range": "± 51157",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Max Reduce Operator/Verification (32x32)",
+            "value": 272981,
+            "range": "± 3967",
             "unit": "ns/iter"
           }
         ]
