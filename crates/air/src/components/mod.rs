@@ -2,6 +2,10 @@ use add::{
     component::{AddComponent, AddEval},
     table::AddColumn,
 };
+use lessthan::{
+    component::{LessThanComponent, LessThanEval},
+    table::LessThanColumn,
+};
 use max_reduce::{
     component::{MaxReduceComponent, MaxReduceEval},
     table::MaxReduceColumn,
@@ -38,6 +42,7 @@ use thiserror::Error;
 use crate::{LuminairClaim, LuminairInteractionClaim};
 
 pub mod add;
+pub mod lessthan;
 pub mod max_reduce;
 pub mod mul;
 pub mod recip;
@@ -58,6 +63,8 @@ pub type TraceEval = ColumnVec<CircleEvaluation<SimdBackend, BaseField, BitRever
 pub type AddClaim = Claim<AddColumn>;
 /// Claim for the Mul trace.
 pub type MulClaim = Claim<MulColumn>;
+/// Claim for the LessThan trace.
+pub type LessThanClaim = Claim<LessThanColumn>;
 /// Claim for the SumReduce trace.
 pub type SumReduceClaim = Claim<SumReduceColumn>;
 /// Claim for the Recip trace.
@@ -118,6 +125,7 @@ impl<T: TraceColumn> Claim<T> {
 pub enum ClaimType {
     Add(Claim<AddColumn>),
     Mul(Claim<MulColumn>),
+    LessThan(Claim<LessThanColumn>),
     SumReduce(Claim<SumReduceColumn>),
     Recip(Claim<RecipColumn>),
     MaxReduce(Claim<MaxReduceColumn>),
@@ -175,6 +183,7 @@ impl LuminairInteractionElements {
 pub struct LuminairComponents {
     add: Option<AddComponent>,
     mul: Option<MulComponent>,
+    lessthan: Option<LessThanComponent>,
     sum_reduce: Option<SumReduceComponent>,
     recip: Option<RecipComponent>,
     max_reduce: Option<MaxReduceComponent>,
@@ -222,6 +231,19 @@ impl LuminairComponents {
             None
         };
 
+        let lessthan = if let Some(ref lessthan_claim) = claim.lessthan {
+            Some(LessThanComponent::new(
+                tree_span_provider,
+                LessThanEval::new(
+                    &lessthan_claim,
+                    interaction_elements.node_lookup_elements.clone(),
+                ),
+                interaction_claim.lessthan.as_ref().unwrap().claimed_sum,
+            ))
+        } else {
+            None
+        };
+
         let sum_reduce = if let Some(ref sum_reduce_claim) = claim.sum_reduce {
             Some(SumReduceComponent::new(
                 tree_span_provider,
@@ -264,6 +286,7 @@ impl LuminairComponents {
         Self {
             add,
             mul,
+            lessthan,
             sum_reduce,
             recip,
             max_reduce,
@@ -279,6 +302,9 @@ impl LuminairComponents {
         }
         if let Some(ref mul_component) = self.mul {
             components.push(mul_component);
+        }
+        if let Some(ref lessthan_component) = self.lessthan {
+            components.push(lessthan_component);
         }
         if let Some(ref sum_reduce_component) = self.sum_reduce {
             components.push(sum_reduce_component);

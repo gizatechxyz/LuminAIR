@@ -3,6 +3,7 @@
 use std::vec;
 
 use ::serde::{Deserialize, Serialize};
+use components::{AddClaim, InteractionClaim, LessThanClaim, MulClaim, RecipClaim, SumReduceClaim};
 use components::{
     AddClaim, InteractionClaim, MaxReduceClaim, MulClaim, RecipClaim, SumReduceClaim,
 };
@@ -36,6 +37,7 @@ pub struct LuminairClaim {
     pub recip: Option<RecipClaim>,
     pub max_reduce: Option<MaxReduceClaim>,
     pub is_first_log_sizes: Vec<u32>,
+    pub lessthan: Option<LessThanClaim>,
 }
 
 impl LuminairClaim {
@@ -44,6 +46,7 @@ impl LuminairClaim {
         Self {
             add: None,
             mul: None,
+            lessthan: None,
             sum_reduce: None,
             recip: None,
             max_reduce: None,
@@ -58,6 +61,9 @@ impl LuminairClaim {
         }
         if let Some(ref mul) = self.mul {
             mul.mix_into(channel);
+        }
+        if let Some(ref lessthan) = self.lessthan {
+            lessthan.mix_into(channel);
         }
         if let Some(ref sum_reduce) = self.sum_reduce {
             sum_reduce.mix_into(channel);
@@ -79,6 +85,9 @@ impl LuminairClaim {
         }
         if let Some(ref mul) = self.mul {
             log_sizes.push(mul.log_sizes());
+        }
+        if let Some(ref lessthan) = self.lessthan {
+            log_sizes.push(lessthan.log_sizes());
         }
         if let Some(ref sum_reduce) = self.sum_reduce {
             log_sizes.push(sum_reduce.log_sizes());
@@ -103,6 +112,7 @@ impl LuminairClaim {
 pub struct LuminairInteractionClaim {
     pub add: Option<InteractionClaim>,
     pub mul: Option<InteractionClaim>,
+    pub lessthan: Option<InteractionClaim>,
     pub sum_reduce: Option<InteractionClaim>,
     pub recip: Option<InteractionClaim>,
     pub max_reduce: Option<InteractionClaim>,
@@ -116,6 +126,12 @@ impl LuminairInteractionClaim {
         }
         if let Some(ref mul) = self.mul {
             mul.mix_into(channel);
+        }
+        if let Some(ref add) = self.add {
+            add.mix_into(channel);
+        }
+        if let Some(ref lessthan) = self.lessthan {
+            lessthan.mix_into(channel);
         }
         if let Some(ref sum_reduce) = self.sum_reduce {
             sum_reduce.mix_into(channel);

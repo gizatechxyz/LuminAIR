@@ -1,5 +1,7 @@
 use crate::{
-    components::{InteractionClaim, NodeElements, SumReduceClaim, TraceColumn, TraceError, TraceEval},
+    components::{
+        InteractionClaim, NodeElements, SumReduceClaim, TraceColumn, TraceError, TraceEval,
+    },
     utils::calculate_log_size,
 };
 use num_traits::One;

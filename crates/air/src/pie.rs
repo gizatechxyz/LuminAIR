@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::components::{
+    add::table::AddTable, lessthan::table::LessThanTable, mul::table::MulTable,
     add::table::AddTable, max_reduce::table::MaxReduceTable, mul::table::MulTable,
     recip::table::RecipTable, sum_reduce::table::SumReduceTable, ClaimType, TraceError, TraceEval,
 };
@@ -13,6 +14,8 @@ pub enum TableTrace {
     Add { table: AddTable },
     /// Multiplication operator trace table.
     Mul { table: MulTable },
+    /// LessThan operator trace table.
+    LessThan { table: LessThanTable },
     /// Sum Reduce operator trace table.
     SumReduce { table: SumReduceTable },
     /// Recip operator trace table.
@@ -32,6 +35,12 @@ impl TableTrace {
     /// for use in the proof generation.
     pub fn from_mul(table: MulTable) -> Self {
         Self::Mul { table }
+    }
+
+    /// Creates a new [`TableTrace`] from a [`LessThanTable`]
+    /// for use in the proof generation.
+    pub fn from_lessthan(table: LessThanTable) -> Self {
+        Self::LessThan { table }
     }
 
     /// Creates a new [`TableTrace`] from a [`RecipTable`]
@@ -62,6 +71,11 @@ impl TableTrace {
             TableTrace::Mul { table } => {
                 let (trace, claim) = table.trace_evaluation()?;
                 Ok((trace, ClaimType::Mul(claim)))
+            }
+
+            TableTrace::LessThan { table } => {
+                let (trace, claim) = table.trace_evaluation()?;
+                Ok((trace, ClaimType::LessThan(claim)))
             }
 
             TableTrace::SumReduce { table } => {
@@ -113,6 +127,7 @@ pub struct ExecutionResources {
 pub struct OpCounter {
     pub add: Option<usize>,
     pub mul: Option<usize>,
+    pub lessthan: Option<usize>,
     pub sum_reduce: Option<usize>,
     pub recip: Option<usize>,
     pub max_reduce: Option<usize>,
