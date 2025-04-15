@@ -2,6 +2,7 @@ use luminair_air::{
     components::{
         add::table::{AddColumn, AddTable, AddTableRow},
         lessthan::table::{LessThanColumn, LessThanTable, LessThanTableRow},
+        max_reduce::table::{MaxReduceColumn, MaxReduceTable, MaxReduceTableRow},
         mul::table::{MulColumn, MulTable, MulTableRow},
         recip::table::{RecipColumn, RecipTable, RecipTableRow},
         sum_reduce::table::{SumReduceColumn, SumReduceTable, SumReduceTableRow},
@@ -548,6 +549,118 @@ impl Operator for LuminairSumReduce {
     }
 }
 
+#[derive(Debug, Clone, Default, PartialEq)]
+struct LuminairMaxReduce(pub usize);
+
+impl LuminairMaxReduce {
+    /// Creates a new `LuminairMaxReduce` instance.
+    pub fn new(value: usize) -> Self {
+        Self(value)
+    }
+}
+
+impl LuminairOperator<MaxReduceColumn, MaxReduceTable> for LuminairMaxReduce {
+    /// Processes input tensor, generating a trace, claim, and output tensor.
+    fn process_trace(
+        &mut self,
+        inp: Vec<(InputTensor, ShapeTracker)>,
+        table: &mut MaxReduceTable,
+        node_info: &NodeInfo,
+    ) -> Vec<Tensor> {
+        let sh = inp[0].1.shape_usize();
+        let front_size = sh.iter().take(self.0).product::<usize>().max(1);
+        let back_size = sh.iter().skip(self.0 + 1).product::<usize>().max(1);
+        let dim_size = sh[self.0];
+
+        let output_size = front_size * back_size;
+        let mut out_data = vec![Fixed::zero(); output_size];
+        let input = get_buffer_from_tensor(&inp[0].0);
+        let expr = (inp[0].1.index_expression(), inp[0].1.valid_expression());
+        let mut stack: Vec<i64> = vec![];
+
+        let node_id: BaseField = node_info.id.into();
+        let input_id: BaseField = node_info.inputs[0].id.into();
+
+        for i in 0..front_size {
+            for j in 0..back_size {
+                // Initialize with the first element instead of negative infinity
+                let orig_first_index = i * dim_size * back_size + 0 * back_size + j;
+                let mut max_val = get_index(input, &expr, &mut stack, orig_first_index);
+
+                for k in 0..dim_size {
+                    let orig_index = i * dim_size * back_size + k * back_size + j;
+                    let input_val = get_index(input, &expr, &mut stack, orig_index);
+
+                    // Determine if this value is the new max
+                    let is_max = if input_val.to_f64() > max_val.to_f64() {
+                        BaseField::one()
+                    } else {
+                        BaseField::zero()
+                    };
+
+                    // Update max_val if needed
+                    let next_max_val = if is_max == BaseField::one() {
+                        input_val
+                    } else {
+                        max_val
+                    };
+
+                    // Set out_data only in the last reduction step
+                    let (out_val, is_last_step) = if k == dim_size - 1 {
+                        out_data[i * back_size + j] = next_max_val;
+                        (next_max_val, BaseField::one())
+                    } else {
+                        (Fixed::zero(), BaseField::zero()) // Placeholder for incomplete reductions
+                    };
+
+                    let input_mult = if node_info.inputs[0].is_initializer {
+                        BaseField::zero()
+                    } else {
+                        -BaseField::one()
+                    };
+                    let out_mult = if node_info.output.is_final_output {
+                        BaseField::zero()
+                    } else {
+                        BaseField::one() * BaseField::from_u32_unchecked(node_info.num_consumers)
+                    };
+                    let idx = i * back_size + j; // Index for out_data
+
+                    let is_last_idx: u32 = if idx == (output_size - 1) { 1 } else { 0 };
+
+                    // Add row to the trace table with max_val and next_max_val
+                    table.add_row(MaxReduceTableRow {
+                        node_id,
+                        input_id,
+                        idx: idx.into(),
+                        is_last_idx: (is_last_idx).into(),
+                        next_node_id: node_id,
+                        next_input_id: input_id,
+                        next_idx: (idx + 1).into(),
+                        input: input_val.to_m31(),
+                        out: out_val.to_m31(),
+                        max_val: max_val.to_m31(),
+                        next_max_val: next_max_val.to_m31(),
+                        is_last_step,
+                        is_max,
+                        input_mult,
+                        out_mult,
+                    });
+
+                    max_val = next_max_val;
+                }
+            }
+        }
+        vec![Tensor::new(StwoData(Arc::new(out_data)))]
+    }
+}
+
+impl Operator for LuminairMaxReduce {
+    /// This method is not used as `process_trace` handles all computation for this operator.
+    fn process(&mut self, _inp: Vec<(InputTensor, ShapeTracker)>) -> Vec<Tensor> {
+        unimplemented!()
+    }
+}
+
 // ================== COMPILER ==================
 
 /// Compiles primitive operations into provable forms for LuminAIR.
@@ -675,6 +788,14 @@ impl Compiler for PrimitiveCompiler {
                         0
                     };
                 *op_ref = LuminairSumReduce::new(dim_index).into_operator()
+            } else if is::<luminal::op::MaxReduce>(op) {
+                let dim_index =
+                    if let Some(max_reduce) = op_ref.deref().as_any().downcast_ref::<MaxReduce>() {
+                        max_reduce.0 // Access the usize field
+                    } else {
+                        0
+                    };
+                *op_ref = LuminairMaxReduce::new(dim_index).into_operator()
             } else if is::<luminal::op::Recip>(op) {
                 *op_ref = LuminairRecip::new().into_operator()
             } else if is::<luminal::op::Contiguous>(op) {

@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::components::{
     add::table::AddTable, lessthan::table::LessThanTable, mul::table::MulTable,
+    add::table::AddTable, max_reduce::table::MaxReduceTable, mul::table::MulTable,
     recip::table::RecipTable, sum_reduce::table::SumReduceTable, ClaimType, TraceError, TraceEval,
 };
 
@@ -19,6 +20,8 @@ pub enum TableTrace {
     SumReduce { table: SumReduceTable },
     /// Recip operator trace table.
     Recip { table: RecipTable },
+    /// Max Reduce operator trace table.
+    MaxReduce { table: MaxReduceTable },
 }
 
 impl TableTrace {
@@ -52,6 +55,12 @@ impl TableTrace {
         Self::SumReduce { table }
     }
 
+    /// Creates a new [`TableTrace`] from a [`MaxReduceTable`]
+    /// for use in the proof generation.
+    pub fn from_max_reduce(table: MaxReduceTable) -> Self {
+        Self::MaxReduce { table }
+    }
+
     pub fn to_trace(&self) -> Result<(TraceEval, ClaimType), TraceError> {
         match self {
             TableTrace::Add { table } => {
@@ -77,6 +86,11 @@ impl TableTrace {
             TableTrace::Recip { table } => {
                 let (trace, claim) = table.trace_evaluation()?;
                 Ok((trace, ClaimType::Recip(claim)))
+            }
+
+            TableTrace::MaxReduce { table } => {
+                let (trace, claim) = table.trace_evaluation()?;
+                Ok((trace, ClaimType::MaxReduce(claim)))
             }
         }
     }
@@ -116,6 +130,7 @@ pub struct OpCounter {
     pub lessthan: Option<usize>,
     pub sum_reduce: Option<usize>,
     pub recip: Option<usize>,
+    pub max_reduce: Option<usize>,
 }
 
 /// Indicates if a node input is an initializer (i.e., from initial input).

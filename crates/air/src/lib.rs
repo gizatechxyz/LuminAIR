@@ -4,6 +4,9 @@ use std::vec;
 
 use ::serde::{Deserialize, Serialize};
 use components::{AddClaim, InteractionClaim, LessThanClaim, MulClaim, RecipClaim, SumReduceClaim};
+use components::{
+    AddClaim, InteractionClaim, MaxReduceClaim, MulClaim, RecipClaim, SumReduceClaim,
+};
 use pie::ExecutionResources;
 use stwo_prover::constraint_framework::PREPROCESSED_TRACE_IDX;
 use stwo_prover::core::{
@@ -32,6 +35,7 @@ pub struct LuminairClaim {
     pub mul: Option<MulClaim>,
     pub sum_reduce: Option<SumReduceClaim>,
     pub recip: Option<RecipClaim>,
+    pub max_reduce: Option<MaxReduceClaim>,
     pub is_first_log_sizes: Vec<u32>,
     pub lessthan: Option<LessThanClaim>,
 }
@@ -45,6 +49,7 @@ impl LuminairClaim {
             lessthan: None,
             sum_reduce: None,
             recip: None,
+            max_reduce: None,
             is_first_log_sizes,
         }
     }
@@ -65,6 +70,9 @@ impl LuminairClaim {
         }
         if let Some(ref recip) = self.recip {
             recip.mix_into(channel);
+        }
+        if let Some(ref max_reduce) = self.max_reduce {
+            max_reduce.mix_into(channel);
         }
     }
 
@@ -87,6 +95,9 @@ impl LuminairClaim {
         if let Some(ref recip) = self.recip {
             log_sizes.push(recip.log_sizes());
         }
+        if let Some(ref max_reduce) = self.max_reduce {
+            log_sizes.push(max_reduce.log_sizes());
+        }
 
         let mut log_sizes = TreeVec::concat_cols(log_sizes.into_iter());
         log_sizes[PREPROCESSED_TRACE_IDX] = self.is_first_log_sizes.clone();
@@ -104,6 +115,7 @@ pub struct LuminairInteractionClaim {
     pub lessthan: Option<InteractionClaim>,
     pub sum_reduce: Option<InteractionClaim>,
     pub recip: Option<InteractionClaim>,
+    pub max_reduce: Option<InteractionClaim>,
 }
 
 impl LuminairInteractionClaim {
@@ -126,6 +138,9 @@ impl LuminairInteractionClaim {
         }
         if let Some(ref recip) = self.recip {
             recip.mix_into(channel);
+        }
+        if let Some(ref max_reduce) = self.max_reduce {
+            max_reduce.mix_into(channel);
         }
     }
 }

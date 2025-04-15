@@ -11,6 +11,9 @@ use luminair_air::{
         lessthan::{
             self,
             table::{LessThanColumn, LessThanTable},
+        max_reduce::{
+            self,
+            table::{MaxReduceColumn, MaxReduceTable},
         },
         mul::{
             self,
@@ -66,16 +69,16 @@ pub enum LuminairError {
 /// Provides methods to generate execution traces, retrieve outputs, and handle proof
 /// generation and verification using Stwo.
 pub trait LuminairGraph {
-    /// Generates an execution trace for the graph’s computation.
+    /// Generates an execution trace for the graph's computation.
     fn gen_trace(&mut self) -> Result<LuminairPie, TraceError>;
 
-    /// Generates a proof of the graph’s execution using the provided trace.
+    /// Generates a proof of the graph's execution using the provided trace.
     fn prove(
         &mut self,
         pie: LuminairPie,
     ) -> Result<LuminairProof<Blake2sMerkleHasher>, ProvingError>;
 
-    /// Verifies a proof to ensure integrity of graph’s computation.
+    /// Verifies a proof to ensure integrity of graph's computation.
     fn verify(&self, proof: LuminairProof<Blake2sMerkleHasher>) -> Result<(), LuminairError>;
 }
 
@@ -101,6 +104,7 @@ impl LuminairGraph for Graph {
         let mut lessthan_table = LessThanTable::new();
         let mut recip_table = RecipTable::new();
         let mut sum_reduce_table = SumReduceTable::new();
+        let mut max_reduce_table = MaxReduceTable::new();
 
         for (node, src_ids) in self.linearized_graph.as_ref().unwrap() {
             if self.tensors.contains_key(&(*node, 0)) {
@@ -247,6 +251,19 @@ impl LuminairGraph for Graph {
                     *op_counter.recip.get_or_insert(0) += 1;
 
                     tensors
+                } else if <Box<dyn Operator> as HasProcessTrace<MaxReduceColumn, MaxReduceTable>>::has_process_trace(
+                    node_op,
+                ) {
+                    let tensors = <Box<dyn Operator> as HasProcessTrace<
+                    MaxReduceColumn,
+                    MaxReduceTable,
+                    >>::call_process_trace(
+                        node_op, srcs, &mut max_reduce_table, &node_info
+                    )
+                    .unwrap();
+                    *op_counter.max_reduce.get_or_insert(0) += 1;
+
+                    tensors
                 }
                 else {
                     // Handle other operators or fallback
@@ -286,12 +303,17 @@ impl LuminairGraph for Graph {
 
             table_traces.push(TableTrace::from_recip(recip_table));
         }
-
         if !sum_reduce_table.table.is_empty() {
             let log_size = calculate_log_size(sum_reduce_table.table.len());
             max_log_size = max_log_size.max(log_size);
 
             table_traces.push(TableTrace::from_sum_reduce(sum_reduce_table));
+        }
+        if !max_reduce_table.table.is_empty() {
+            let log_size = calculate_log_size(max_reduce_table.table.len());
+            max_log_size = max_log_size.max(log_size);
+
+            table_traces.push(TableTrace::from_max_reduce(max_reduce_table));
         }
 
         if !lessthan_table.table.is_empty() {
@@ -378,6 +400,7 @@ impl LuminairGraph for Graph {
                 ClaimType::LessThan(claim) => main_claim.lessthan = Some(claim),
                 ClaimType::SumReduce(claim) => main_claim.sum_reduce = Some(claim),
                 ClaimType::Recip(claim) => main_claim.recip = Some(claim),
+                ClaimType::MaxReduce(claim) => main_claim.max_reduce = Some(claim),
             }
         }
 
@@ -432,6 +455,13 @@ impl LuminairGraph for Graph {
                             .unwrap();
                     tree_builder.extend_evals(tr);
                     interaction_claim.recip = Some(cl);
+                }
+                ClaimType::MaxReduce(_) => {
+                    let (tr, cl) =
+                        max_reduce::table::interaction_trace_evaluation(&trace, lookup_elements)
+                            .unwrap();
+                    tree_builder.extend_evals(tr);
+                    interaction_claim.max_reduce = Some(cl);
                 }
             }
         }
@@ -553,6 +583,7 @@ fn test_direct_table_trace_processing() {
     cx.compile(<(GenericCompiler, StwoCompiler)>::default(), &mut d);
     cx.compile(<(GenericCompiler, StwoCompiler)>::default(), &mut l);
     let _e = a.sum_reduce(0).retrieve();
+    let _f = a.max_reduce(0).retrieve();
 
     cx.compile(<(GenericCompiler, StwoCompiler)>::default(), &mut d);
 
@@ -577,11 +608,16 @@ fn test_direct_table_trace_processing() {
         .table_traces
         .iter()
         .any(|t| matches!(t, TableTrace::SumReduce { .. }));
+    let has_max_reduce = trace
+        .table_traces
+        .iter()
+        .any(|t| matches!(t, TableTrace::MaxReduce { .. }));
 
     assert!(has_add, "Should contain Add table traces");
     assert!(has_mul, "Should contain Mul table traces");
     assert!(has_lessthan, "Should contain LessThan table traces");
     assert!(has_sum_reduce, "Should contain SumReduce table traces");
+    assert!(has_max_reduce, "Should contain MaxReduce table traces");
 
     // Verify the end-to-end proof pipeline
     let proof = cx.prove(trace).expect("Proof generation failed");

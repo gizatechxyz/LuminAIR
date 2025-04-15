@@ -5,6 +5,9 @@ use add::{
 use lessthan::{
     component::{LessThanComponent, LessThanEval},
     table::LessThanColumn,
+use max_reduce::{
+    component::{MaxReduceComponent, MaxReduceEval},
+    table::MaxReduceColumn,
 };
 use mul::{
     component::{MulComponent, MulEval},
@@ -32,12 +35,14 @@ use sum_reduce::{
     component::{SumReduceComponent, SumReduceEval},
     table::SumReduceColumn,
 };
+
 use thiserror::Error;
 
 use crate::{LuminairClaim, LuminairInteractionClaim};
 
 pub mod add;
 pub mod lessthan;
+pub mod max_reduce;
 pub mod mul;
 pub mod recip;
 pub mod sum_reduce;
@@ -63,6 +68,8 @@ pub type LessThanClaim = Claim<LessThanColumn>;
 pub type SumReduceClaim = Claim<SumReduceColumn>;
 /// Claim for the Recip trace.
 pub type RecipClaim = Claim<RecipColumn>;
+/// Claim for the MaxReduce trace.
+pub type MaxReduceClaim = Claim<MaxReduceColumn>;
 
 /// Represents columns of a trace.
 pub trait TraceColumn {
@@ -120,6 +127,7 @@ pub enum ClaimType {
     LessThan(Claim<LessThanColumn>),
     SumReduce(Claim<SumReduceColumn>),
     Recip(Claim<RecipColumn>),
+    MaxReduce(Claim<MaxReduceColumn>),
 }
 
 /// The claim of the interaction phase 2 (with the logUp protocol).
@@ -177,6 +185,7 @@ pub struct LuminairComponents {
     lessthan: Option<LessThanComponent>,
     sum_reduce: Option<SumReduceComponent>,
     recip: Option<RecipComponent>,
+    max_reduce: Option<MaxReduceComponent>,
 }
 
 impl LuminairComponents {
@@ -266,6 +275,25 @@ impl LuminairComponents {
             lessthan,
             sum_reduce,
             recip,
+        let max_reduce = if let Some(ref max_reduce_claim) = claim.max_reduce {
+            Some(MaxReduceComponent::new(
+                tree_span_provider,
+                MaxReduceEval::new(
+                    &max_reduce_claim,
+                    interaction_elements.node_lookup_elements.clone(),
+                ),
+                interaction_claim.max_reduce.as_ref().unwrap().claimed_sum,
+            ))
+        } else {
+            None
+        };
+
+        Self {
+            add,
+            mul,
+            sum_reduce,
+            recip,
+            max_reduce,
         }
     }
 
@@ -287,6 +315,9 @@ impl LuminairComponents {
         }
         if let Some(ref recip_component) = self.recip {
             components.push(recip_component);
+        }
+        if let Some(ref max_reduce_component) = self.max_reduce {
+            components.push(max_reduce_component);
         }
         components
     }
