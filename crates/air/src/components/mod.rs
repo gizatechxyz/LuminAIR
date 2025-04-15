@@ -5,6 +5,7 @@ use add::{
 use lessthan::{
     component::{LessThanComponent, LessThanEval},
     table::LessThanColumn,
+};
 use max_reduce::{
     component::{MaxReduceComponent, MaxReduceEval},
     table::MaxReduceColumn,
@@ -269,12 +270,6 @@ impl LuminairComponents {
             None
         };
 
-        Self {
-            add,
-            mul,
-            lessthan,
-            sum_reduce,
-            recip,
         let max_reduce = if let Some(ref max_reduce_claim) = claim.max_reduce {
             Some(MaxReduceComponent::new(
                 tree_span_provider,
@@ -291,6 +286,7 @@ impl LuminairComponents {
         Self {
             add,
             mul,
+            lessthan,
             sum_reduce,
             recip,
             max_reduce,
