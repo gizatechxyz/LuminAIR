@@ -35,7 +35,7 @@ use luminair_air::{
     pie::{
         ExecutionResources, InputInfo, LuminairPie, NodeInfo, OpCounter, OutputInfo, TableTrace,
     },
-    preprocessed::{PreProcessedTrace, Range},
+    preprocessed::PreProcessedTrace,
     utils::{calculate_log_size, lookup_sum_valid},
     LuminairClaim, LuminairInteractionClaim, LuminairProof,
 };
