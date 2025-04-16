@@ -16,7 +16,7 @@ use recip::{
 };
 use serde::{Deserialize, Serialize};
 use stwo_prover::{
-    constraint_framework::{preprocessed_columns::IsFirst, TraceLocationAllocator},
+    constraint_framework::{preprocessed_columns::PreProcessedColumnId, TraceLocationAllocator},
     core::{
         air::{Component, ComponentProver},
         backend::simd::SimdBackend,
@@ -186,15 +186,11 @@ impl LuminairComponents {
         claim: &LuminairClaim,
         interaction_elements: &LuminairInteractionElements,
         interaction_claim: &LuminairInteractionClaim,
-        is_first_log_sizes: &[u32],
+        // Describes the structure of the preprocessed trace. Sensitive to order.
+        preprocessed_column_ids: &[PreProcessedColumnId],
     ) -> Self {
-        let tree_span_provider = &mut TraceLocationAllocator::new_with_preproccessed_columns(
-            &is_first_log_sizes
-                .iter()
-                .copied()
-                .map(|log_size| IsFirst::new(log_size).id())
-                .collect::<Vec<_>>(),
-        );
+        let tree_span_provider =
+            &mut TraceLocationAllocator::new_with_preproccessed_columns(preprocessed_column_ids);
 
         let add = if let Some(ref add_claim) = claim.add {
             Some(AddComponent::new(

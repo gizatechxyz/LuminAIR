@@ -29,7 +29,8 @@ use luminair_air::{
     pie::{
         ExecutionResources, InputInfo, LuminairPie, NodeInfo, OpCounter, OutputInfo, TableTrace,
     },
-    utils::{calculate_log_size, get_is_first_log_sizes, lookup_sum_valid},
+    preprocessed::PreProcessedTrace,
+    utils::{calculate_log_size, lookup_sum_valid},
     LuminairClaim, LuminairInteractionClaim, LuminairProof,
 };
 use luminal::{
@@ -37,10 +38,7 @@ use luminal::{
     prelude::{petgraph::visit::EdgeRef, *},
 };
 use stwo_prover::{
-    constraint_framework::{
-        preprocessed_columns::IsFirst, INTERACTION_TRACE_IDX, ORIGINAL_TRACE_IDX,
-        PREPROCESSED_TRACE_IDX,
-    },
+    constraint_framework::{INTERACTION_TRACE_IDX, ORIGINAL_TRACE_IDX, PREPROCESSED_TRACE_IDX},
     core::{
         backend::simd::SimdBackend,
         channel::Blake2sChannel,
@@ -76,7 +74,11 @@ pub trait LuminairGraph {
     ) -> Result<LuminairProof<Blake2sMerkleHasher>, ProvingError>;
 
     /// Verifies a proof to ensure integrity of graph's computation.
-    fn verify(&self, proof: LuminairProof<Blake2sMerkleHasher>) -> Result<(), LuminairError>;
+    fn verify(
+        &self,
+        proof: LuminairProof<Blake2sMerkleHasher>,
+        //preprocessed_trace: PreProcessedTrace,
+    ) -> Result<(), LuminairError>;
 }
 
 impl LuminairGraph for Graph {
@@ -313,12 +315,12 @@ impl LuminairGraph for Graph {
         tracing::info!("Protocol Setup");
         let config: PcsConfig = PcsConfig::default();
         let max_log_size = pie.execution_resources.max_log_size;
-        let is_first_log_sizes = get_is_first_log_sizes(max_log_size);
         let twiddles = SimdBackend::precompute_twiddles(
             CanonicCoset::new(max_log_size + config.fri_config.log_blowup_factor + 2)
                 .circle_domain()
                 .half_coset,
         );
+        // Setup protocol.
         let channel = &mut Blake2sChannel::default();
         let mut commitment_scheme =
             CommitmentSchemeProver::<_, Blake2sMerkleChannel>::new(config, &twiddles);
@@ -328,16 +330,10 @@ impl LuminairGraph for Graph {
         // └───────────────────────────────────────────────┘
 
         tracing::info!("Preprocessed Trace");
-        // Generate all preprocessed columns
+
+        let preprocessed_trace = PreProcessedTrace::new();
         let mut tree_builder = commitment_scheme.tree_builder();
-
-        tree_builder.extend_evals(
-            is_first_log_sizes
-                .iter()
-                .copied()
-                .map(|log_size| IsFirst::new(log_size).gen_column_simd()),
-        );
-
+        tree_builder.extend_evals(preprocessed_trace.gen_trace());
         // Commit the preprocessed trace
         tree_builder.commit(channel);
 
@@ -347,7 +343,7 @@ impl LuminairGraph for Graph {
 
         tracing::info!("Main Trace");
         let mut tree_builder = commitment_scheme.tree_builder();
-        let mut main_claim = LuminairClaim::new(is_first_log_sizes.clone());
+        let mut main_claim = LuminairClaim::new();
         let mut processed_traces = Vec::new();
 
         for table_trace in pie.table_traces {
@@ -442,7 +438,7 @@ impl LuminairGraph for Graph {
             &main_claim,
             &interaction_elements,
             &interaction_claim,
-            &is_first_log_sizes,
+            &preprocessed_trace.ids(),
         );
         let components = component_builder.provers();
         let proof = prover::prove::<SimdBackend, _>(&components, channel, commitment_scheme)?;
@@ -451,7 +447,6 @@ impl LuminairGraph for Graph {
             claim: main_claim,
             interaction_claim,
             proof,
-            execution_resources: pie.execution_resources,
         })
     }
 
@@ -461,9 +456,12 @@ impl LuminairGraph for Graph {
             claim,
             interaction_claim,
             proof,
-            execution_resources,
         }: LuminairProof<Blake2sMerkleHasher>,
+        //        preprocessed_trace: PreProcessedTrace,
     ) -> Result<(), LuminairError> {
+        // TODO: move preprocessed_trace to function param.
+        let preprocessed_trace = PreProcessedTrace::new();
+
         // ┌──────────────────────────┐
         // │     Protocol Setup       │
         // └──────────────────────────┘
@@ -471,8 +469,8 @@ impl LuminairGraph for Graph {
         let channel = &mut Blake2sChannel::default();
         let commitment_scheme_verifier =
             &mut CommitmentSchemeVerifier::<Blake2sMerkleChannel>::new(config);
-        let log_sizes = &claim.log_sizes();
-        let is_first_log_sizes = get_is_first_log_sizes(execution_resources.max_log_size);
+        let mut log_sizes = claim.log_sizes();
+        log_sizes[PREPROCESSED_TRACE_IDX] = preprocessed_trace.log_sizes();
 
         // ┌───────────────────────────────────────────────┐
         // │   Interaction Phase 0 - Preprocessed Trace    │
@@ -518,13 +516,13 @@ impl LuminairGraph for Graph {
         // │    Proof Verification    │
         // └──────────────────────────┘
 
-        let component_builder = LuminairComponents::new(
+        let component_generator = LuminairComponents::new(
             &claim,
             &interaction_elements,
             &interaction_claim,
-            &is_first_log_sizes,
+            &preprocessed_trace.ids(),
         );
-        let components = component_builder.components();
+        let components = component_generator.components();
         verify(&components, channel, commitment_scheme_verifier, proof)?;
 
         Ok(())

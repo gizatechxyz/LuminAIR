@@ -35,7 +35,9 @@ impl PreProcessedTrace {
     pub fn new() -> Self {
         let recip_cols = gen_recip_columns();
 
-        let columns = chain!(recip_cols)
+        let columns = chain!(
+            recip_cols
+        )
             .sorted_by_key(|column| std::cmp::Reverse(column.log_size()))
             .collect();
 

@@ -6,8 +6,6 @@ use ::serde::{Deserialize, Serialize};
 use components::{
     AddClaim, InteractionClaim, MaxReduceClaim, MulClaim, RecipClaim, SumReduceClaim,
 };
-use pie::ExecutionResources;
-use stwo_prover::constraint_framework::PREPROCESSED_TRACE_IDX;
 use stwo_prover::core::{
     channel::Channel, pcs::TreeVec, prover::StarkProof, vcs::ops::MerkleHasher,
 };
@@ -25,7 +23,6 @@ pub struct LuminairProof<H: MerkleHasher> {
     pub claim: LuminairClaim,
     pub interaction_claim: LuminairInteractionClaim,
     pub proof: StarkProof<H>,
-    pub execution_resources: ExecutionResources,
 }
 
 /// Claim for system components.
@@ -36,19 +33,17 @@ pub struct LuminairClaim {
     pub sum_reduce: Option<SumReduceClaim>,
     pub recip: Option<RecipClaim>,
     pub max_reduce: Option<MaxReduceClaim>,
-    pub is_first_log_sizes: Vec<u32>,
 }
 
 impl LuminairClaim {
-    /// Initializes a new claim with specified preprocessed trace log sizes.
-    pub fn new(is_first_log_sizes: Vec<u32>) -> Self {
+    /// Initializes a new claim.
+    pub fn new() -> Self {
         Self {
             add: None,
             mul: None,
             sum_reduce: None,
             recip: None,
             max_reduce: None,
-            is_first_log_sizes,
         }
     }
 
@@ -71,7 +66,8 @@ impl LuminairClaim {
         }
     }
 
-    /// Computes log sizes for all trace types in the claim.
+    /// Returns the log sizes of the components.
+    /// Does not include the preprocessed trace log sizes.
     pub fn log_sizes(&self) -> TreeVec<Vec<u32>> {
         let mut log_sizes = vec![];
 
@@ -91,9 +87,7 @@ impl LuminairClaim {
             log_sizes.push(max_reduce.log_sizes());
         }
 
-        let mut log_sizes = TreeVec::concat_cols(log_sizes.into_iter());
-        log_sizes[PREPROCESSED_TRACE_IDX] = self.is_first_log_sizes.clone();
-        log_sizes
+        TreeVec::concat_cols(log_sizes.into_iter())
     }
 }
 
