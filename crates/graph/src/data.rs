@@ -1,4 +1,5 @@
 use luminal::prelude::*;
+use num_traits::Zero;
 use numerair::Fixed;
 use std::sync::Arc;
 
@@ -26,6 +27,27 @@ impl StwoData {
         }
 
         float_data
+    }
+
+    /// Returns both minimum and maximum values in the data
+    pub(crate) fn min_max(&self) -> (Fixed, Fixed) {
+        if self.0.is_empty() {
+            return (Fixed::zero(), Fixed::zero());
+        }
+
+        let mut min_val = self.0[0];
+        let mut max_val = self.0[0];
+
+        for &val in self.0.iter().skip(1) {
+            if val.0 < min_val.0 {
+                min_val = val;
+            }
+            if val.0 > max_val.0 {
+                max_val = val;
+            }
+        }
+
+        (min_val, max_val)
     }
 }
 

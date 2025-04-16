@@ -2,6 +2,7 @@ pub mod data;
 pub mod graph;
 pub mod op;
 pub mod utils;
+pub mod settings;
 
 #[cfg(test)]
 mod tests;

@@ -1,6 +1,12 @@
-use crate::op::{
-    prim::{CopyFromStwo, CopyToStwo, LuminairConstant},
-    HasProcessTrace,
+use std::collections::HashMap;
+
+use crate::{
+    op::{
+        prim::{CopyFromStwo, CopyToStwo, LuminairConstant},
+        HasProcessTrace,
+    },
+    settings::CircuitSettings,
+    utils::get_buffer_from_tensor,
 };
 use luminair_air::{
     components::{
@@ -29,7 +35,7 @@ use luminair_air::{
     pie::{
         ExecutionResources, InputInfo, LuminairPie, NodeInfo, OpCounter, OutputInfo, TableTrace,
     },
-    preprocessed::PreProcessedTrace,
+    preprocessed::{PreProcessedTrace, Range},
     utils::{calculate_log_size, lookup_sum_valid},
     LuminairClaim, LuminairInteractionClaim, LuminairProof,
 };
@@ -37,6 +43,7 @@ use luminal::{
     op::*,
     prelude::{petgraph::visit::EdgeRef, *},
 };
+use numerair::Fixed;
 use stwo_prover::{
     constraint_framework::{INTERACTION_TRACE_IDX, ORIGINAL_TRACE_IDX, PREPROCESSED_TRACE_IDX},
     core::{
@@ -64,6 +71,9 @@ pub enum LuminairError {
 /// Provides methods to generate execution traces, retrieve outputs, and handle proof
 /// generation and verification using Stwo.
 pub trait LuminairGraph {
+    /// Infers circuit settings using simulated representative inputs.
+    fn gen_circuit_settings(&mut self) -> CircuitSettings;
+
     /// Generates an execution trace for the graph's computation.
     fn gen_trace(&mut self) -> Result<LuminairPie, TraceError>;
 
@@ -82,6 +92,73 @@ pub trait LuminairGraph {
 }
 
 impl LuminairGraph for Graph {
+    fn gen_circuit_settings(&mut self) -> CircuitSettings {
+        // Track the number of views pointing to each tensor so we know when to clear
+        if self.linearized_graph.is_none() {
+            self.toposort();
+        }
+        let mut consumers = self.consumers_map.as_ref().unwrap().clone();
+        let mut dim_stack = Vec::new();
+
+        // Create a new circuit settings
+        let mut settings = CircuitSettings {
+            lut_ranges: HashMap::new(),
+        };
+
+        for (node, src_ids) in self.linearized_graph.as_ref().unwrap() {
+            if self.tensors.contains_key(&(*node, 0)) {
+                continue;
+            }
+
+            let mut srcs =
+                get_source_tensors(&self.no_delete, &mut self.tensors, src_ids, &consumers);
+
+            // Substitute in the dyn dims
+            for (_, st) in srcs.iter_mut() {
+                st.resolve_global_dyn_dims_stack(&self.dyn_map, &mut dim_stack);
+            }
+
+            // Get range of src tensors for this node
+            // TODO(@raphaelDkn): do it only for nodes that uses LUT.
+            {
+                let mut min = Fixed(i64::MAX);
+                let mut max = Fixed(i64::MIN);
+
+                for (tensor, _) in &srcs {
+                    if let Some(buffer) = get_buffer_from_tensor(tensor) {
+                        let (src_min, src_max) = buffer.min_max();
+
+                        if src_min.0 < min.0 {
+                            min = src_min;
+                        }
+                        if src_max.0 > max.0 {
+                            max = src_max;
+                        }
+                    }
+                }
+
+                // Store the range for this node in settings
+                if !srcs.is_empty() {
+                    settings.lut_ranges.insert(node.index(), (min, max));
+                }
+            }
+
+            // Execute
+            let tensors = self.graph.node_weight_mut(*node).unwrap().process(srcs);
+            for (i, tensor) in tensors.into_iter().enumerate() {
+                self.tensors.insert((*node, i as u8), tensor);
+            }
+
+            // Bookkeep remaining consumers
+            for (id, ind, _) in src_ids {
+                *consumers.get_mut(&(*id, *ind)).unwrap() -= 1;
+            }
+        }
+        self.reset();
+
+        settings
+    }
+
     fn gen_trace(&mut self) -> Result<LuminairPie, TraceError> {
         // Track the number of views pointing to each tensor so we know when to clear
         if self.linearized_graph.is_none() {

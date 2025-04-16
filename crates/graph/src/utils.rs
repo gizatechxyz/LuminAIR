@@ -11,8 +11,8 @@ pub(crate) fn is<T: Any>(type_id: TypeId) -> bool {
 }
 
 /// Extracts the StwoData reference from an InputTensor.
-pub(crate) fn get_buffer_from_tensor<'a>(tensor: &'a InputTensor) -> &'a StwoData {
-    &tensor.borrowed().downcast_ref::<StwoData>().unwrap()
+pub(crate) fn get_buffer_from_tensor<'a>(tensor: &'a InputTensor) -> Option<&'a StwoData> {
+    tensor.borrowed().downcast_ref::<StwoData>()
 }
 
 /// Retrieves a value from data based on index expressions.
