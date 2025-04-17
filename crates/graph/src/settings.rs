@@ -5,3 +5,11 @@ use serde::{Deserialize, Serialize};
 pub struct CircuitSettings {
     pub lut_cols: Vec<Box<dyn PreProcessedColumn>>,
 }
+
+impl Clone for CircuitSettings {
+    fn clone(&self) -> Self {
+        CircuitSettings {
+            lut_cols: self.lut_cols.iter().map(|col| col.clone_box()).collect(),
+        }
+    }
+}

@@ -80,13 +80,14 @@ pub trait LuminairGraph {
     fn prove(
         &mut self,
         pie: LuminairPie,
+        settings: CircuitSettings,
     ) -> Result<LuminairProof<Blake2sMerkleHasher>, ProvingError>;
 
     /// Verifies a proof to ensure integrity of graph's computation.
     fn verify(
         &self,
         proof: LuminairProof<Blake2sMerkleHasher>,
-        //preprocessed_trace: PreProcessedTrace,
+        settings: CircuitSettings,
     ) -> Result<(), LuminairError>;
 }
 
@@ -362,6 +363,7 @@ impl LuminairGraph for Graph {
     fn prove(
         &mut self,
         pie: LuminairPie,
+        settings: CircuitSettings,
     ) -> Result<LuminairProof<Blake2sMerkleHasher>, ProvingError> {
         // ┌──────────────────────────┐
         // │     Protocol Setup       │
@@ -385,7 +387,7 @@ impl LuminairGraph for Graph {
 
         tracing::info!("Preprocessed Trace");
 
-        let preprocessed_trace = PreProcessedTrace::new();
+        let preprocessed_trace = PreProcessedTrace::new(settings.lut_cols);
         let mut tree_builder = commitment_scheme.tree_builder();
         tree_builder.extend_evals(preprocessed_trace.gen_trace());
         // Commit the preprocessed trace
@@ -511,10 +513,10 @@ impl LuminairGraph for Graph {
             interaction_claim,
             proof,
         }: LuminairProof<Blake2sMerkleHasher>,
-        //        preprocessed_trace: PreProcessedTrace,
+        CircuitSettings { lut_cols }: CircuitSettings,
     ) -> Result<(), LuminairError> {
         // TODO: move preprocessed_trace to function param.
-        let preprocessed_trace = PreProcessedTrace::new();
+        let preprocessed_trace = PreProcessedTrace::new(lut_cols);
 
         // ┌──────────────────────────┐
         // │     Protocol Setup       │
@@ -616,6 +618,9 @@ fn test_direct_table_trace_processing() {
 
     cx.compile(<(GenericCompiler, StwoCompiler)>::default(), &mut d);
 
+    // Generate circuit settings
+    let settings = cx.gen_circuit_settings();
+
     // Generate trace with direct table storage
     let trace = cx.gen_trace().expect("Trace generation failed");
 
@@ -643,9 +648,9 @@ fn test_direct_table_trace_processing() {
     assert!(has_max_reduce, "Should contain MaxReduce table traces");
 
     // Verify the end-to-end proof pipeline
-    let proof = cx.prove(trace).expect("Proof generation failed");
+    let proof = cx.prove(trace, settings.clone()).expect("Proof generation failed");
     assert!(
-        cx.verify(proof).is_ok(),
+        cx.verify(proof, settings).is_ok(),
         "Proof verification should succeed"
     );
 }

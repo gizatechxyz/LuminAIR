@@ -1,6 +1,6 @@
+use std::cmp::Reverse;
+
 use crate::{components::TraceEval, utils::calculate_log_size};
-use itertools::{chain, Itertools};
-use num_traits::Zero;
 use numerair::Fixed;
 use serde::{Deserialize, Serialize};
 use stwo_prover::{
@@ -27,6 +27,7 @@ pub trait PreProcessedColumn {
     fn log_size(&self) -> u32;
     fn id(&self) -> PreProcessedColumnId;
     fn gen_column(&self) -> CircleEvaluation<SimdBackend, BaseField, BitReversedOrder>;
+    fn clone_box(&self) -> Box<dyn PreProcessedColumn>;
 }
 
 /// A collection of preprocessed columns, whose values are publicly acknowledged.
@@ -35,13 +36,8 @@ pub struct PreProcessedTrace {
 }
 
 impl PreProcessedTrace {
-    pub fn new() -> Self {
-        let recip_cols = gen_recip_columns();
-
-        let columns = chain!(recip_cols)
-            .sorted_by_key(|column| std::cmp::Reverse(column.log_size()))
-            .collect();
-
+    pub fn new(mut columns: Vec<Box<dyn PreProcessedColumn>>) -> Self {
+        columns.sort_by_key(|c| Reverse(c.log_size()));
         Self { columns }
     }
 
@@ -59,7 +55,7 @@ impl PreProcessedTrace {
 }
 
 // ================== RECIP ==================
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct RecipLUT {
     range: Range,
     col_index: usize,
@@ -75,10 +71,6 @@ impl RecipLUT {
             node_id,
         }
     }
-
-    pub fn gen_constant_trace(&self) -> TraceEval {
-        todo!()
-    }
 }
 
 #[typetag::serde]
@@ -91,6 +83,10 @@ impl PreProcessedColumn for RecipLUT {
         PreProcessedColumnId {
             id: format!("recip_lut_node_{}_col_{}", self.node_id, self.col_index),
         }
+    }
+
+    fn clone_box(&self) -> Box<dyn PreProcessedColumn> {
+        Box::new(self.clone())
     }
 
     fn gen_column(&self) -> CircleEvaluation<SimdBackend, BaseField, BitReversedOrder> {
@@ -112,15 +108,4 @@ impl PreProcessedColumn for RecipLUT {
         let domain = CanonicCoset::new(log_size).circle_domain();
         CircleEvaluation::new(domain, col)
     }
-}
-
-fn gen_recip_columns() -> Vec<Box<dyn PreProcessedColumn>> {
-    // TODO: generate RecipLUT dynamically
-
-    let recip_lut_col_0_node_0 = RecipLUT::new(Range(Fixed::zero(), Fixed::zero()), 0, 0);
-    let recip_lut_col_1_node_0 = RecipLUT::new(Range(Fixed::zero(), Fixed::zero()), 1, 0);
-    vec![
-        Box::new(recip_lut_col_0_node_0),
-        Box::new(recip_lut_col_1_node_0),
-    ]
 }
