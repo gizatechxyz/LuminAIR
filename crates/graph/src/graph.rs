@@ -6,7 +6,7 @@ use crate::{
         HasProcessTrace,
     },
     settings::CircuitSettings,
-    utils::{compute_range_from_srcs, is},
+    utils::{compute_padded_range_from_srcs, is},
 };
 use luminair_air::{
     components::{
@@ -591,7 +591,7 @@ fn generate_lut(
 ) {
     if is::<luminal::op::Recip>(op) {
         // Get range of src tensors for this node
-        let range = compute_range_from_srcs(&srcs);
+        let range = compute_padded_range_from_srcs(&srcs);
 
         // Generate LUTs.
         let recip_lut_0 = Box::new(RecipLUT::new(range.clone(), 0, node.index()));
