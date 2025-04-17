@@ -648,7 +648,9 @@ fn test_direct_table_trace_processing() {
     assert!(has_max_reduce, "Should contain MaxReduce table traces");
 
     // Verify the end-to-end proof pipeline
-    let proof = cx.prove(trace, settings.clone()).expect("Proof generation failed");
+    let proof = cx
+        .prove(trace, settings.clone())
+        .expect("Proof generation failed");
     assert!(
         cx.verify(proof, settings).is_ok(),
         "Proof verification should succeed"
