@@ -1,17 +1,9 @@
-use std::fmt::Debug;
-
-use crate::{
-    components::{NodeElements, RecipClaim},
-    preprocessed::{PreProcessedColumn, Range, RecipLUT},
-};
-use num_traits::{One, Zero};
-use numerair::{eval::EvalFixedPoint, Fixed};
-use stwo_prover::{
-    constraint_framework::{
-        preprocessed_columns::PreProcessedColumnId, EvalAtRow, FrameworkComponent, FrameworkEval,
-        RelationEntry,
-    },
-    core::fields::{m31::M31, FieldExpOps},
+use crate::components::{NodeElements, RecipClaim};
+use num_traits::One;
+use numerair::eval::EvalFixedPoint;
+use stwo_prover::constraint_framework::{
+    preprocessed_columns::PreProcessedColumnId, EvalAtRow, FrameworkComponent, FrameworkEval,
+    RelationEntry,
 };
 
 /// Component for reciprocal operations, using `SimdBackend` with fallback to `CpuBackend` for small traces.
