@@ -13,6 +13,8 @@ rayon.workspace = true
 numerair.workspace = true
 thiserror.workspace = true
 num-traits.workspace = true
+serde.workspace = true
+typetag.workspace = true
 luminair_air = { path = "../air" }
 itertools = "0.14.0"
 

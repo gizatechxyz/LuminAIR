@@ -1,6 +1,7 @@
 use std::any::{Any, TypeId};
 
 use crate::data::StwoData;
+use luminair_air::preprocessed::Range;
 use luminal::prelude::*;
 use num_traits::Zero;
 use numerair::Fixed;
@@ -32,4 +33,25 @@ pub(crate) fn get_index(
     } else {
         Fixed::zero()
     }
+}
+
+/// Computes the range (minimum and maximum) of all values in the given input tensors.
+pub(crate) fn compute_range_from_srcs(srcs: &Vec<(InputTensor<'_>, ShapeTracker)>) -> Range {
+    let mut min = Fixed(i64::MAX);
+    let mut max = Fixed(i64::MIN);
+
+    for (tensor, _) in srcs {
+        if let Some(buffer) = get_buffer_from_tensor(tensor) {
+            let (src_min, src_max) = buffer.min_max();
+
+            if src_min.0 < min.0 {
+                min = src_min;
+            }
+            if src_max.0 > max.0 {
+                max = src_max;
+            }
+        }
+    }
+
+    Range(min, max)
 }

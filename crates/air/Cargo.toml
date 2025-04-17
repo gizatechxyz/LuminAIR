@@ -13,4 +13,5 @@ numerair.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 num-traits.workspace = true
+typetag.workspace = true
 itertools = "0.12.0"

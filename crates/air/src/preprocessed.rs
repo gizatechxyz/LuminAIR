@@ -1,6 +1,8 @@
+use crate::{components::TraceEval, utils::calculate_log_size};
 use itertools::{chain, Itertools};
 use num_traits::Zero;
 use numerair::Fixed;
+use serde::{Deserialize, Serialize};
 use stwo_prover::{
     constraint_framework::preprocessed_columns::PreProcessedColumnId,
     core::{
@@ -15,11 +17,12 @@ use stwo_prover::{
         },
     },
 };
+use typetag;
 
-use crate::{components::TraceEval, utils::calculate_log_size};
+#[derive(Serialize, Deserialize, Clone)]
+pub struct Range(pub Fixed, pub Fixed);
 
-pub type Range = (Fixed, Fixed);
-
+#[typetag::serde]
 pub trait PreProcessedColumn {
     fn log_size(&self) -> u32;
     fn id(&self) -> PreProcessedColumnId;
@@ -35,9 +38,7 @@ impl PreProcessedTrace {
     pub fn new() -> Self {
         let recip_cols = gen_recip_columns();
 
-        let columns = chain!(
-            recip_cols
-        )
+        let columns = chain!(recip_cols)
             .sorted_by_key(|column| std::cmp::Reverse(column.log_size()))
             .collect();
 
@@ -58,6 +59,7 @@ impl PreProcessedTrace {
 }
 
 // ================== RECIP ==================
+#[derive(Serialize, Deserialize)]
 pub struct RecipLUT {
     range: Range,
     col_index: usize,
@@ -79,6 +81,7 @@ impl RecipLUT {
     }
 }
 
+#[typetag::serde]
 impl PreProcessedColumn for RecipLUT {
     fn log_size(&self) -> u32 {
         calculate_log_size((self.range.1 .0 - self.range.0 .0 + 1) as usize)
@@ -114,8 +117,8 @@ impl PreProcessedColumn for RecipLUT {
 fn gen_recip_columns() -> Vec<Box<dyn PreProcessedColumn>> {
     // TODO: generate RecipLUT dynamically
 
-    let recip_lut_col_0_node_0 = RecipLUT::new((Fixed::zero(), Fixed::zero()), 0, 0);
-    let recip_lut_col_1_node_0 = RecipLUT::new((Fixed::zero(), Fixed::zero()), 1, 0);
+    let recip_lut_col_0_node_0 = RecipLUT::new(Range(Fixed::zero(), Fixed::zero()), 0, 0);
+    let recip_lut_col_1_node_0 = RecipLUT::new(Range(Fixed::zero(), Fixed::zero()), 1, 0);
     vec![
         Box::new(recip_lut_col_0_node_0),
         Box::new(recip_lut_col_1_node_0),

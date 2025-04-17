@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::any::TypeId;
 
 use crate::{
     op::{
@@ -6,7 +6,7 @@ use crate::{
         HasProcessTrace,
     },
     settings::CircuitSettings,
-    utils::get_buffer_from_tensor,
+    utils::{compute_range_from_srcs, is},
 };
 use luminair_air::{
     components::{
@@ -35,7 +35,7 @@ use luminair_air::{
     pie::{
         ExecutionResources, InputInfo, LuminairPie, NodeInfo, OpCounter, OutputInfo, TableTrace,
     },
-    preprocessed::PreProcessedTrace,
+    preprocessed::{PreProcessedColumn, PreProcessedTrace, RecipLUT},
     utils::{calculate_log_size, lookup_sum_valid},
     LuminairClaim, LuminairInteractionClaim, LuminairProof,
 };
@@ -43,7 +43,6 @@ use luminal::{
     op::*,
     prelude::{petgraph::visit::EdgeRef, *},
 };
-use numerair::Fixed;
 use stwo_prover::{
     constraint_framework::{INTERACTION_TRACE_IDX, ORIGINAL_TRACE_IDX, PREPROCESSED_TRACE_IDX},
     core::{
@@ -101,11 +100,11 @@ impl LuminairGraph for Graph {
         let mut dim_stack = Vec::new();
 
         // Create a new circuit settings
-        let mut settings = CircuitSettings {
-            lut_ranges: HashMap::new(),
-        };
+        let mut lut_cols: Vec<Box<dyn PreProcessedColumn>> = Vec::new();
 
         for (node, src_ids) in self.linearized_graph.as_ref().unwrap() {
+            let op = self.node_weight(*node).unwrap().as_any().type_id();
+
             if self.tensors.contains_key(&(*node, 0)) {
                 continue;
             }
@@ -118,30 +117,8 @@ impl LuminairGraph for Graph {
                 st.resolve_global_dyn_dims_stack(&self.dyn_map, &mut dim_stack);
             }
 
-            // Get range of src tensors for this node
-            // TODO(@raphaelDkn): do it only for nodes that uses LUT.
-            {
-                let mut min = Fixed(i64::MAX);
-                let mut max = Fixed(i64::MIN);
-
-                for (tensor, _) in &srcs {
-                    if let Some(buffer) = get_buffer_from_tensor(tensor) {
-                        let (src_min, src_max) = buffer.min_max();
-
-                        if src_min.0 < min.0 {
-                            min = src_min;
-                        }
-                        if src_max.0 > max.0 {
-                            max = src_max;
-                        }
-                    }
-                }
-
-                // Store the range for this node in settings
-                if !srcs.is_empty() {
-                    settings.lut_ranges.insert(node.index(), (min, max));
-                }
-            }
+            // Generate LUT if the op is non-linear
+            generate_lut(node, &srcs, op, &mut lut_cols);
 
             // Execute
             let tensors = self.graph.node_weight_mut(*node).unwrap().process(srcs);
@@ -156,7 +133,7 @@ impl LuminairGraph for Graph {
         }
         self.reset();
 
-        settings
+        CircuitSettings { lut_cols }
     }
 
     fn gen_trace(&mut self) -> Result<LuminairPie, TraceError> {
@@ -652,4 +629,23 @@ fn test_direct_table_trace_processing() {
         cx.verify(proof).is_ok(),
         "Proof verification should succeed"
     );
+}
+
+fn generate_lut(
+    node: &NodeIndex,
+    srcs: &Vec<(InputTensor<'_>, ShapeTracker)>,
+    op: TypeId,
+    lut_cols: &mut Vec<Box<dyn PreProcessedColumn>>,
+) {
+    if is::<luminal::op::Recip>(op) {
+        // Get range of src tensors for this node
+        let range = compute_range_from_srcs(&srcs);
+
+        // Generate LUTs.
+        let recip_lut_0 = Box::new(RecipLUT::new(range.clone(), 0, node.index()));
+        let recip_lut_1 = Box::new(RecipLUT::new(range, 1, node.index()));
+
+        lut_cols.push(recip_lut_0);
+        lut_cols.push(recip_lut_1);
+    }
 }

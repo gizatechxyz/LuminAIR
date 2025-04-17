@@ -1,7 +1,7 @@
-use std::collections::HashMap;
+use luminair_air::preprocessed::PreProcessedColumn;
+use serde::{Deserialize, Serialize};
 
-use luminair_air::preprocessed::Range;
-
+#[derive(Serialize, Deserialize)]
 pub struct CircuitSettings {
-    pub(crate) lut_ranges: HashMap<usize /* node_id */, Range>,
+    pub lut_cols: Vec<Box<dyn PreProcessedColumn>>,
 }
