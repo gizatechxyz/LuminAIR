@@ -583,6 +583,25 @@ impl LuminairGraph for Graph {
     }
 }
 
+fn generate_lut(
+    node: &NodeIndex,
+    srcs: &Vec<(InputTensor<'_>, ShapeTracker)>,
+    op: TypeId,
+    lut_cols: &mut Vec<Box<dyn PreProcessedColumn>>,
+) {
+    if is::<luminal::op::Recip>(op) {
+        // Get range of src tensors for this node
+        let range = compute_range_from_srcs(&srcs);
+
+        // Generate LUTs.
+        let recip_lut_0 = Box::new(RecipLUT::new(range.clone(), 0, node.index()));
+        let recip_lut_1 = Box::new(RecipLUT::new(range, 1, node.index()));
+
+        lut_cols.push(recip_lut_0);
+        lut_cols.push(recip_lut_1);
+    }
+}
+
 #[test]
 fn test_direct_table_trace_processing() {
     use crate::StwoCompiler;
@@ -629,23 +648,4 @@ fn test_direct_table_trace_processing() {
         cx.verify(proof).is_ok(),
         "Proof verification should succeed"
     );
-}
-
-fn generate_lut(
-    node: &NodeIndex,
-    srcs: &Vec<(InputTensor<'_>, ShapeTracker)>,
-    op: TypeId,
-    lut_cols: &mut Vec<Box<dyn PreProcessedColumn>>,
-) {
-    if is::<luminal::op::Recip>(op) {
-        // Get range of src tensors for this node
-        let range = compute_range_from_srcs(&srcs);
-
-        // Generate LUTs.
-        let recip_lut_0 = Box::new(RecipLUT::new(range.clone(), 0, node.index()));
-        let recip_lut_1 = Box::new(RecipLUT::new(range, 1, node.index()));
-
-        lut_cols.push(recip_lut_0);
-        lut_cols.push(recip_lut_1);
-    }
 }
