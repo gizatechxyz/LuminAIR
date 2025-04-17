@@ -1,8 +1,17 @@
-use crate::components::{NodeElements, RecipClaim};
-use num_traits::One;
-use numerair::eval::EvalFixedPoint;
-use stwo_prover::constraint_framework::{
-    EvalAtRow, FrameworkComponent, FrameworkEval, RelationEntry,
+use std::fmt::Debug;
+
+use crate::{
+    components::{NodeElements, RecipClaim},
+    preprocessed::{PreProcessedColumn, Range, RecipLUT},
+};
+use num_traits::{One, Zero};
+use numerair::{eval::EvalFixedPoint, Fixed};
+use stwo_prover::{
+    constraint_framework::{
+        preprocessed_columns::PreProcessedColumnId, EvalAtRow, FrameworkComponent, FrameworkEval,
+        RelationEntry,
+    },
+    core::fields::{m31::M31, FieldExpOps},
 };
 
 /// Component for reciprocal operations, using `SimdBackend` with fallback to `CpuBackend` for small traces.
@@ -59,6 +68,14 @@ impl FrameworkEval for RecipEval {
         // Multiplicities for interaction constraints
         let input_mult = eval.next_trace_mask();
         let out_mult = eval.next_trace_mask();
+
+        // let nid = node_id.into();
+        let recip_lut_0 = eval.get_preprocessed_column(PreProcessedColumnId {
+            id: "recip_lut_0".to_string(),
+        });
+        let recip_lut_1 = eval.get_preprocessed_column(PreProcessedColumnId {
+            id: "recip_lut_1".to_string(),
+        });
 
         // ┌─────────────────────────────┐
         // │   Consistency Constraints   │

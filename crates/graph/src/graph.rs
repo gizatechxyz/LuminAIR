@@ -1,12 +1,10 @@
-use std::any::TypeId;
-
 use crate::{
     op::{
         prim::{CopyFromStwo, CopyToStwo, LuminairConstant},
         HasProcessTrace,
     },
     settings::CircuitSettings,
-    utils::{compute_padded_range_from_srcs, is},
+    utils::compute_padded_range_from_srcs,
 };
 use luminair_air::{
     components::{
@@ -35,7 +33,7 @@ use luminair_air::{
     pie::{
         ExecutionResources, InputInfo, LuminairPie, NodeInfo, OpCounter, OutputInfo, TableTrace,
     },
-    preprocessed::{PreProcessedColumn, PreProcessedTrace, RecipLUT},
+    preprocessed::{PreProcessedColumn, PreProcessedTrace, Range, RecipLUT},
     utils::{calculate_log_size, lookup_sum_valid},
     LuminairClaim, LuminairInteractionClaim, LuminairProof,
 };
@@ -43,6 +41,7 @@ use luminal::{
     op::*,
     prelude::{petgraph::visit::EdgeRef, *},
 };
+use numerair::Fixed;
 use stwo_prover::{
     constraint_framework::{INTERACTION_TRACE_IDX, ORIGINAL_TRACE_IDX, PREPROCESSED_TRACE_IDX},
     core::{
@@ -100,12 +99,10 @@ impl LuminairGraph for Graph {
         let mut consumers = self.consumers_map.as_ref().unwrap().clone();
         let mut dim_stack = Vec::new();
 
-        // Create a new circuit settings
-        let mut lut_cols: Vec<Box<dyn PreProcessedColumn>> = Vec::new();
+        // Accumulate ranges per non-linear op
+        let mut recip_ranges: Vec<Range> = Vec::new();
 
         for (node, src_ids) in self.linearized_graph.as_ref().unwrap() {
-            let op = self.node_weight(*node).unwrap().as_any().type_id();
-
             if self.tensors.contains_key(&(*node, 0)) {
                 continue;
             }
@@ -118,8 +115,13 @@ impl LuminairGraph for Graph {
                 st.resolve_global_dyn_dims_stack(&self.dyn_map, &mut dim_stack);
             }
 
-            // Generate LUT if the op is non-linear
-            generate_lut(node, &srcs, op, &mut lut_cols);
+            // Add range
+            let op = &*self.graph.node_weight(*node).unwrap();
+            if <Box<dyn Operator> as HasProcessTrace<RecipColumn, RecipTable>>::has_process_trace(
+                op,
+            ) {
+                recip_ranges.push(compute_padded_range_from_srcs(&srcs));
+            }
 
             // Execute
             let tensors = self.graph.node_weight_mut(*node).unwrap().process(srcs);
@@ -132,7 +134,17 @@ impl LuminairGraph for Graph {
                 *consumers.get_mut(&(*id, *ind)).unwrap() -= 1;
             }
         }
+
         self.reset();
+
+        // Build one LUT per op
+        let mut lut_cols: Vec<Box<dyn PreProcessedColumn>> = Vec::new();
+
+        if !recip_ranges.is_empty() {
+            let ranges = coalesce_ranges(recip_ranges); // keep gaps >1 and merge overlaps
+            lut_cols.push(Box::new(RecipLUT::new(ranges.clone(), 0)));
+            lut_cols.push(Box::new(RecipLUT::new(ranges, 1)));
+        }
 
         CircuitSettings { lut_cols }
     }
@@ -370,7 +382,14 @@ impl LuminairGraph for Graph {
         // └──────────────────────────┘
         tracing::info!("Protocol Setup");
         let config: PcsConfig = PcsConfig::default();
-        let max_log_size = pie.execution_resources.max_log_size;
+        let preprocessed_trace = PreProcessedTrace::new(settings.lut_cols);
+        let max_log_size = preprocessed_trace
+            .log_sizes()
+            .iter()
+            .copied()
+            .max()
+            .unwrap_or(0)
+            .max(pie.execution_resources.max_log_size);
         let twiddles = SimdBackend::precompute_twiddles(
             CanonicCoset::new(max_log_size + config.fri_config.log_blowup_factor + 2)
                 .circle_domain()
@@ -386,8 +405,6 @@ impl LuminairGraph for Graph {
         // └───────────────────────────────────────────────┘
 
         tracing::info!("Preprocessed Trace");
-
-        let preprocessed_trace = PreProcessedTrace::new(settings.lut_cols);
         let mut tree_builder = commitment_scheme.tree_builder();
         tree_builder.extend_evals(preprocessed_trace.gen_trace());
         // Commit the preprocessed trace
@@ -585,74 +602,109 @@ impl LuminairGraph for Graph {
     }
 }
 
-fn generate_lut(
-    node: &NodeIndex,
-    srcs: &Vec<(InputTensor<'_>, ShapeTracker)>,
-    op: TypeId,
-    lut_cols: &mut Vec<Box<dyn PreProcessedColumn>>,
-) {
-    if is::<luminal::op::Recip>(op) {
-        // Get range of src tensors for this node
-        let range = compute_padded_range_from_srcs(&srcs);
+fn coalesce_ranges(mut ranges: Vec<Range>) -> Vec<Range> {
+    ranges.sort_by_key(|r| r.0 .0); // sort by lower bound
+    let mut out = Vec::<Range>::new();
 
-        // Generate LUTs.
-        let recip_lut_0 = Box::new(RecipLUT::new(range.clone(), 0, node.index()));
-        let recip_lut_1 = Box::new(RecipLUT::new(range, 1, node.index()));
-
-        lut_cols.push(recip_lut_0);
-        lut_cols.push(recip_lut_1);
+    for r in ranges {
+        if let Some(last) = out.last_mut() {
+            // merge if they touch or overlap
+            if r.0 .0 <= last.1 .0 + 1 {
+                last.1 = Fixed(last.1 .0.max(r.1 .0));
+                continue;
+            }
+        }
+        out.push(r);
     }
+    out
 }
 
-#[test]
-fn test_direct_table_trace_processing() {
+#[cfg(test)]
+mod tests {
+    use super::*;
     use crate::StwoCompiler;
 
-    let mut cx = Graph::new();
-    let a = cx.tensor((10, 10)).set(vec![1.0; 100]);
-    let b = cx.tensor((10, 10)).set(vec![2.0; 100]);
-    let c = a * b;
-    let mut d = (c + a).retrieve();
-    let _e = a.sum_reduce(0).retrieve();
-    let _f = a.max_reduce(0).retrieve();
+    #[test]
+    fn test_direct_table_trace_processing() {
+        let mut cx = Graph::new();
+        let a = cx.tensor((10, 10)).set(vec![1.0; 100]);
+        let b = cx.tensor((10, 10)).set(vec![2.0; 100]);
+        let c = a * b;
+        let mut d = (c + a).retrieve();
+        let _e = a.sum_reduce(0).retrieve();
+        let _f = a.max_reduce(0).retrieve();
 
-    cx.compile(<(GenericCompiler, StwoCompiler)>::default(), &mut d);
+        cx.compile(<(GenericCompiler, StwoCompiler)>::default(), &mut d);
 
-    // Generate circuit settings
-    let settings = cx.gen_circuit_settings();
+        // Generate circuit settings
+        let settings = cx.gen_circuit_settings();
 
-    // Generate trace with direct table storage
-    let trace = cx.gen_trace().expect("Trace generation failed");
+        // Generate trace with direct table storage
+        let trace = cx.gen_trace().expect("Trace generation failed");
 
-    // Verify that table traces contain both operation types
-    let has_add = trace
-        .table_traces
-        .iter()
-        .any(|t| matches!(t, TableTrace::Add { .. }));
-    let has_mul = trace
-        .table_traces
-        .iter()
-        .any(|t| matches!(t, TableTrace::Mul { .. }));
-    let has_sum_reduce = trace
-        .table_traces
-        .iter()
-        .any(|t| matches!(t, TableTrace::SumReduce { .. }));
-    let has_max_reduce = trace
-        .table_traces
-        .iter()
-        .any(|t| matches!(t, TableTrace::MaxReduce { .. }));
+        // Verify that table traces contain both operation types
+        let has_add = trace
+            .table_traces
+            .iter()
+            .any(|t| matches!(t, TableTrace::Add { .. }));
+        let has_mul = trace
+            .table_traces
+            .iter()
+            .any(|t| matches!(t, TableTrace::Mul { .. }));
+        let has_sum_reduce = trace
+            .table_traces
+            .iter()
+            .any(|t| matches!(t, TableTrace::SumReduce { .. }));
+        let has_max_reduce = trace
+            .table_traces
+            .iter()
+            .any(|t| matches!(t, TableTrace::MaxReduce { .. }));
 
-    assert!(has_add, "Should contain Add table traces");
-    assert!(has_mul, "Should contain Mul table traces");
-    assert!(has_sum_reduce, "Should contain SumReduce table traces");
-    assert!(has_max_reduce, "Should contain MaxReduce table traces");
+        assert!(has_add, "Should contain Add table traces");
+        assert!(has_mul, "Should contain Mul table traces");
+        assert!(has_sum_reduce, "Should contain SumReduce table traces");
+        assert!(has_max_reduce, "Should contain MaxReduce table traces");
 
-    // Verify the end-to-end proof pipeline
-    let proof = cx
-        .prove(trace, settings.clone())
-        .expect("Proof generation failed");
-    assert!(
-        cx.verify(proof, settings).is_ok(),
-        "Proof verification should succeed"
-    );
+        // Verify the end-to-end proof pipeline
+        let proof = cx
+            .prove(trace, settings.clone())
+            .expect("Proof generation failed");
+        assert!(
+            cx.verify(proof, settings).is_ok(),
+            "Proof verification should succeed"
+        );
+    }
+
+    #[test]
+    fn gen_circuit_settings_merges_luts() {
+        let mut g = Graph::new();
+
+        // tensor with values in [-100, -1]
+        let t1_vals: Vec<f32> = (-100..0).map(|x| x as f32).collect();
+        let t1 = g.tensor((t1_vals.len(),)).set(t1_vals);
+        // tensor with values in [200, 299]
+        let t2_vals: Vec<f32> = (200..300).map(|x| x as f32).collect();
+        let t2 = g.tensor((t2_vals.len(),)).set(t2_vals);
+
+        // two distinct Recip nodes
+        let r1 = t1.recip();
+        let r2 = t2.recip();
+        let mut out = (r1 + r2).retrieve();
+
+        g.compile(<(GenericCompiler, StwoCompiler)>::default(), &mut out);
+
+        let settings = g.gen_circuit_settings();
+
+        assert_eq!(
+            settings.lut_cols.len(),
+            2,
+            "Expect exactly one (x, 1/x) column pair for Recip"
+        );
+
+        let preprocessed = PreProcessedTrace::new(settings.lut_cols);
+        let ids = preprocessed.ids();
+
+        assert_eq!(ids[0].id, "recip_lut_0");
+        assert_eq!(ids[1].id, "recip_lut_1");
+    }
 }

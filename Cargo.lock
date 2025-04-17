@@ -1223,6 +1223,7 @@ dependencies = [
 name = "luminair_graph"
 version = "0.0.1"
 dependencies = [
+ "as-any",
  "candle-core",
  "criterion",
  "ctor",

@@ -108,7 +108,7 @@ impl Operator for LuminairConstant {
 
 /// Implements element-wise addition for LuminAIR.
 #[derive(Debug, Clone, Default, PartialEq)]
-struct LuminairRecip {}
+pub(crate) struct LuminairRecip {}
 
 impl LuminairRecip {
     /// Creates a new `LuminairRecip` instance.
