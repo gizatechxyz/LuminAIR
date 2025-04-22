@@ -1,6 +1,7 @@
 use luminair_air::{
     components::{
         add::table::{AddColumn, AddTable, AddTableRow},
+        log2::table::{Log2Column, Log2Table, Log2TableRow},
         max_reduce::table::{MaxReduceColumn, MaxReduceTable, MaxReduceTableRow},
         mul::table::{MulColumn, MulTable, MulTableRow},
         recip::table::{RecipColumn, RecipTable, RecipTableRow},
@@ -175,6 +176,83 @@ impl LuminairOperator<RecipColumn, RecipTable> for LuminairRecip {
 }
 
 impl Operator for LuminairRecip {
+    /// This method is not used as `process_trace` handles all computation for this operator.
+    fn process(&mut self, _inp: Vec<(InputTensor, ShapeTracker)>) -> Vec<Tensor> {
+        unimplemented!()
+    }
+}
+
+/// Implements element-wise log2 for LuminAIR.
+#[derive(Debug, Clone, Default, PartialEq)]
+struct LuminairLog2 {}
+
+impl LuminairLog2 {
+    /// Creates a new `LuminairLog2` instance.
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl LuminairOperator<Log2Column, Log2Table> for LuminairLog2 {
+    /// Processes input tensor, generating a trace, claim, and output tensor.
+    fn process_trace(
+        &mut self,
+        inp: Vec<(InputTensor, ShapeTracker)>,
+        table: &mut Log2Table,
+        node_info: &NodeInfo,
+    ) -> Vec<Tensor> {
+        let input = get_buffer_from_tensor(&inp[0].0);
+        let expr = (inp[0].1.index_expression(), inp[0].1.valid_expression());
+
+        let mut stack: Vec<i64> = vec![];
+        let output_size = inp[0].1.n_elements().to_usize().unwrap();
+        let mut out_data = vec![Fixed::zero(); output_size];
+
+        let node_id: BaseField = node_info.id.into();
+        let input_id: BaseField = node_info.inputs[0].id.into();
+
+        for (idx, out) in out_data.iter_mut().enumerate() {
+            let input_val = get_index(input, &expr, &mut stack, idx);
+            // Calculate log2 by converting to f64, taking log2, and converting back
+            let input_f64 = input_val.to_f64();
+            let out_val = Fixed::from_f64(input_f64.log2());
+            let pow2_val = 2f64.powf(out_val.to_f64());
+
+            let input_mult = if node_info.inputs[0].is_initializer {
+                BaseField::zero()
+            } else {
+                -BaseField::one()
+            };
+            let out_mult = if node_info.output.is_final_output {
+                BaseField::zero()
+            } else {
+                BaseField::one() * BaseField::from_u32_unchecked(node_info.num_consumers)
+            };
+
+            let is_last_idx: u32 = if idx == (output_size - 1) { 1 } else { 0 };
+
+            *out = out_val;
+            table.add_row(Log2TableRow {
+                node_id,
+                input_id,
+                idx: idx.into(),
+                is_last_idx: (is_last_idx).into(),
+                next_idx: (idx + 1).into(),
+                next_node_id: node_id,
+                next_input_id: input_id,
+                input_val: input_val.to_m31(),
+                output_val: out_val.to_m31(),
+                pow2_result: Fixed::from_f64(pow2_val).to_m31(), // Store 2^out_val as BaseField
+                input_mult,
+                output_mult: out_mult,
+            })
+        }
+
+        vec![Tensor::new(StwoData(Arc::new(out_data)))]
+    }
+}
+
+impl Operator for LuminairLog2 {
     /// This method is not used as `process_trace` handles all computation for this operator.
     fn process(&mut self, _inp: Vec<(InputTensor, ShapeTracker)>) -> Vec<Tensor> {
         unimplemented!()
@@ -701,6 +779,8 @@ impl Compiler for PrimitiveCompiler {
                 *op_ref = LuminairMaxReduce::new(dim_index).into_operator()
             } else if is::<luminal::op::Recip>(op) {
                 *op_ref = LuminairRecip::new().into_operator()
+            } else if is::<luminal::op::Log2>(op) {
+                *op_ref = LuminairLog2::new().into_operator()
             } else if is::<luminal::op::Contiguous>(op) {
                 *op_ref = Box::new(Contiguous)
             }
