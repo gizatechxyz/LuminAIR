@@ -2,8 +2,7 @@ use crate::components::{NodeElements, RecipClaim};
 use num_traits::One;
 use numerair::eval::EvalFixedPoint;
 use stwo_prover::constraint_framework::{
-    preprocessed_columns::PreProcessedColumnId, EvalAtRow, FrameworkComponent, FrameworkEval,
-    RelationEntry,
+    EvalAtRow, FrameworkComponent, FrameworkEval, RelationEntry,
 };
 
 /// Component for reciprocal operations, using `SimdBackend` with fallback to `CpuBackend` for small traces.
@@ -12,16 +11,14 @@ pub type RecipComponent = FrameworkComponent<RecipEval>;
 /// Defines the AIR for the recip component.
 pub struct RecipEval {
     log_size: u32,
-    lut_log_size: u32,
     lookup_elements: NodeElements,
 }
 
 impl RecipEval {
     /// Creates a new `RecipEval` instance from a claim and lookup elements.
-    pub fn new(claim: &RecipClaim, lookup_elements: NodeElements, lut_log_size: u32) -> Self {
+    pub fn new(claim: &RecipClaim, lookup_elements: NodeElements) -> Self {
         Self {
             log_size: claim.log_size,
-            lut_log_size,
             lookup_elements,
         }
     }
@@ -37,7 +34,7 @@ impl FrameworkEval for RecipEval {
     ///
     /// Returns the ilog2 (upper) bound of the constraint degree for the component.
     fn max_constraint_log_degree_bound(&self) -> u32 {
-        std::cmp::max(self.log_size, self.lut_log_size) + 1
+        self.log_size + 1
     }
 
     /// Evaluates the AIR constraints for the recip operation.
@@ -62,13 +59,6 @@ impl FrameworkEval for RecipEval {
         // Multiplicities for interaction constraints
         let input_mult = eval.next_trace_mask();
         let out_mult = eval.next_trace_mask();
-
-        let recip_lut_0 = eval.get_preprocessed_column(PreProcessedColumnId {
-            id: "recip_lut_0".to_string(),
-        });
-        let recip_lut_1 = eval.get_preprocessed_column(PreProcessedColumnId {
-            id: "recip_lut_1".to_string(),
-        });
 
         // ┌─────────────────────────────┐
         // │   Consistency Constraints   │

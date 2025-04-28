@@ -23,12 +23,12 @@ use luminair_air::{
         }, sin::{self, table::{SinColumn, SinTable}}, sum_reduce::{
             self,
             table::{SumReduceColumn, SumReduceTable},
-        }, Claim, ClaimType, LuminairComponents, LuminairInteractionElements, TraceError
+        },  ClaimType, LuminairComponents, LuminairInteractionElements, TraceError
     },
     pie::{
         ExecutionResources, InputInfo, LuminairPie, NodeInfo, OpCounter, OutputInfo, TableTrace,
     },
-    preprocessed::{PreProcessedColumn, PreProcessedTrace, Range, RecipLUT, SinLUT},
+    preprocessed::{PreProcessedColumn, PreProcessedTrace, Range,  SinLUT},
     utils::{calculate_log_size, lookup_sum_valid},
     LuminairClaim, LuminairInteractionClaim, LuminairProof,
 };
@@ -95,7 +95,6 @@ impl LuminairGraph for Graph {
         let mut dim_stack = Vec::new();
 
         // Accumulate ranges per non-linear op
-        let mut recip_ranges: Vec<Range> = Vec::new();
         let mut sin_ranges: Vec<Range> = Vec::new();
 
         for (node, src_ids) in self.linearized_graph.as_ref().unwrap() {
@@ -113,11 +112,7 @@ impl LuminairGraph for Graph {
 
             // Add range
             let op = &*self.graph.node_weight(*node).unwrap();
-            if <Box<dyn Operator> as HasProcessTrace<RecipColumn, RecipTable>>::has_process_trace(
-                op,
-            ) {
-                recip_ranges.push(compute_padded_range_from_srcs(&srcs));
-            } else if <Box<dyn Operator> as HasProcessTrace<SinColumn, SinTable>>::has_process_trace(
+            if <Box<dyn Operator> as HasProcessTrace<SinColumn, SinTable>>::has_process_trace(
                 op,
             ) {
                 sin_ranges.push(compute_padded_range_from_srcs(&srcs));
@@ -140,11 +135,6 @@ impl LuminairGraph for Graph {
         // Build one LUT per op
         let mut lut_cols: Vec<Box<dyn PreProcessedColumn>> = Vec::new();
 
-        if !recip_ranges.is_empty() {
-            let ranges = coalesce_ranges(recip_ranges); // keep gaps >1 and merge overlaps
-            lut_cols.push(Box::new(RecipLUT::new(ranges.clone(), 0)));
-            lut_cols.push(Box::new(RecipLUT::new(ranges, 1)));
-        }
         if !sin_ranges.is_empty() {
             let ranges = coalesce_ranges(sin_ranges); // keep gaps >1 and merge overlaps
             lut_cols.push(Box::new(SinLUT::new(ranges.clone(), 0)));
@@ -720,9 +710,9 @@ mod tests {
         let t2_vals: Vec<f32> = (200..300).map(|x| x as f32).collect();
         let t2 = g.tensor((t2_vals.len(),)).set(t2_vals);
 
-        // two distinct Recip nodes
-        let r1 = t1.recip();
-        let r2 = t2.recip();
+        // two distinct Sin nodes
+        let r1 = t1.sin();
+        let r2 = t2.sin();
         let mut out = (r1 + r2).retrieve();
 
         g.compile(<(GenericCompiler, StwoCompiler)>::default(), &mut out);
@@ -732,13 +722,13 @@ mod tests {
         assert_eq!(
             settings.lut_cols.len(),
             2,
-            "Expect exactly one (x, 1/x) column pair for Recip"
+            "Expect exactly one (x, 1/x) column pair for Sin"
         );
 
         let preprocessed = PreProcessedTrace::new(settings.lut_cols);
         let ids = preprocessed.ids();
 
-        assert_eq!(ids[0].id, "recip_lut_0");
-        assert_eq!(ids[1].id, "recip_lut_1");
+        assert_eq!(ids[0].id, "sin_lut_0");
+        assert_eq!(ids[1].id, "sin_lut_1");
     }
 }

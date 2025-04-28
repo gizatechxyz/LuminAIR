@@ -17,7 +17,10 @@ use recip::{
     table::RecipColumn,
 };
 use serde::{Deserialize, Serialize};
-use sin::{component::{SinComponent, SinEval}, table::SinColumn};
+use sin::{
+    component::{SinComponent, SinEval},
+    table::SinColumn,
+};
 use stwo_prover::{
     constraint_framework::TraceLocationAllocator,
     core::{
@@ -241,17 +244,11 @@ impl LuminairComponents {
         };
 
         let recip = if let Some(ref recip_claim) = claim.recip {
-            let lut_log_size = preprocessed_column_log_sizes
-                .get("recip_lut_0")
-                .copied()
-                .expect("The LUT should exist");
-
             Some(RecipComponent::new(
                 tree_span_provider,
                 RecipEval::new(
                     &recip_claim,
                     interaction_elements.node_lookup_elements.clone(),
-                    lut_log_size,
                 ),
                 interaction_claim.recip.as_ref().unwrap().claimed_sum,
             ))
