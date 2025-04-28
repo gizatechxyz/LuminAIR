@@ -40,7 +40,7 @@ macro_rules! single_unary_test {
                 let cpu_output = c_cpu.data();
 
                 // Assert outputs are close
-                // assert_close(&stwo_output, &cpu_output);
+                assert_close(&stwo_output, &cpu_output);
             }
         }
     };
