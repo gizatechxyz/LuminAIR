@@ -32,7 +32,7 @@ pub trait PreProcessedColumn: Any {
 
 /// A collection of preprocessed columns, whose values are publicly acknowledged.
 pub struct PreProcessedTrace {
-    columns: Vec<Box<dyn PreProcessedColumn>>,
+    pub(crate) columns: Vec<Box<dyn PreProcessedColumn>>,
 }
 
 impl PreProcessedTrace {

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use add::{
     component::{AddComponent, AddEval},
     table::AddColumn,
@@ -16,7 +18,7 @@ use recip::{
 };
 use serde::{Deserialize, Serialize};
 use stwo_prover::{
-    constraint_framework::{preprocessed_columns::PreProcessedColumnId, TraceLocationAllocator},
+    constraint_framework::TraceLocationAllocator,
     core::{
         air::{Component, ComponentProver},
         backend::simd::SimdBackend,
@@ -35,7 +37,7 @@ use sum_reduce::{
 
 use thiserror::Error;
 
-use crate::{LuminairClaim, LuminairInteractionClaim};
+use crate::{preprocessed::PreProcessedTrace, LuminairClaim, LuminairInteractionClaim};
 
 pub mod add;
 pub mod max_reduce;
@@ -92,18 +94,13 @@ impl<T: TraceColumn> Claim<T> {
         }
     }
 
-    /// Computes log sizes for preprocessed, main, and interaction traces.
+    /// Computes log sizes for main, and interaction traces.
     pub fn log_sizes(&self) -> TreeVec<Vec<u32>> {
         let (main_trace_cols, interaction_trace_cols) = T::count();
-        let preprocessed_trace_log_sizes: Vec<u32> = vec![self.log_size];
         let trace_log_sizes = vec![self.log_size; main_trace_cols];
         let interaction_trace_log_sizes: Vec<u32> =
             vec![self.log_size; SECURE_EXTENSION_DEGREE * interaction_trace_cols];
-        TreeVec::new(vec![
-            preprocessed_trace_log_sizes,
-            trace_log_sizes,
-            interaction_trace_log_sizes,
-        ])
+        TreeVec::new(vec![vec![], trace_log_sizes, interaction_trace_log_sizes])
     }
 
     /// Mix the log size of the table and the node structure to the Fiat-Shamir [`Channel`].
@@ -186,9 +183,15 @@ impl LuminairComponents {
         claim: &LuminairClaim,
         interaction_elements: &LuminairInteractionElements,
         interaction_claim: &LuminairInteractionClaim,
-        // Describes the structure of the preprocessed trace. Sensitive to order.
-        preprocessed_column_ids: &[PreProcessedColumnId],
+        preprocessed_trace: &PreProcessedTrace,
     ) -> Self {
+        let preprocessed_column_ids = &preprocessed_trace.ids();
+        // Create a mapping from preprocessed column ID to log size
+        let mut preprocessed_column_log_sizes = HashMap::new();
+        for column in preprocessed_trace.columns.iter() {
+            preprocessed_column_log_sizes.insert(column.id().id.clone(), column.log_size());
+        }
+
         let tree_span_provider =
             &mut TraceLocationAllocator::new_with_preproccessed_columns(preprocessed_column_ids);
 
@@ -232,11 +235,17 @@ impl LuminairComponents {
         };
 
         let recip = if let Some(ref recip_claim) = claim.recip {
+            let lut_log_size = preprocessed_column_log_sizes
+                .get("recip_lut_0")
+                .copied()
+                .expect("The LUT should exist");
+
             Some(RecipComponent::new(
                 tree_span_provider,
                 RecipEval::new(
                     &recip_claim,
                     interaction_elements.node_lookup_elements.clone(),
+                    lut_log_size,
                 ),
                 interaction_claim.recip.as_ref().unwrap().claimed_sum,
             ))

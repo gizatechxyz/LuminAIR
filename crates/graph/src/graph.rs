@@ -511,7 +511,7 @@ impl LuminairGraph for Graph {
             &main_claim,
             &interaction_elements,
             &interaction_claim,
-            &preprocessed_trace.ids(),
+            &preprocessed_trace,
         );
         let components = component_builder.provers();
         let proof = prover::prove::<SimdBackend, _>(&components, channel, commitment_scheme)?;
@@ -593,7 +593,7 @@ impl LuminairGraph for Graph {
             &claim,
             &interaction_elements,
             &interaction_claim,
-            &preprocessed_trace.ids(),
+            &preprocessed_trace,
         );
         let components = component_generator.components();
         verify(&components, channel, commitment_scheme_verifier, proof)?;
