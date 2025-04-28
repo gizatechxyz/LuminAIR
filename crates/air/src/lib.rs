@@ -5,7 +5,7 @@ use std::vec;
 
 use ::serde::{Deserialize, Serialize};
 use components::{
-    AddClaim, InteractionClaim, MaxReduceClaim, MulClaim, RecipClaim, SumReduceClaim,
+    AddClaim, InteractionClaim, MaxReduceClaim, MulClaim, RecipClaim, SinClaim, SumReduceClaim,
 };
 use stwo_prover::core::{
     channel::Channel, pcs::TreeVec, prover::StarkProof, vcs::ops::MerkleHasher,
@@ -34,6 +34,7 @@ pub struct LuminairClaim {
     pub sum_reduce: Option<SumReduceClaim>,
     pub recip: Option<RecipClaim>,
     pub max_reduce: Option<MaxReduceClaim>,
+    pub sin: Option<SinClaim>,
 }
 
 impl LuminairClaim {
@@ -45,6 +46,7 @@ impl LuminairClaim {
             sum_reduce: None,
             recip: None,
             max_reduce: None,
+            sin: None,
         }
     }
 
@@ -64,6 +66,9 @@ impl LuminairClaim {
         }
         if let Some(ref max_reduce) = self.max_reduce {
             max_reduce.mix_into(channel);
+        }
+        if let Some(ref sin) = self.sin {
+            sin.mix_into(channel);
         }
     }
 
@@ -87,6 +92,9 @@ impl LuminairClaim {
         if let Some(ref max_reduce) = self.max_reduce {
             log_sizes.push(max_reduce.log_sizes());
         }
+        if let Some(ref sin) = self.sin {
+            log_sizes.push(sin.log_sizes());
+        }
 
         TreeVec::concat_cols(log_sizes.into_iter())
     }
@@ -102,6 +110,7 @@ pub struct LuminairInteractionClaim {
     pub sum_reduce: Option<InteractionClaim>,
     pub recip: Option<InteractionClaim>,
     pub max_reduce: Option<InteractionClaim>,
+    pub sin: Option<InteractionClaim>,
 }
 
 impl LuminairInteractionClaim {
@@ -121,6 +130,9 @@ impl LuminairInteractionClaim {
         }
         if let Some(ref max_reduce) = self.max_reduce {
             max_reduce.mix_into(channel);
+        }
+        if let Some(ref sin) = self.sin {
+            sin.mix_into(channel);
         }
     }
 }

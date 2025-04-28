@@ -11,29 +11,24 @@ use luminair_air::{
         add::{
             self,
             table::{AddColumn, AddTable},
-        },
-        max_reduce::{
+        }, max_reduce::{
             self,
             table::{MaxReduceColumn, MaxReduceTable},
-        },
-        mul::{
+        }, mul::{
             self,
             table::{MulColumn, MulTable},
-        },
-        recip::{
+        }, recip::{
             self,
             table::{RecipColumn, RecipTable},
-        },
-        sum_reduce::{
+        }, sin::{self, table::{SinColumn, SinTable}}, sum_reduce::{
             self,
             table::{SumReduceColumn, SumReduceTable},
-        },
-        ClaimType, LuminairComponents, LuminairInteractionElements, TraceError,
+        }, Claim, ClaimType, LuminairComponents, LuminairInteractionElements, TraceError
     },
     pie::{
         ExecutionResources, InputInfo, LuminairPie, NodeInfo, OpCounter, OutputInfo, TableTrace,
     },
-    preprocessed::{PreProcessedColumn, PreProcessedTrace, Range, RecipLUT},
+    preprocessed::{PreProcessedColumn, PreProcessedTrace, Range, RecipLUT, SinLUT},
     utils::{calculate_log_size, lookup_sum_valid},
     LuminairClaim, LuminairInteractionClaim, LuminairProof,
 };
@@ -101,6 +96,7 @@ impl LuminairGraph for Graph {
 
         // Accumulate ranges per non-linear op
         let mut recip_ranges: Vec<Range> = Vec::new();
+        let mut sin_ranges: Vec<Range> = Vec::new();
 
         for (node, src_ids) in self.linearized_graph.as_ref().unwrap() {
             if self.tensors.contains_key(&(*node, 0)) {
@@ -121,6 +117,10 @@ impl LuminairGraph for Graph {
                 op,
             ) {
                 recip_ranges.push(compute_padded_range_from_srcs(&srcs));
+            } else if <Box<dyn Operator> as HasProcessTrace<SinColumn, SinTable>>::has_process_trace(
+                op,
+            ) {
+                sin_ranges.push(compute_padded_range_from_srcs(&srcs));
             }
 
             // Execute
@@ -144,6 +144,11 @@ impl LuminairGraph for Graph {
             let ranges = coalesce_ranges(recip_ranges); // keep gaps >1 and merge overlaps
             lut_cols.push(Box::new(RecipLUT::new(ranges.clone(), 0)));
             lut_cols.push(Box::new(RecipLUT::new(ranges, 1)));
+        }
+        if !sin_ranges.is_empty() {
+            let ranges = coalesce_ranges(sin_ranges); // keep gaps >1 and merge overlaps
+            lut_cols.push(Box::new(SinLUT::new(ranges.clone(), 0)));
+            lut_cols.push(Box::new(SinLUT::new(ranges, 1)));
         }
 
         CircuitSettings { lut_cols }
@@ -170,6 +175,7 @@ impl LuminairGraph for Graph {
         let mut recip_table = RecipTable::new();
         let mut sum_reduce_table = SumReduceTable::new();
         let mut max_reduce_table = MaxReduceTable::new();
+        let mut sin_table = SinTable::new();
 
         for (node, src_ids) in self.linearized_graph.as_ref().unwrap() {
             if self.tensors.contains_key(&(*node, 0)) {
@@ -312,6 +318,20 @@ impl LuminairGraph for Graph {
 
                     tensors
                 }
+                else if <Box<dyn Operator> as HasProcessTrace<SinColumn, SinTable>>::has_process_trace(
+                    node_op,
+                ) {
+                    let tensors = <Box<dyn Operator> as HasProcessTrace<
+                    SinColumn,
+                    SinTable,
+                    >>::call_process_trace(
+                        node_op, srcs, &mut sin_table, &node_info
+                    )
+                    .unwrap();
+                    *op_counter.sin.get_or_insert(0) += 1;
+
+                    tensors
+                }       
                 else {
                     // Handle other operators or fallback
                     node_op.process(srcs)
@@ -361,6 +381,12 @@ impl LuminairGraph for Graph {
             max_log_size = max_log_size.max(log_size);
 
             table_traces.push(TableTrace::from_max_reduce(max_reduce_table));
+        }
+        if !sin_table.table.is_empty() {
+            let log_size = calculate_log_size(sin_table.table.len());
+            max_log_size = max_log_size.max(log_size);
+
+            table_traces.push(TableTrace::from_sin(sin_table));
         }
 
         Ok(LuminairPie {
@@ -440,6 +466,7 @@ impl LuminairGraph for Graph {
                 ClaimType::SumReduce(claim) => main_claim.sum_reduce = Some(claim),
                 ClaimType::Recip(claim) => main_claim.recip = Some(claim),
                 ClaimType::MaxReduce(claim) => main_claim.max_reduce = Some(claim),
+                ClaimType::Sin(claim) => main_claim.sin = Some(claim)
             }
         }
 
@@ -494,6 +521,13 @@ impl LuminairGraph for Graph {
                             .unwrap();
                     tree_builder.extend_evals(tr);
                     interaction_claim.max_reduce = Some(cl);
+                }
+                ClaimType::Sin(_) => {
+                    let (tr, cl) =
+                        sin::table::interaction_trace_evaluation(&trace, lookup_elements)
+                            .unwrap();
+                    tree_builder.extend_evals(tr);
+                    interaction_claim.sin = Some(cl);
                 }
             }
         }

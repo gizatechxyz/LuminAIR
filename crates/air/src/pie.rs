@@ -2,7 +2,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::components::{
     add::table::AddTable, max_reduce::table::MaxReduceTable, mul::table::MulTable,
-    recip::table::RecipTable, sum_reduce::table::SumReduceTable, ClaimType, TraceError, TraceEval,
+    recip::table::RecipTable, sin::table::SinTable, sum_reduce::table::SumReduceTable, ClaimType,
+    TraceError, TraceEval,
 };
 
 /// Represents an operator's trace table along with its claim before conversion
@@ -19,6 +20,8 @@ pub enum TableTrace {
     Recip { table: RecipTable },
     /// Max Reduce operator trace table.
     MaxReduce { table: MaxReduceTable },
+    /// Sin operator trace table.
+    Sin { table: SinTable },
 }
 
 impl TableTrace {
@@ -52,6 +55,12 @@ impl TableTrace {
         Self::MaxReduce { table }
     }
 
+    /// Creates a new [`TableTrace`] from a [`SinTable`]
+    /// for use in the proof generation.
+    pub fn from_sin(table: SinTable) -> Self {
+        Self::Sin { table }
+    }
+
     pub fn to_trace(&self) -> Result<(TraceEval, ClaimType), TraceError> {
         match self {
             TableTrace::Add { table } => {
@@ -77,6 +86,11 @@ impl TableTrace {
             TableTrace::MaxReduce { table } => {
                 let (trace, claim) = table.trace_evaluation()?;
                 Ok((trace, ClaimType::MaxReduce(claim)))
+            }
+
+            TableTrace::Sin { table } => {
+                let (trace, claim) = table.trace_evaluation()?;
+                Ok((trace, ClaimType::Sin(claim)))
             }
         }
     }
@@ -116,6 +130,7 @@ pub struct OpCounter {
     pub sum_reduce: Option<usize>,
     pub recip: Option<usize>,
     pub max_reduce: Option<usize>,
+    pub sin: Option<usize>,
 }
 
 /// Indicates if a node input is an initializer (i.e., from initial input).

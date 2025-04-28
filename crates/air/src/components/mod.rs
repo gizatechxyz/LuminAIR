@@ -17,6 +17,7 @@ use recip::{
     table::RecipColumn,
 };
 use serde::{Deserialize, Serialize};
+use sin::{component::{SinComponent, SinEval}, table::SinColumn};
 use stwo_prover::{
     constraint_framework::TraceLocationAllocator,
     core::{
@@ -43,6 +44,7 @@ pub mod add;
 pub mod max_reduce;
 pub mod mul;
 pub mod recip;
+pub mod sin;
 pub mod sum_reduce;
 
 /// Errors related to trace operations.
@@ -66,6 +68,8 @@ pub type SumReduceClaim = Claim<SumReduceColumn>;
 pub type RecipClaim = Claim<RecipColumn>;
 /// Claim for the MaxReduce trace.
 pub type MaxReduceClaim = Claim<MaxReduceColumn>;
+/// Claim for the Sin trace.
+pub type SinClaim = Claim<SinColumn>;
 
 /// Represents columns of a trace.
 pub trait TraceColumn {
@@ -118,6 +122,7 @@ pub enum ClaimType {
     SumReduce(Claim<SumReduceColumn>),
     Recip(Claim<RecipColumn>),
     MaxReduce(Claim<MaxReduceColumn>),
+    Sin(Claim<SinColumn>),
 }
 
 /// The claim of the interaction phase 2 (with the logUp protocol).
@@ -175,6 +180,7 @@ pub struct LuminairComponents {
     sum_reduce: Option<SumReduceComponent>,
     recip: Option<RecipComponent>,
     max_reduce: Option<MaxReduceComponent>,
+    sin: Option<SinComponent>,
 }
 
 impl LuminairComponents {
@@ -266,12 +272,32 @@ impl LuminairComponents {
             None
         };
 
+        let sin = if let Some(ref sin_claim) = claim.sin {
+            let lut_log_size = preprocessed_column_log_sizes
+                .get("sin_lut_0")
+                .copied()
+                .expect("The LUT should exist");
+
+            Some(SinComponent::new(
+                tree_span_provider,
+                SinEval::new(
+                    &sin_claim,
+                    interaction_elements.node_lookup_elements.clone(),
+                    lut_log_size,
+                ),
+                interaction_claim.sin.as_ref().unwrap().claimed_sum,
+            ))
+        } else {
+            None
+        };
+
         Self {
             add,
             mul,
             sum_reduce,
             recip,
             max_reduce,
+            sin,
         }
     }
 
@@ -293,6 +319,9 @@ impl LuminairComponents {
         }
         if let Some(ref max_reduce_component) = self.max_reduce {
             components.push(max_reduce_component);
+        }
+        if let Some(ref sin_component) = self.sin {
+            components.push(sin_component);
         }
         components
     }
