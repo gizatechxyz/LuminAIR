@@ -1,4 +1,5 @@
 #![feature(trait_upcasting)]
+#![feature(portable_simd)]
 
 use std::vec;
 
