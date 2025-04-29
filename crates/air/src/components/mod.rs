@@ -149,7 +149,7 @@ impl InteractionClaim {
     }
 }
 
-// Defines the relation for the node lookup elements.
+// Defines the relation for the node elements.
 // It allows to constrain relationship between nodes.
 relation!(NodeElements, 2);
 
@@ -158,17 +158,17 @@ relation!(NodeElements, 2);
 /// The elements are drawn from a Fiat-Shamir [`Channel`], currently using the BLAKE2 hash.
 #[derive(Clone, Debug)]
 pub struct LuminairInteractionElements {
-    pub node_lookup_elements: NodeElements,
+    pub node_elements: NodeElements,
 }
 
 impl LuminairInteractionElements {
     /// Draw all the interaction elements needed for
     /// all the components of the system.
     pub fn draw(channel: &mut impl Channel) -> Self {
-        let node_lookup_elements = NodeElements::draw(channel);
+        let node_elements = NodeElements::draw(channel);
 
         Self {
-            node_lookup_elements,
+            node_elements,
         }
     }
 }
@@ -209,7 +209,7 @@ impl LuminairComponents {
                 tree_span_provider,
                 AddEval::new(
                     &add_claim,
-                    interaction_elements.node_lookup_elements.clone(),
+                    interaction_elements.node_elements.clone(),
                 ),
                 interaction_claim.add.as_ref().unwrap().claimed_sum,
             ))
@@ -222,7 +222,7 @@ impl LuminairComponents {
                 tree_span_provider,
                 MulEval::new(
                     &mul_claim,
-                    interaction_elements.node_lookup_elements.clone(),
+                    interaction_elements.node_elements.clone(),
                 ),
                 interaction_claim.mul.as_ref().unwrap().claimed_sum,
             ))
@@ -235,7 +235,7 @@ impl LuminairComponents {
                 tree_span_provider,
                 SumReduceEval::new(
                     &sum_reduce_claim,
-                    interaction_elements.node_lookup_elements.clone(),
+                    interaction_elements.node_elements.clone(),
                 ),
                 interaction_claim.sum_reduce.as_ref().unwrap().claimed_sum,
             ))
@@ -248,7 +248,7 @@ impl LuminairComponents {
                 tree_span_provider,
                 RecipEval::new(
                     &recip_claim,
-                    interaction_elements.node_lookup_elements.clone(),
+                    interaction_elements.node_elements.clone(),
                 ),
                 interaction_claim.recip.as_ref().unwrap().claimed_sum,
             ))
@@ -261,7 +261,7 @@ impl LuminairComponents {
                 tree_span_provider,
                 MaxReduceEval::new(
                     &max_reduce_claim,
-                    interaction_elements.node_lookup_elements.clone(),
+                    interaction_elements.node_elements.clone(),
                 ),
                 interaction_claim.max_reduce.as_ref().unwrap().claimed_sum,
             ))
@@ -279,7 +279,7 @@ impl LuminairComponents {
                 tree_span_provider,
                 SinEval::new(
                     &sin_claim,
-                    interaction_elements.node_lookup_elements.clone(),
+                    interaction_elements.node_elements.clone(),
                     lut_log_size,
                 ),
                 interaction_claim.sin.as_ref().unwrap().claimed_sum,

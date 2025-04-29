@@ -10,15 +10,15 @@ pub type MaxReduceComponent = FrameworkComponent<MaxReduceEval>;
 /// Defines the AIR for the MaxReduce component.
 pub struct MaxReduceEval {
     log_size: u32,
-    lookup_elements: NodeElements,
+    node_elements: NodeElements,
 }
 
 impl MaxReduceEval {
-    /// Creates a new `MaxReduceEval` instance from a claim and lookup elements.
-    pub fn new(claim: &MaxReduceClaim, lookup_elements: NodeElements) -> Self {
+    /// Creates a new `MaxReduceEval` instance from a claim and node elements.
+    pub fn new(claim: &MaxReduceClaim, node_elements: NodeElements) -> Self {
         Self {
             log_size: claim.log_size,
-            lookup_elements,
+            node_elements,
         }
     }
 }
@@ -106,13 +106,13 @@ impl FrameworkEval for MaxReduceEval {
         // └─────────────────────────────┘
 
         eval.add_to_relation(RelationEntry::new(
-            &self.lookup_elements,
+            &self.node_elements,
             input_mult.into(),
             &[input_val, input_id],
         ));
 
         eval.add_to_relation(RelationEntry::new(
-            &self.lookup_elements,
+            &self.node_elements,
             out_mult.into(),
             &[out_val, node_id],
         ));

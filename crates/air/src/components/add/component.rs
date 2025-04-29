@@ -10,15 +10,15 @@ pub type AddComponent = FrameworkComponent<AddEval>;
 /// Defines the AIR for the addition component.
 pub struct AddEval {
     log_size: u32,
-    lookup_elements: NodeElements,
+    node_elements: NodeElements,
 }
 
 impl AddEval {
-    /// Creates a new `AddEval` instance from a claim and lookup elements.
-    pub fn new(claim: &AddClaim, lookup_elements: NodeElements) -> Self {
+    /// Creates a new `AddEval` instance from a claim and node elements.
+    pub fn new(claim: &AddClaim, node_elements: NodeElements) -> Self {
         Self {
             log_size: claim.log_size,
-            lookup_elements,
+            node_elements,
         }
     }
 }
@@ -95,19 +95,19 @@ impl FrameworkEval for AddEval {
         // └─────────────────────────────┘
 
         eval.add_to_relation(RelationEntry::new(
-            &self.lookup_elements,
+            &self.node_elements,
             lhs_mult.into(),
             &[lhs_val, lhs_id],
         ));
 
         eval.add_to_relation(RelationEntry::new(
-            &self.lookup_elements,
+            &self.node_elements,
             rhs_mult.into(),
             &[rhs_val, rhs_id],
         ));
 
         eval.add_to_relation(RelationEntry::new(
-            &self.lookup_elements,
+            &self.node_elements,
             out_mult.into(),
             &[out_val, node_id],
         ));

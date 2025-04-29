@@ -11,15 +11,15 @@ pub type RecipComponent = FrameworkComponent<RecipEval>;
 /// Defines the AIR for the recip component.
 pub struct RecipEval {
     log_size: u32,
-    lookup_elements: NodeElements,
+    node_elements: NodeElements,
 }
 
 impl RecipEval {
-    /// Creates a new `RecipEval` instance from a claim and lookup elements.
-    pub fn new(claim: &RecipClaim, lookup_elements: NodeElements) -> Self {
+    /// Creates a new `RecipEval` instance from a claim and node elements.
+    pub fn new(claim: &RecipClaim, node_elements: NodeElements) -> Self {
         Self {
             log_size: claim.log_size,
-            lookup_elements,
+            node_elements,
         }
     }
 }
@@ -93,13 +93,13 @@ impl FrameworkEval for RecipEval {
         // └─────────────────────────────┘
 
         eval.add_to_relation(RelationEntry::new(
-            &self.lookup_elements,
+            &self.node_elements,
             input_mult.into(),
             &[input_val, input_id],
         ));
 
         eval.add_to_relation(RelationEntry::new(
-            &self.lookup_elements,
+            &self.node_elements,
             out_mult.into(),
             &[out_val, node_id],
         ));

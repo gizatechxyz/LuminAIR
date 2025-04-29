@@ -12,7 +12,7 @@ pub fn calculate_log_size(max_size: usize) -> u32 {
 }
 
 /// Verifies the validity of the interaction claim by checking if the sum of claimed sums is zero.
-pub fn lookup_sum_valid(interaction_claim: &LuminairInteractionClaim) -> bool {
+pub fn log_sum_valid(interaction_claim: &LuminairInteractionClaim) -> bool {
     let mut sum = PackedSecureField::zero();
 
     if let Some(ref int_cl) = interaction_claim.add {

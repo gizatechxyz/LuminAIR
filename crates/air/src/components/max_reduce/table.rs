@@ -186,10 +186,10 @@ impl TraceColumn for MaxReduceColumn {
     }
 }
 
-/// Generates the interaction trace for the MaxReduce component using the main trace and lookup elements.
+/// Generates the interaction trace for the MaxReduce component using the main trace and node elements.
 pub fn interaction_trace_evaluation(
     main_trace_eval: &TraceEval,
-    lookup_elements: &NodeElements,
+    node_elements: &NodeElements,
 ) -> Result<(TraceEval, InteractionClaim), TraceError> {
     if main_trace_eval.is_empty() {
         return Err(TraceError::EmptyTrace);
@@ -211,7 +211,7 @@ pub fn interaction_trace_evaluation(
         input_int_col.write_frac(
             row,
             multiplicity.into(),
-            lookup_elements.combine(&[input, id]),
+            node_elements.combine(&[input, id]),
         );
     }
     input_int_col.finalize_col();
@@ -229,7 +229,7 @@ pub fn interaction_trace_evaluation(
         out_int_col.write_frac(
             row,
             multiplicity.into(),
-            lookup_elements.combine(&[out, id]),
+            node_elements.combine(&[out, id]),
         );
     }
     out_int_col.finalize_col();

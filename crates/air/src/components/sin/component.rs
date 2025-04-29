@@ -11,16 +11,16 @@ pub type SinComponent = FrameworkComponent<SinEval>;
 pub struct SinEval {
     log_size: u32,
     lut_log_size: u32,
-    lookup_elements: NodeElements,
+    node_elements: NodeElements,
 }
 
 impl SinEval {
-    /// Creates a new `SinEval` instance from a claim and lookup elements.
-    pub fn new(claim: &SinClaim, lookup_elements: NodeElements, lut_log_size: u32) -> Self {
+    /// Creates a new `SinEval` instance from a claim and node elements.
+    pub fn new(claim: &SinClaim, node_elements: NodeElements, lut_log_size: u32) -> Self {
         Self {
             log_size: claim.log_size,
             lut_log_size,
-            lookup_elements,
+            node_elements,
         }
     }
 }
@@ -96,13 +96,13 @@ impl FrameworkEval for SinEval {
         // └─────────────────────────────┘
 
         eval.add_to_relation(RelationEntry::new(
-            &self.lookup_elements,
+            &self.node_elements,
             input_mult.into(),
             &[input_val, input_id],
         ));
 
         eval.add_to_relation(RelationEntry::new(
-            &self.lookup_elements,
+            &self.node_elements,
             out_mult.into(),
             &[out_val, node_id],
         ));

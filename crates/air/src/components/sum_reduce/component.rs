@@ -10,15 +10,15 @@ pub type SumReduceComponent = FrameworkComponent<SumReduceEval>;
 /// Defines the AIR for the SumReduce component.
 pub struct SumReduceEval {
     log_size: u32,
-    lookup_elements: NodeElements,
+    node_elements: NodeElements,
 }
 
 impl SumReduceEval {
-    /// Creates a new `SumReduceEval` instance from a claim and lookup elements.
-    pub fn new(claim: &SumReduceClaim, lookup_elements: NodeElements) -> Self {
+    /// Creates a new `SumReduceEval` instance from a claim and node elements.
+    pub fn new(claim: &SumReduceClaim, node_elements: NodeElements) -> Self {
         Self {
             log_size: claim.log_size,
-            lookup_elements,
+            node_elements,
         }
     }
 }
@@ -95,13 +95,13 @@ impl FrameworkEval for SumReduceEval {
         // └─────────────────────────────┘
 
         eval.add_to_relation(RelationEntry::new(
-            &self.lookup_elements,
+            &self.node_elements,
             input_mult.into(),
             &[input_val, input_id],
         ));
 
         eval.add_to_relation(RelationEntry::new(
-            &self.lookup_elements,
+            &self.node_elements,
             out_mult.into(),
             &[out_val, node_id],
         ));

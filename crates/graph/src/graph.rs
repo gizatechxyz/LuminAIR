@@ -29,7 +29,7 @@ use luminair_air::{
         ExecutionResources, InputInfo, LuminairPie, NodeInfo, OpCounter, OutputInfo, TableTrace,
     },
     preprocessed::{PreProcessedColumn, PreProcessedTrace, Range,  SinLUT},
-    utils::{calculate_log_size, lookup_sum_valid},
+    utils::{calculate_log_size, log_sum_valid},
     LuminairClaim, LuminairInteractionClaim, LuminairProof,
 };
 use luminal::{
@@ -55,8 +55,8 @@ pub enum LuminairError {
     #[error(transparent)]
     StwoVerifierError(#[from] VerificationError),
 
-    #[error("{0} lookup values do not match.")]
-    InvalidLookup(String),
+    #[error("{0} LogUp values do not match.")]
+    InvalidLogUp(String),
 }
 
 /// Trait defining the core functionality of a LuminAIR computation graph.
@@ -475,46 +475,46 @@ impl LuminairGraph for Graph {
         let mut tree_builder = commitment_scheme.tree_builder();
         let mut interaction_claim = LuminairInteractionClaim::default();
 
-        let lookup_elements = &interaction_elements.node_lookup_elements;
+        let node_elements = &interaction_elements.node_elements;
 
         for (trace, claim_type) in processed_traces {
             match claim_type {
                 ClaimType::Add(_) => {
                     let (tr, cl) =
-                        add::table::interaction_trace_evaluation(&trace, lookup_elements).unwrap();
+                        add::table::interaction_trace_evaluation(&trace, node_elements).unwrap();
                     tree_builder.extend_evals(tr);
                     interaction_claim.add = Some(cl);
                 }
                 ClaimType::Mul(_) => {
                     let (tr, cl) =
-                        mul::table::interaction_trace_evaluation(&trace, lookup_elements).unwrap();
+                        mul::table::interaction_trace_evaluation(&trace, node_elements).unwrap();
                     tree_builder.extend_evals(tr);
                     interaction_claim.mul = Some(cl);
                 }
                 ClaimType::SumReduce(_) => {
                     let (tr, cl) =
-                        sum_reduce::table::interaction_trace_evaluation(&trace, lookup_elements)
+                        sum_reduce::table::interaction_trace_evaluation(&trace, node_elements)
                             .unwrap();
                     tree_builder.extend_evals(tr);
                     interaction_claim.sum_reduce = Some(cl);
                 }
                 ClaimType::Recip(_) => {
                     let (tr, cl) =
-                        recip::table::interaction_trace_evaluation(&trace, lookup_elements)
+                        recip::table::interaction_trace_evaluation(&trace, node_elements)
                             .unwrap();
                     tree_builder.extend_evals(tr);
                     interaction_claim.recip = Some(cl);
                 }
                 ClaimType::MaxReduce(_) => {
                     let (tr, cl) =
-                        max_reduce::table::interaction_trace_evaluation(&trace, lookup_elements)
+                        max_reduce::table::interaction_trace_evaluation(&trace, node_elements)
                             .unwrap();
                     tree_builder.extend_evals(tr);
                     interaction_claim.max_reduce = Some(cl);
                 }
                 ClaimType::Sin(_) => {
                     let (tr, cl) =
-                        sin::table::interaction_trace_evaluation(&trace, lookup_elements)
+                        sin::table::interaction_trace_evaluation(&trace, node_elements)
                             .unwrap();
                     tree_builder.extend_evals(tr);
                     interaction_claim.sin = Some(cl);
@@ -595,9 +595,9 @@ impl LuminairGraph for Graph {
 
         let interaction_elements = LuminairInteractionElements::draw(channel);
 
-        // Check that the lookup sum is valid, otherwise throw
-        if !lookup_sum_valid(&interaction_claim) {
-            return Err(LuminairError::InvalidLookup(
+        // Check that the logup sum is valid, otherwise throw
+        if !log_sum_valid(&interaction_claim) {
+            return Err(LuminairError::InvalidLogUp(
                 "Invalid LogUp sum".to_string(),
             ));
         };

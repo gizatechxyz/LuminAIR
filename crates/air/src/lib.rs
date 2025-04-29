@@ -102,7 +102,7 @@ impl LuminairClaim {
 
 /// Claim over the sum of interaction columns per system component.
 ///
-/// Used in the logUp lookup protocol with AIR.
+/// Used in the logUp protocol with AIR.
 #[derive(Serialize, Deserialize, Default, Debug)]
 pub struct LuminairInteractionClaim {
     pub add: Option<InteractionClaim>,
