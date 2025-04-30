@@ -108,41 +108,60 @@ impl SinLUT {
         PackedM31::from(values)
     }
 
-    /// Finds the index of a value in the LUT
+    /// Finds the index of a value in the LUT.
     pub fn find_index(&self, target: i64) -> Option<usize> {
-        // Check if target is in any range
-        if !self
-            .ranges
-            .iter()
-            .any(|r| target >= r.0 .0 && target <= r.1 .0)
-        {
+        // Binary search to find the range containing the target
+        match self.find_containing_range(target) {
+            Some((range_idx, range)) => {
+                // Calculate the cumulative count of values before this range
+                let mut cumulative_count = 0;
+                for i in 0..range_idx {
+                    let r = &self.ranges[i];
+                    cumulative_count += (r.1 .0 - r.0 .0 + 1) as usize;
+                }
+
+                // Add the offset within the found range
+                let offset = (target - range.0 .0) as usize;
+                Some(cumulative_count + offset)
+            }
+            None => None,
+        }
+    }
+
+    /// Find which range contains the target value.
+    fn find_containing_range(&self, target: i64) -> Option<(usize, &Range)> {
+        // Early check for empty ranges
+        if self.ranges.is_empty() {
             return None;
         }
 
-        // Sort ranges by start value
-        let mut sorted_ranges = self.ranges.clone();
-        sorted_ranges.sort_by_key(|r| r.0 .0);
+        // Binary search to find the correct range
+        let mut left = 0;
+        let mut right = self.ranges.len() - 1;
 
-        // For each range, count its contribution to the index
-        let mut index = 0;
-        for range in sorted_ranges {
-            let start = range.0 .0;
-            let end = range.1 .0;
+        while left <= right {
+            let mid = left + (right - left) / 2;
+            let range = &self.ranges[mid];
 
-            // Range is entirely greater than target, we can stop
-            if start > target {
-                break;
+            // Check if target is in this range
+            if target >= range.0 .0 && target <= range.1 .0 {
+                return Some((mid, range));
             }
 
-            // If target is within this range
-            if target <= end {
-                // Add the offset within this range
-                index += (target - start) as usize;
-                return Some(index);
+            // Adjust search boundaries
+            if target < range.0 .0 {
+                // Target is before this range
+                if mid == 0 {
+                    break; // Can't go left further
+                }
+                right = mid - 1;
+            } else {
+                // Target is after this range
+                if mid == self.ranges.len() - 1 {
+                    break; // Can't go right further
+                }
+                left = mid + 1;
             }
-
-            // Range is entirely less than target, count all its elements
-            index += (end - start + 1) as usize;
         }
 
         None

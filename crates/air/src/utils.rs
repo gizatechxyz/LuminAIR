@@ -1,14 +1,7 @@
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use num_traits::Zero;
-use stwo_prover::core::{
-    backend::simd::{
-        column::BaseColumn,
-        m31::{PackedM31, LOG_N_LANES},
-        qm31::PackedSecureField,
-    },
-    fields::m31::M31,
-};
+use stwo_prover::core::backend::simd::{m31::LOG_N_LANES, qm31::PackedSecureField};
 
 use crate::LuminairInteractionClaim;
 
