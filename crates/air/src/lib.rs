@@ -1,8 +1,6 @@
 #![feature(trait_upcasting)]
 #![feature(portable_simd)]
 
-use std::vec;
-
 use ::serde::{Deserialize, Serialize};
 use components::{
     AddClaim, InteractionClaim, MaxReduceClaim, MulClaim, RecipClaim, SinClaim, SumReduceClaim,

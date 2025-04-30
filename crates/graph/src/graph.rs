@@ -3,7 +3,7 @@ use crate::{
         prim::{CopyFromStwo, CopyToStwo, LuminairConstant},
         HasProcessTrace,
     },
-    settings::{ CircuitSettings, LUTs},
+    settings::{CircuitSettings, LUTs},
     utils::compute_padded_range_from_srcs,
 };
 use luminair_air::{
@@ -11,22 +11,32 @@ use luminair_air::{
         add::{
             self,
             table::{AddColumn, AddTable},
-        }, max_reduce::{
+        },
+        max_reduce::{
             self,
             table::{MaxReduceColumn, MaxReduceTable},
-        }, mul::{
+        },
+        mul::{
             self,
             table::{MulColumn, MulTable},
-        }, recip::{
+        },
+        recip::{
             self,
             table::{RecipColumn, RecipTable},
-        }, sin::{self, table::{SinColumn, SinTable}}, sum_reduce::{
+        },
+        sin::{
+            self,
+            table::{SinColumn, SinTable},
+        },
+        sum_reduce::{
             self,
             table::{SumReduceColumn, SumReduceTable},
-        },  ClaimType, LuminairComponents, LuminairInteractionElements, TraceError
+        },
+        ClaimType, LuminairComponents, LuminairInteractionElements, TraceError,
     },
     pie::{
-        ExecutionResources, InputInfo, LUTMultiplicities, LuminairPie, NodeInfo, OpCounter, OutputInfo, TableTrace
+        ExecutionResources, InputInfo, LUTMultiplicities, LuminairPie, NodeInfo, OpCounter,
+        OutputInfo, TableTrace,
     },
     preprocessed::{LUTLayout, PreProcessedColumn, PreProcessedTrace, Range, SinLUT},
     utils::{calculate_log_size, log_sum_valid, AtomicMultiplicityColumn},
@@ -112,9 +122,7 @@ impl LuminairGraph for Graph {
 
             // Add range
             let op = &*self.graph.node_weight(*node).unwrap();
-            if <Box<dyn Operator> as HasProcessTrace<SinColumn, SinTable>>::has_process_trace(
-                op,
-            ) {
+            if <Box<dyn Operator> as HasProcessTrace<SinColumn, SinTable>>::has_process_trace(op) {
                 sin_ranges.push(compute_padded_range_from_srcs(&srcs));
             }
 
@@ -143,18 +151,21 @@ impl LuminairGraph for Graph {
 
             lut_cols.push(Box::new(col_0.clone()));
             lut_cols.push(Box::new(col_1));
-           Some(layout)
+            Some(layout)
         } else {
             None
         };
 
-        let settings =       CircuitSettings { lut_cols, lookup_tables : LUTs {sin: sin_lut_layout} };
-            settings
+        let settings = CircuitSettings {
+            lut_cols,
+            lookup_tables: LUTs {
+                sin: sin_lut_layout,
+            },
+        };
+        settings
     }
-    
 
     fn gen_trace(&mut self, settings: CircuitSettings) -> Result<LuminairPie, TraceError> {
-
         // Track the number of views pointing to each tensor so we know when to clear
         if self.linearized_graph.is_none() {
             self.toposort();
@@ -162,9 +173,6 @@ impl LuminairGraph for Graph {
 
         let mut consumers = self.consumers_map.as_ref().unwrap().clone();
         let mut dim_stack = Vec::new();
-
-        // Initialize table traces for different operators
-        let mut table_traces = Vec::new();
 
         // Initializes operator counter
         let mut op_counter = OpCounter::default();
@@ -175,7 +183,12 @@ impl LuminairGraph for Graph {
         let mut recip_table = RecipTable::new();
         let mut sum_reduce_table = SumReduceTable::new();
         let mut max_reduce_table = MaxReduceTable::new();
-        let mut sin_table = SinTable::new(settings.lookup_tables.sin);
+        let mut sin_table = SinTable::new(settings.lookup_tables.sin.clone());
+
+        // Pre-initialize LUT multiplicities
+        if let Some(layout) = &sin_table.lut_layout {
+            sin_table.lut_multiplicities = AtomicMultiplicityColumn::new(1 << layout.log_size);
+        }
 
         for (node, src_ids) in self.linearized_graph.as_ref().unwrap() {
             if self.tensors.contains_key(&(*node, 0)) {
@@ -185,18 +198,24 @@ impl LuminairGraph for Graph {
             let mut srcs =
                 get_source_tensors(&self.no_delete, &mut self.tensors, src_ids, &consumers);
 
+            // Substitute in the dyn dims
+            for (_, st) in srcs.iter_mut() {
+                st.resolve_global_dyn_dims_stack(&self.dyn_map, &mut dim_stack);
+            }
+
             // Gather input source information
-            let input_info = src_ids
+            let input_info: Vec<InputInfo> = src_ids
                 .iter()
                 .map(|(id, _, _)| {
                     let node_weight = self.node_weight(*id).unwrap();
-                    let node_is_function = node_weight.as_any().is::<Function>();
-                    let node_is_constant = node_weight.as_any().is::<LuminairConstant>()
+
+                    let is_function = node_weight.as_any().is::<Function>();
+                    let is_constant = node_weight.as_any().is::<LuminairConstant>()
                         || node_weight.as_any().is::<luminal::op::Constant>();
-                    let node_is_copy_to = node_weight.as_any().is::<CopyToStwo>();
+                    let is_copy_to = node_weight.as_any().is::<CopyToStwo>();
 
                     // Check if this is a CopyToStwo that wraps a Function node or a Constant
-                    let is_copy_of_initializer = if node_is_copy_to {
+                    let is_copy_of_initializer = if is_copy_to {
                         self.get_sources(*id).iter().any(|(src_id, _, _)| {
                             let src_weight = self.node_weight(*src_id).unwrap();
                             src_weight.as_any().is::<Function>()
@@ -208,16 +227,13 @@ impl LuminairGraph for Graph {
                     };
 
                     InputInfo {
-                        is_initializer: node_is_function
-                            || node_is_constant
-                            || is_copy_of_initializer,
+                        is_initializer: is_function || is_constant || is_copy_of_initializer,
                         id: id.index() as u32,
                     }
                 })
-                .collect::<Vec<_>>();
+                .collect();
 
-            // Get output source information - check if this node is a final output
-            // or if it feeds into a CopyFromStwo that's a final output
+            // Determine output status
             let is_direct_output = self.to_retrieve.contains_key(&node);
             let is_output_via_copy = self
                 .graph
@@ -232,121 +248,64 @@ impl LuminairGraph for Graph {
                             .is::<CopyFromStwo>()
                 });
 
-            let output_info = OutputInfo {
-                is_final_output: is_direct_output || is_output_via_copy,
-            };
-
             let node_info = NodeInfo {
                 inputs: input_info,
-                output: output_info,
+                output: OutputInfo {
+                    is_final_output: is_direct_output || is_output_via_copy,
+                },
                 num_consumers: *consumers.get(&(*node, 0)).unwrap_or(&0) as u32,
                 id: node.index() as u32,
             };
 
-            // Substitute in the dyn dims
-            for (_, st) in srcs.iter_mut() {
-                st.resolve_global_dyn_dims_stack(&self.dyn_map, &mut dim_stack);
-            }
-
-            // Get operator and try to use process_trace if available
+            // Get operator and dispatch to appropriate process_trace handler
             let node_op = &mut *self.graph.node_weight_mut(*node).unwrap();
 
-            let tensors =
-                if <Box<dyn Operator> as HasProcessTrace<AddColumn, AddTable>>::has_process_trace(
-                    node_op,
-                ) {
-                    let tensors = <Box<dyn Operator> as HasProcessTrace<
-                        AddColumn,
-                        AddTable,
-                    >>::call_process_trace(
-                        node_op, srcs, &mut add_table, &node_info
-                    )
-                    .unwrap();
+            let tensors = match () {
+                _ if <Box<dyn Operator> as HasProcessTrace<AddColumn, AddTable>>::has_process_trace(node_op) => {
                     *op_counter.add.get_or_insert(0) += 1;
-
-                    tensors
-                }  else if <Box<dyn Operator> as HasProcessTrace<MulColumn, MulTable>>::has_process_trace(
-                    node_op,
-                ) {
-                    let tensors = <Box<dyn Operator> as HasProcessTrace<
-                        MulColumn,
-                        MulTable,
-                    >>::call_process_trace(
-                        node_op, srcs, &mut mul_table, &node_info
-                    )
-                    .unwrap();
-                    *op_counter.mul.get_or_insert(0) += 1;
-
-                    tensors
-                } else if <Box<dyn Operator> as HasProcessTrace<SumReduceColumn, SumReduceTable>>::has_process_trace(
-                    node_op,
-                ) {
-                    let tensors = <Box<dyn Operator> as HasProcessTrace<
-                        SumReduceColumn,
-                        SumReduceTable,
-                    >>::call_process_trace(
-                        node_op, srcs, &mut sum_reduce_table, &node_info
-                    )
-                    .unwrap();
-                    *op_counter.sum_reduce.get_or_insert(0) += 1;
-
-                    tensors
-                } else if <Box<dyn Operator> as HasProcessTrace<RecipColumn, RecipTable>>::has_process_trace(
-                    node_op,
-                ) {
-                    let tensors = <Box<dyn Operator> as HasProcessTrace<
-                    RecipColumn,
-                    RecipTable,
-                    >>::call_process_trace(
-                        node_op, srcs, &mut recip_table, &node_info
-                    )
-                    .unwrap();
-                    *op_counter.recip.get_or_insert(0) += 1;
-
-                    tensors
-                } else if <Box<dyn Operator> as HasProcessTrace<MaxReduceColumn, MaxReduceTable>>::has_process_trace(
-                    node_op,
-                ) {
-                    let tensors = <Box<dyn Operator> as HasProcessTrace<
-                    MaxReduceColumn,
-                    MaxReduceTable,
-                    >>::call_process_trace(
-                        node_op, srcs, &mut max_reduce_table, &node_info
-                    )
-                    .unwrap();
-                    *op_counter.max_reduce.get_or_insert(0) += 1;
-
-                    tensors
+                    <Box<dyn Operator> as HasProcessTrace<AddColumn, AddTable>>::call_process_trace(
+                        node_op, srcs, &mut add_table, &node_info
+                    ).unwrap()
                 }
-                else if <Box<dyn Operator> as HasProcessTrace<SinColumn, SinTable>>::has_process_trace(
-                    node_op,
-                ) {
-
-                    if let Some(layout) = &sin_table.lut_layout {
-                        sin_table.lut_multiplicities = AtomicMultiplicityColumn::new(1 << layout.log_size)
-                    }
-
-                    let tensors = <Box<dyn Operator> as HasProcessTrace<
-                    SinColumn,
-                    SinTable,
-                    >>::call_process_trace(
-                        node_op, srcs, &mut sin_table, &node_info
-                    )
-                    .unwrap();
+                _ if <Box<dyn Operator> as HasProcessTrace<MulColumn, MulTable>>::has_process_trace(node_op) => {
+                    *op_counter.mul.get_or_insert(0) += 1;
+                    <Box<dyn Operator> as HasProcessTrace<MulColumn, MulTable>>::call_process_trace(
+                        node_op, srcs, &mut mul_table, &node_info
+                    ).unwrap()
+                }
+                _ if <Box<dyn Operator> as HasProcessTrace<SumReduceColumn, SumReduceTable>>::has_process_trace(node_op) => {
+                    *op_counter.sum_reduce.get_or_insert(0) += 1;
+                    <Box<dyn Operator> as HasProcessTrace<SumReduceColumn, SumReduceTable>>::call_process_trace(
+                        node_op, srcs, &mut sum_reduce_table, &node_info
+                    ).unwrap()
+                }
+                _ if <Box<dyn Operator> as HasProcessTrace<RecipColumn, RecipTable>>::has_process_trace(node_op) => {
+                    *op_counter.recip.get_or_insert(0) += 1;
+                    <Box<dyn Operator> as HasProcessTrace<RecipColumn, RecipTable>>::call_process_trace(
+                        node_op, srcs, &mut recip_table, &node_info
+                    ).unwrap()
+                }
+                _ if <Box<dyn Operator> as HasProcessTrace<MaxReduceColumn, MaxReduceTable>>::has_process_trace(node_op) => {
+                    *op_counter.max_reduce.get_or_insert(0) += 1;
+                    <Box<dyn Operator> as HasProcessTrace<MaxReduceColumn, MaxReduceTable>>::call_process_trace(
+                        node_op, srcs, &mut max_reduce_table, &node_info
+                    ).unwrap()
+                }
+                _ if <Box<dyn Operator> as HasProcessTrace<SinColumn, SinTable>>::has_process_trace(node_op) => {
                     *op_counter.sin.get_or_insert(0) += 1;
+                    <Box<dyn Operator> as HasProcessTrace<SinColumn, SinTable>>::call_process_trace(
+                        node_op, srcs, &mut sin_table, &node_info
+                    ).unwrap()
+                }
+                _ => node_op.process(srcs)
+            };
 
-                    tensors
-                }       
-                else {
-                    // Handle other operators or fallback
-                    node_op.process(srcs)
-                };
-
+            // Store output tensors
             for (i, tensor) in tensors.into_iter().enumerate() {
                 self.tensors.insert((*node, i as u8), tensor);
             }
 
-            // Bookkeep remaining consumers
+            // Update remaining consumers
             for (id, ind, _) in src_ids {
                 *consumers.get_mut(&(*id, *ind)).unwrap() -= 1;
             }
@@ -354,37 +313,33 @@ impl LuminairGraph for Graph {
 
         self.reset();
 
-        // Convert tables to traces
+        // Convert tables to traces - determine max log size while building
         let mut max_log_size = 0;
+        let mut table_traces = Vec::new();
 
         if !add_table.table.is_empty() {
             let log_size = calculate_log_size(add_table.table.len());
             max_log_size = max_log_size.max(log_size);
-
             table_traces.push(TableTrace::from_add(add_table));
         }
         if !mul_table.table.is_empty() {
             let log_size = calculate_log_size(mul_table.table.len());
             max_log_size = max_log_size.max(log_size);
-
             table_traces.push(TableTrace::from_mul(mul_table));
         }
         if !recip_table.table.is_empty() {
             let log_size = calculate_log_size(recip_table.table.len());
             max_log_size = max_log_size.max(log_size);
-
             table_traces.push(TableTrace::from_recip(recip_table));
         }
         if !sum_reduce_table.table.is_empty() {
             let log_size = calculate_log_size(sum_reduce_table.table.len());
             max_log_size = max_log_size.max(log_size);
-
             table_traces.push(TableTrace::from_sum_reduce(sum_reduce_table));
         }
         if !max_reduce_table.table.is_empty() {
             let log_size = calculate_log_size(max_reduce_table.table.len());
             max_log_size = max_log_size.max(log_size);
-
             table_traces.push(TableTrace::from_max_reduce(max_reduce_table));
         }
 
@@ -392,14 +347,13 @@ impl LuminairGraph for Graph {
         if !sin_table.table.is_empty() {
             let log_size = calculate_log_size(sin_table.table.len());
             max_log_size = max_log_size.max(log_size);
-
             table_traces.push(TableTrace::from_sin(sin_table));
         }
 
         Ok(LuminairPie {
             table_traces,
             lut_multiciplicities: LUTMultiplicities {
-                sin: sin_multiplicities
+                sin: sin_multiplicities,
             },
             execution_resources: ExecutionResources {
                 op_counter,
@@ -441,49 +395,55 @@ impl LuminairGraph for Graph {
         // └───────────────────────────────────────────────┘
 
         tracing::info!("Preprocessed Trace");
-        let mut tree_builder = commitment_scheme.tree_builder();
-        tree_builder.extend_evals(preprocessed_trace.gen_trace());
-        // Commit the preprocessed trace
-        tree_builder.commit(channel);
+        {
+            let mut tree_builder = commitment_scheme.tree_builder();
+            tree_builder.extend_evals(preprocessed_trace.gen_trace());
+            // Commit the preprocessed trace
+            tree_builder.commit(channel);
+        }
 
         // ┌───────────────────────────────────────┐
         // │    Interaction Phase 1 - Main Trace   │
         // └───────────────────────────────────────┘
 
         tracing::info!("Main Trace");
-        let mut tree_builder = commitment_scheme.tree_builder();
         let mut main_claim = LuminairClaim::new();
-        let mut processed_traces = Vec::new();
+        let mut processed_traces: Vec<(_, ClaimType)> = Vec::with_capacity(pie.table_traces.len());
 
-        for table_trace in pie.table_traces {
-            let (trace, claim_type) = match table_trace.to_trace() {
-                Ok(result) => result,
-                Err(err) => {
-                    tracing::error!("Trace evaluation failed: {:?}", err);
-                    return Err(ProvingError::ConstraintsNotSatisfied);
+        {
+            let mut tree_builder = commitment_scheme.tree_builder();
+
+            for table_trace in pie.table_traces {
+                let (trace, claim_type) = match table_trace.to_trace() {
+                    Ok(result) => result,
+                    Err(err) => {
+                        tracing::error!("Trace evaluation failed: {:?}", err);
+                        return Err(ProvingError::ConstraintsNotSatisfied);
+                    }
+                };
+
+                // Add the trace to the commit tree
+                tree_builder.extend_evals(trace.clone());
+
+                // Store trace and claim type for interaction phase
+                processed_traces.push((trace, claim_type.clone()));
+
+                // Update the main claim based on the claim type
+                match claim_type {
+                    ClaimType::Add(claim) => main_claim.add = Some(claim),
+                    ClaimType::Mul(claim) => main_claim.mul = Some(claim),
+                    ClaimType::SumReduce(claim) => main_claim.sum_reduce = Some(claim),
+                    ClaimType::Recip(claim) => main_claim.recip = Some(claim),
+                    ClaimType::MaxReduce(claim) => main_claim.max_reduce = Some(claim),
+                    ClaimType::Sin(claim) => main_claim.sin = Some(claim),
                 }
-            };
-
-            processed_traces.push((trace.clone(), claim_type.clone()));
-
-            // Add the trace to the commit tree.
-            tree_builder.extend_evals(trace.clone());
-
-            // Update the main claim based the correct claim type
-            match claim_type {
-                ClaimType::Add(claim) => main_claim.add = Some(claim),
-                ClaimType::Mul(claim) => main_claim.mul = Some(claim),
-                ClaimType::SumReduce(claim) => main_claim.sum_reduce = Some(claim),
-                ClaimType::Recip(claim) => main_claim.recip = Some(claim),
-                ClaimType::MaxReduce(claim) => main_claim.max_reduce = Some(claim),
-                ClaimType::Sin(claim) => main_claim.sin = Some(claim)
             }
-        }
 
-        // Mix the claim into the Fiat-Shamir channel.
-        main_claim.mix_into(channel);
-        // Commit the main trace.
-        tree_builder.commit(channel);
+            // Mix the claim into the Fiat-Shamir channel.
+            main_claim.mix_into(channel);
+            // Commit the main trace.
+            tree_builder.commit(channel);
+        }
 
         // ┌───────────────────────────────────────────────┐
         // │    Interaction Phase 2 - Interaction Trace    │
@@ -491,61 +451,60 @@ impl LuminairGraph for Graph {
 
         // Draw interaction elements
         let interaction_elements = LuminairInteractionElements::draw(channel);
-        // Generate the interaction trace from the main trace, and compute the logUp sum.
-        let mut tree_builder = commitment_scheme.tree_builder();
         let mut interaction_claim = LuminairInteractionClaim::default();
-
         let node_elements = &interaction_elements.node_elements;
 
-        for (trace, claim_type) in processed_traces {
-            match claim_type {
-                ClaimType::Add(_) => {
-                    let (tr, cl) =
-                        add::table::interaction_trace_evaluation(&trace, node_elements).unwrap();
-                    tree_builder.extend_evals(tr);
-                    interaction_claim.add = Some(cl);
-                }
-                ClaimType::Mul(_) => {
-                    let (tr, cl) =
-                        mul::table::interaction_trace_evaluation(&trace, node_elements).unwrap();
-                    tree_builder.extend_evals(tr);
-                    interaction_claim.mul = Some(cl);
-                }
-                ClaimType::SumReduce(_) => {
-                    let (tr, cl) =
+        {
+            // Generate the interaction trace from the main trace, and compute the logUp sum.
+            let mut tree_builder = commitment_scheme.tree_builder();
+
+            for (trace, claim_type) in processed_traces {
+                let (interaction_trace, claim) = match claim_type {
+                    ClaimType::Add(_) => {
+                        add::table::interaction_trace_evaluation(&trace, node_elements)
+                            .map_err(|_| ProvingError::ConstraintsNotSatisfied)?
+                    }
+                    ClaimType::Mul(_) => {
+                        mul::table::interaction_trace_evaluation(&trace, node_elements)
+                            .map_err(|_| ProvingError::ConstraintsNotSatisfied)?
+                    }
+                    ClaimType::SumReduce(_) => {
                         sum_reduce::table::interaction_trace_evaluation(&trace, node_elements)
-                            .unwrap();
-                    tree_builder.extend_evals(tr);
-                    interaction_claim.sum_reduce = Some(cl);
-                }
-                ClaimType::Recip(_) => {
-                    let (tr, cl) =
+                            .map_err(|_| ProvingError::ConstraintsNotSatisfied)?
+                    }
+                    ClaimType::Recip(_) => {
                         recip::table::interaction_trace_evaluation(&trace, node_elements)
-                            .unwrap();
-                    tree_builder.extend_evals(tr);
-                    interaction_claim.recip = Some(cl);
-                }
-                ClaimType::MaxReduce(_) => {
-                    let (tr, cl) =
+                            .map_err(|_| ProvingError::ConstraintsNotSatisfied)?
+                    }
+                    ClaimType::MaxReduce(_) => {
                         max_reduce::table::interaction_trace_evaluation(&trace, node_elements)
-                            .unwrap();
-                    tree_builder.extend_evals(tr);
-                    interaction_claim.max_reduce = Some(cl);
-                }
-                ClaimType::Sin(_) => {
-                    let (tr, cl) =
+                            .map_err(|_| ProvingError::ConstraintsNotSatisfied)?
+                    }
+                    ClaimType::Sin(_) => {
                         sin::table::interaction_trace_evaluation(&trace, node_elements)
-                            .unwrap();
-                    tree_builder.extend_evals(tr);
-                    interaction_claim.sin = Some(cl);
+                            .map_err(|_| ProvingError::ConstraintsNotSatisfied)?
+                    }
+                };
+
+                // Add trace to the commit tree
+                tree_builder.extend_evals(interaction_trace);
+
+                // Update the interaction claim
+                match claim_type {
+                    ClaimType::Add(_) => interaction_claim.add = Some(claim),
+                    ClaimType::Mul(_) => interaction_claim.mul = Some(claim),
+                    ClaimType::SumReduce(_) => interaction_claim.sum_reduce = Some(claim),
+                    ClaimType::Recip(_) => interaction_claim.recip = Some(claim),
+                    ClaimType::MaxReduce(_) => interaction_claim.max_reduce = Some(claim),
+                    ClaimType::Sin(_) => interaction_claim.sin = Some(claim),
                 }
             }
-        }
 
-        // Mix the interaction claim into the Fiat-Shamir channel.
-        interaction_claim.mix_into(channel);
-        // Commit the interaction trace.
-        tree_builder.commit(channel);
+            // Mix the interaction claim into the Fiat-Shamir channel.
+            interaction_claim.mix_into(channel);
+            // Commit the interaction trace.
+            tree_builder.commit(channel);
+        }
 
         // ┌──────────────────────────┐
         // │     Proof Generation     │
@@ -576,6 +535,7 @@ impl LuminairGraph for Graph {
         }: LuminairProof<Blake2sMerkleHasher>,
         CircuitSettings { lut_cols, .. }: CircuitSettings,
     ) -> Result<(), LuminairError> {
+        // Create preprocessed trace
         // TODO: move preprocessed_trace to function param.
         let preprocessed_trace = PreProcessedTrace::new(lut_cols);
 
@@ -586,13 +546,14 @@ impl LuminairGraph for Graph {
         let channel = &mut Blake2sChannel::default();
         let commitment_scheme_verifier =
             &mut CommitmentSchemeVerifier::<Blake2sMerkleChannel>::new(config);
+
+        // Prepare log sizes for each phase
         let mut log_sizes = claim.log_sizes();
         log_sizes[PREPROCESSED_TRACE_IDX] = preprocessed_trace.log_sizes();
 
         // ┌───────────────────────────────────────────────┐
         // │   Interaction Phase 0 - Preprocessed Trace    │
         // └───────────────────────────────────────────────┘
-
         commitment_scheme_verifier.commit(
             proof.commitments[PREPROCESSED_TRACE_IDX],
             &log_sizes[PREPROCESSED_TRACE_IDX],
@@ -612,15 +573,12 @@ impl LuminairGraph for Graph {
         // ┌───────────────────────────────────────────────┐
         // │    Interaction Phase 2 - Interaction Trace    │
         // └───────────────────────────────────────────────┘
-
         let interaction_elements = LuminairInteractionElements::draw(channel);
 
-        // Check that the logup sum is valid, otherwise throw
+        // Validate LogUp sum
         if !log_sum_valid(&interaction_claim) {
-            return Err(LuminairError::InvalidLogUp(
-                "Invalid LogUp sum".to_string(),
-            ));
-        };
+            return Err(LuminairError::InvalidLogUp("Invalid LogUp sum".to_string()));
+        }
 
         interaction_claim.mix_into(channel);
         commitment_scheme_verifier.commit(
@@ -632,35 +590,45 @@ impl LuminairGraph for Graph {
         // ┌──────────────────────────┐
         // │    Proof Verification    │
         // └──────────────────────────┘
-
-        let component_generator = LuminairComponents::new(
+        let component_builder = LuminairComponents::new(
             &claim,
             &interaction_elements,
             &interaction_claim,
             &preprocessed_trace,
         );
-        let components = component_generator.components();
-        verify(&components, channel, commitment_scheme_verifier, proof)?;
+        let components = component_builder.components();
 
-        Ok(())
+        verify(&components, channel, commitment_scheme_verifier, proof)
+            .map_err(LuminairError::StwoVerifierError)
     }
 }
 
 fn coalesce_ranges(mut ranges: Vec<Range>) -> Vec<Range> {
-    ranges.sort_by_key(|r| r.0 .0); // sort by lower bound
-    let mut out = Vec::<Range>::new();
-
-    for r in ranges {
-        if let Some(last) = out.last_mut() {
-            // merge if they touch or overlap
-            if r.0 .0 <= last.1 .0 + 1 {
-                last.1 = Fixed(last.1 .0.max(r.1 .0));
-                continue;
-            }
-        }
-        out.push(r);
+    if ranges.is_empty() {
+        return Vec::new();
     }
-    out
+
+    // Sort by lower bound
+    ranges.sort_unstable_by_key(|r| r.0 .0);
+
+    // Use the first element as the starting point
+    let mut result = Vec::with_capacity(ranges.len());
+    let mut current_range = ranges[0].clone();
+
+    // Merge overlapping or adjacent ranges
+    for range in ranges.into_iter().skip(1) {
+        if range.0 .0 <= current_range.1 .0 + 1 {
+            // Merge ranges if they overlap or are adjacent
+            current_range.1 = Fixed(current_range.1 .0.max(range.1 .0));
+        } else {
+            // No overlap, push the current range and start a new one
+            result.push(current_range);
+            current_range = range;
+        }
+    }
+
+    result.push(current_range);
+    result
 }
 
 #[cfg(test)]
@@ -684,7 +652,9 @@ mod tests {
         let settings = cx.gen_circuit_settings();
 
         // Generate trace with direct table storage
-        let trace = cx.gen_trace(settings.clone()).expect("Trace generation failed");
+        let trace = cx
+            .gen_trace(settings.clone())
+            .expect("Trace generation failed");
 
         // Verify that table traces contain both operation types
         let has_add = trace
