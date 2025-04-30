@@ -42,7 +42,7 @@ fn test_sum_reduce() {
     b.drop();
     c.drop();
     d.drop();
-    let trace = cx.gen_trace().expect("Trace generation failed");
+    let trace = cx.gen_trace(settings.clone()).expect("Trace generation failed");
     let proof = cx
         .prove(trace, settings.clone())
         .expect("Proof generation failed");
@@ -88,7 +88,7 @@ fn test_max_reduce() {
     b.drop();
     c.drop();
     d.drop();
-    let trace = cx.gen_trace().expect("Trace generation failed");
+    let trace = cx.gen_trace(settings.clone()).expect("Trace generation failed");
     let proof = cx
         .prove(trace, settings.clone())
         .expect("Proof generation failed");

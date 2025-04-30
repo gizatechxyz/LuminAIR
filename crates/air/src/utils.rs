@@ -54,13 +54,23 @@ pub struct AtomicMultiplicityColumn {
 impl AtomicMultiplicityColumn {
     /// Creates a new `AtomicMultiplicityColumn` with the given size.
     /// The elements are initialized to 0.
-    pub fn new(size: usize) -> Self {
+    pub fn new(size: u32) -> Self {
         Self {
-            data: (0..size as u32).map(|_| AtomicU32::new(0)).collect(),
+            data: (0..size).map(|_| AtomicU32::new(0)).collect(),
         }
     }
 
-    pub fn increase_at(&self, address: usize) {
+    pub fn increase_at(&mut self, address: usize) {
         self.data[address].fetch_add(1, Ordering::Relaxed);
+    }
+}
+
+impl Clone for AtomicMultiplicityColumn {
+    fn clone(&self) -> Self {
+        let mut new_data = Vec::with_capacity(self.data.len());
+        for atomic in &self.data {
+            new_data.push(AtomicU32::new(atomic.load(Ordering::Relaxed)));
+        }
+        Self { data: new_data }
     }
 }

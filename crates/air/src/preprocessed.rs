@@ -55,57 +55,23 @@ impl PreProcessedTrace {
     }
 }
 
-// ================== SIN ==================
-
-#[derive(Serialize, Deserialize, Clone)]
-pub struct SinLUT {
-    pub ranges: Vec<Range>,
-    pub col_index: usize,
+/// Counts the exact number of **distinct, non‑zero** integer inputs that
+/// will populate this lookup column **before** the column is
+/// padded to the next power‑of‑two.
+fn value_count(ranges: &Vec<Range>) -> u32 {
+    ranges.iter().map(|r| (r.1 .0 - r.0 .0 + 1) as u32).sum()
 }
 
-impl SinLUT {
-    pub const fn new(ranges: Vec<Range>, col_index: usize) -> Self {
-        assert!(col_index < 2, "Sin LUT must have 2 columns");
-        Self { ranges, col_index }
-    }
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+pub struct LUTLayout {
+    pub ranges: Vec<Range>,
+    pub log_size: u32,
+}
 
-    /// Counts the exact number of **distinct, non‑zero** integer inputs that
-    /// will populate this lookup column **before** the column is
-    /// padded to the next power‑of‑two.
-    fn value_count(&self) -> usize {
-        self.ranges
-            .iter()
-            .map(|r| (r.1 .0 - r.0 .0 + 1) as usize)
-            .sum()
-    }
-
-    /// Given a vector of row index, computes the packed M31 values for that row
-    pub fn packed_at(&self, vec_row: usize, values_from_range: &[i64]) -> PackedM31 {
-        // Calculate starting index for this vector row
-        let start_idx = vec_row * N_LANES;
-
-        // Create array of M31 values
-        let values = std::array::from_fn(|i| {
-            let idx = start_idx + i;
-            if idx < values_from_range.len() {
-                // Get the actual input value
-                let input_val = values_from_range[idx];
-
-                match self.col_index {
-                    0 => Fixed(input_val).to_m31(), // Input column
-                    1 => {
-                        // Compute sine
-                        Fixed::from_f64(Fixed(input_val).to_f64().sin()).to_m31()
-                    }
-                    _ => unreachable!(),
-                }
-            } else {
-                // Padding with zeros
-                M31::from_u32_unchecked(0)
-            }
-        });
-
-        PackedM31::from(values)
+impl LUTLayout {
+    pub fn new(ranges: Vec<Range>) -> Self {
+        let log_size = calculate_log_size(value_count(&ranges) as usize);
+        Self { ranges, log_size }
     }
 
     /// Finds the index of a value in the LUT.
@@ -168,10 +134,55 @@ impl SinLUT {
     }
 }
 
+// ================== SIN ==================
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct SinLUT {
+    pub layout: LUTLayout,
+    pub col_index: usize,
+}
+
+impl SinLUT {
+    pub fn new(layout: LUTLayout, col_index: usize) -> Self {
+        assert!(col_index < 2, "Sin LUT must have 2 columns");
+
+        Self { layout, col_index }
+    }
+
+    /// Given a vector of row index, computes the packed M31 values for that row
+    pub fn packed_at(&self, vec_row: usize, values_from_range: &[i64]) -> PackedM31 {
+        // Calculate starting index for this vector row
+        let start_idx = vec_row * N_LANES;
+
+        // Create array of M31 values
+        let values = std::array::from_fn(|i| {
+            let idx = start_idx + i;
+            if idx < values_from_range.len() {
+                // Get the actual input value
+                let input_val = values_from_range[idx];
+
+                match self.col_index {
+                    0 => Fixed(input_val).to_m31(), // Input column
+                    1 => {
+                        // Compute sine
+                        Fixed::from_f64(Fixed(input_val).to_f64().sin()).to_m31()
+                    }
+                    _ => unreachable!(),
+                }
+            } else {
+                // Padding with zeros
+                M31::from_u32_unchecked(0)
+            }
+        });
+
+        PackedM31::from(values)
+    }
+}
+
 #[typetag::serde]
 impl PreProcessedColumn for SinLUT {
     fn log_size(&self) -> u32 {
-        calculate_log_size(self.value_count())
+        self.layout.log_size
     }
 
     fn id(&self) -> PreProcessedColumnId {
@@ -190,7 +201,12 @@ impl PreProcessedColumn for SinLUT {
         let domain = CanonicCoset::new(log_size).circle_domain();
 
         // Enumerate all values from ranges
-        let mut all_values: Vec<i64> = self.ranges.iter().flat_map(|r| (r.0 .0..=r.1 .0)).collect();
+        let mut all_values: Vec<i64> = self
+            .layout
+            .ranges
+            .iter()
+            .flat_map(|r| (r.0 .0..=r.1 .0))
+            .collect();
         all_values.sort_unstable();
         all_values.dedup();
 
@@ -239,7 +255,7 @@ mod range_tests {
             range(200, 210),  // 11 values
         ];
 
-        let lut = SinLUT::new(ranges.clone(), 0);
+        let layout = LUTLayout::new(ranges.clone());
 
         // Compute expected indices for validation
         let expected_indices = calculate_expected_indices(&ranges);
@@ -258,7 +274,7 @@ mod range_tests {
                 .map(|&(_, idx)| idx)
                 .unwrap();
             assert_eq!(
-                lut.find_index(val),
+                layout.find_index(val),
                 expected,
                 "Value {} should be at index {:?}",
                 val,
@@ -268,17 +284,17 @@ mod range_tests {
 
         // Test values in the gaps
         assert_eq!(
-            lut.find_index(-49),
+            layout.find_index(-49),
             None,
             "Value -49 should not be in the LUT"
         );
         assert_eq!(
-            lut.find_index(11),
+            layout.find_index(11),
             None,
             "Value 11 should not be in the LUT"
         );
         assert_eq!(
-            lut.find_index(199),
+            layout.find_index(199),
             None,
             "Value 199 should not be in the LUT"
         );

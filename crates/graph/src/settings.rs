@@ -1,17 +1,24 @@
 use std::fmt;
 
-use luminair_air::preprocessed::PreProcessedColumn;
+use luminair_air::preprocessed::{LUTLayout, PreProcessedColumn};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
 pub struct CircuitSettings {
     pub lut_cols: Vec<Box<dyn PreProcessedColumn>>,
+    pub lookup_tables: LUTs,
+}
+
+#[derive(Serialize, Deserialize, Clone, Default, Debug)]
+pub struct LUTs {
+    pub sin: Option<LUTLayout>,
 }
 
 impl Clone for CircuitSettings {
     fn clone(&self) -> Self {
         CircuitSettings {
             lut_cols: self.lut_cols.iter().map(|col| col.clone_box()).collect(),
+            lookup_tables: self.lookup_tables.clone(),
         }
     }
 }

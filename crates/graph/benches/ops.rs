@@ -103,10 +103,16 @@ fn benchmark_add(c: &mut Criterion) {
             size,
         };
         group.bench_function(params.to_string(), |b| {
-            b.iter(|| {
-                let mut graph = create_binary!(|a, b| a + b, (rows, cols), (rows, cols), false);
-                let _trace = graph.gen_trace();
-            })
+            b.iter_with_setup(
+                || {
+                    let mut graph = create_binary!(|a, b| a + b, (rows, cols), (rows, cols), false);
+                    let settings = graph.gen_circuit_settings();
+                    (graph, settings)
+                },
+                |(mut graph, settings)| {
+                    let _trace = graph.gen_trace(settings.clone());
+                },
+            )
         });
 
         // Proof generation
@@ -119,7 +125,9 @@ fn benchmark_add(c: &mut Criterion) {
                 || {
                     let mut graph = create_binary!(|a, b| a + b, (rows, cols), (rows, cols), false);
                     let settings = graph.gen_circuit_settings();
-                    let trace = graph.gen_trace().expect("Trace generation failed");
+                    let trace = graph
+                        .gen_trace(settings.clone())
+                        .expect("Trace generation failed");
                     (graph, settings, trace)
                 },
                 |(mut graph, settings, trace)| {
@@ -140,7 +148,9 @@ fn benchmark_add(c: &mut Criterion) {
                 || {
                     let mut graph = create_binary!(|a, b| a + b, (rows, cols), (rows, cols), false);
                     let settings = graph.gen_circuit_settings();
-                    let trace = graph.gen_trace().expect("Trace generation failed");
+                    let trace = graph
+                        .gen_trace(settings.clone())
+                        .expect("Trace generation failed");
                     let proof = graph
                         .prove(trace, settings.clone())
                         .expect("Proof generation failed");
@@ -175,10 +185,16 @@ fn benchmark_mul(c: &mut Criterion) {
             size,
         };
         group.bench_function(params.to_string(), |b| {
-            b.iter(|| {
-                let mut graph = create_binary!(|a, b| a * b, (rows, cols), (rows, cols), false);
-                let _trace = graph.gen_trace();
-            })
+            b.iter_with_setup(
+                || {
+                    let mut graph = create_binary!(|a, b| a * b, (rows, cols), (rows, cols), false);
+                    let settings = graph.gen_circuit_settings();
+                    (graph, settings)
+                },
+                |(mut graph, settings)| {
+                    let _trace = graph.gen_trace(settings);
+                },
+            )
         });
 
         // Proof generation
@@ -191,7 +207,9 @@ fn benchmark_mul(c: &mut Criterion) {
                 || {
                     let mut graph = create_binary!(|a, b| a * b, (rows, cols), (rows, cols), false);
                     let settings = graph.gen_circuit_settings();
-                    let trace = graph.gen_trace().expect("Trace generation failed");
+                    let trace = graph
+                        .gen_trace(settings.clone())
+                        .expect("Trace generation failed");
                     (graph, settings, trace)
                 },
                 |(mut graph, settings, trace)| {
@@ -212,7 +230,9 @@ fn benchmark_mul(c: &mut Criterion) {
                 || {
                     let mut graph = create_binary!(|a, b| a * b, (rows, cols), (rows, cols), false);
                     let settings = graph.gen_circuit_settings();
-                    let trace = graph.gen_trace().expect("Trace generation failed");
+                    let trace = graph
+                        .gen_trace(settings.clone())
+                        .expect("Trace generation failed");
                     let proof = graph
                         .prove(trace, settings.clone())
                         .expect("Proof generation failed");
@@ -247,10 +267,16 @@ fn benchmark_recip(c: &mut Criterion) {
             size,
         };
         group.bench_function(params.to_string(), |b| {
-            b.iter(|| {
-                let mut graph = create_unary!(|a: GraphTensor| a.recip(), (rows, cols), true);
-                let _trace = graph.gen_trace();
-            })
+            b.iter_with_setup(
+                || {
+                    let mut graph = create_unary!(|a: GraphTensor| a.recip(), (rows, cols), true);
+                    let settings = graph.gen_circuit_settings();
+                    (graph, settings)
+                },
+                |(mut graph, settings)| {
+                    let _trace = graph.gen_trace(settings.clone());
+                },
+            )
         });
 
         // Proof generation
@@ -263,7 +289,9 @@ fn benchmark_recip(c: &mut Criterion) {
                 || {
                     let mut graph = create_unary!(|a: GraphTensor| a.recip(), (rows, cols), true);
                     let settings = graph.gen_circuit_settings();
-                    let trace = graph.gen_trace().expect("Trace generation failed");
+                    let trace = graph
+                        .gen_trace(settings.clone())
+                        .expect("Trace generation failed");
                     (graph, settings, trace)
                 },
                 |(mut graph, settings, trace)| {
@@ -284,7 +312,9 @@ fn benchmark_recip(c: &mut Criterion) {
                 || {
                     let mut graph = create_unary!(|a: GraphTensor| a.recip(), (rows, cols), true);
                     let settings = graph.gen_circuit_settings();
-                    let trace = graph.gen_trace().expect("Trace generation failed");
+                    let trace = graph
+                        .gen_trace(settings.clone())
+                        .expect("Trace generation failed");
                     let proof = graph
                         .prove(trace, settings.clone())
                         .expect("Proof generation failed");
@@ -319,10 +349,17 @@ fn benchmark_sum_reduce(c: &mut Criterion) {
             size,
         };
         group.bench_function(params.to_string(), |b| {
-            b.iter(|| {
-                let mut graph = create_unary!(|a: GraphTensor| a.sum_reduce(0), (rows, cols), true);
-                let _trace = graph.gen_trace();
-            })
+            b.iter_with_setup(
+                || {
+                    let mut graph =
+                        create_unary!(|a: GraphTensor| a.sum_reduce(0), (rows, cols), true);
+                    let settings = graph.gen_circuit_settings();
+                    (graph, settings)
+                },
+                |(mut graph, settings)| {
+                    let _trace = graph.gen_trace(settings.clone());
+                },
+            )
         });
 
         // Proof generation
@@ -336,7 +373,9 @@ fn benchmark_sum_reduce(c: &mut Criterion) {
                     let mut graph =
                         create_unary!(|a: GraphTensor| a.sum_reduce(0), (rows, cols), true);
                     let settings = graph.gen_circuit_settings();
-                    let trace = graph.gen_trace().expect("Trace generation failed");
+                    let trace = graph
+                        .gen_trace(settings.clone())
+                        .expect("Trace generation failed");
                     (graph, settings, trace)
                 },
                 |(mut graph, settings, trace)| {
@@ -358,7 +397,9 @@ fn benchmark_sum_reduce(c: &mut Criterion) {
                     let mut graph =
                         create_unary!(|a: GraphTensor| a.sum_reduce(0), (rows, cols), true);
                     let settings = graph.gen_circuit_settings();
-                    let trace = graph.gen_trace().expect("Trace generation failed");
+                    let trace = graph
+                        .gen_trace(settings.clone())
+                        .expect("Trace generation failed");
                     let proof = graph
                         .prove(trace, settings.clone())
                         .expect("Proof generation failed");
@@ -393,10 +434,17 @@ fn benchmark_max_reduce(c: &mut Criterion) {
             size,
         };
         group.bench_function(params.to_string(), |b| {
-            b.iter(|| {
-                let mut graph = create_unary!(|a: GraphTensor| a.max_reduce(0), (rows, cols), true);
-                let _trace = graph.gen_trace();
-            })
+            b.iter_with_setup(
+                || {
+                    let mut graph =
+                        create_unary!(|a: GraphTensor| a.max_reduce(0), (rows, cols), true);
+                    let settings = graph.gen_circuit_settings();
+                    (graph, settings)
+                },
+                |(mut graph, settings)| {
+                    let _trace = graph.gen_trace(settings.clone());
+                },
+            )
         });
 
         // Proof generation
@@ -410,7 +458,9 @@ fn benchmark_max_reduce(c: &mut Criterion) {
                     let mut graph =
                         create_unary!(|a: GraphTensor| a.max_reduce(0), (rows, cols), true);
                     let settings = graph.gen_circuit_settings();
-                    let trace = graph.gen_trace().expect("Trace generation failed");
+                    let trace = graph
+                        .gen_trace(settings.clone())
+                        .expect("Trace generation failed");
                     (graph, settings, trace)
                 },
                 |(mut graph, settings, trace)| {
@@ -432,7 +482,9 @@ fn benchmark_max_reduce(c: &mut Criterion) {
                     let mut graph =
                         create_unary!(|a: GraphTensor| a.max_reduce(0), (rows, cols), true);
                     let settings = graph.gen_circuit_settings();
-                    let trace = graph.gen_trace().expect("Trace generation failed");
+                    let trace = graph
+                        .gen_trace(settings.clone())
+                        .expect("Trace generation failed");
                     let proof = graph
                         .prove(trace, settings.clone())
                         .expect("Proof generation failed");

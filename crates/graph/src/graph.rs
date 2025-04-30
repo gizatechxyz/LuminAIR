@@ -3,7 +3,7 @@ use crate::{
         prim::{CopyFromStwo, CopyToStwo, LuminairConstant},
         HasProcessTrace,
     },
-    settings::CircuitSettings,
+    settings::{ CircuitSettings, LUTs},
     utils::compute_padded_range_from_srcs,
 };
 use luminair_air::{
@@ -26,10 +26,10 @@ use luminair_air::{
         },  ClaimType, LuminairComponents, LuminairInteractionElements, TraceError
     },
     pie::{
-        ExecutionResources, InputInfo, LuminairPie, NodeInfo, OpCounter, OutputInfo, TableTrace,
+        ExecutionResources, InputInfo, LUTMultiplicities, LuminairPie, NodeInfo, OpCounter, OutputInfo, TableTrace
     },
-    preprocessed::{PreProcessedColumn, PreProcessedTrace, Range,  SinLUT},
-    utils::{calculate_log_size, log_sum_valid},
+    preprocessed::{LUTLayout, PreProcessedColumn, PreProcessedTrace, Range, SinLUT},
+    utils::{calculate_log_size, log_sum_valid, AtomicMultiplicityColumn},
     LuminairClaim, LuminairInteractionClaim, LuminairProof,
 };
 use luminal::{
@@ -68,7 +68,7 @@ pub trait LuminairGraph {
     fn gen_circuit_settings(&mut self) -> CircuitSettings;
 
     /// Generates an execution trace for the graph's computation.
-    fn gen_trace(&mut self) -> Result<LuminairPie, TraceError>;
+    fn gen_trace(&mut self, settings: CircuitSettings) -> Result<LuminairPie, TraceError>;
 
     /// Generates a proof of the graph's execution using the provided trace.
     fn prove(
@@ -135,16 +135,26 @@ impl LuminairGraph for Graph {
         // Build one LUT per op
         let mut lut_cols: Vec<Box<dyn PreProcessedColumn>> = Vec::new();
 
-        if !sin_ranges.is_empty() {
+        let sin_lut_layout = if !sin_ranges.is_empty() {
             let ranges = coalesce_ranges(sin_ranges); // keep gaps >1 and merge overlaps
-            lut_cols.push(Box::new(SinLUT::new(ranges.clone(), 0)));
-            lut_cols.push(Box::new(SinLUT::new(ranges, 1)));
-        }
+            let layout = LUTLayout::new(ranges);
+            let col_0 = SinLUT::new(layout.clone(), 0);
+            let col_1 = SinLUT::new(layout.clone(), 1);
 
-        CircuitSettings { lut_cols }
+            lut_cols.push(Box::new(col_0.clone()));
+            lut_cols.push(Box::new(col_1));
+           Some(layout)
+        } else {
+            None
+        };
+
+        let settings =       CircuitSettings { lut_cols, lookup_tables : LUTs {sin: sin_lut_layout} };
+            settings
     }
+    
 
-    fn gen_trace(&mut self) -> Result<LuminairPie, TraceError> {
+    fn gen_trace(&mut self, settings: CircuitSettings) -> Result<LuminairPie, TraceError> {
+
         // Track the number of views pointing to each tensor so we know when to clear
         if self.linearized_graph.is_none() {
             self.toposort();
@@ -165,7 +175,7 @@ impl LuminairGraph for Graph {
         let mut recip_table = RecipTable::new();
         let mut sum_reduce_table = SumReduceTable::new();
         let mut max_reduce_table = MaxReduceTable::new();
-        let mut sin_table = SinTable::new();
+        let mut sin_table = SinTable::new(settings.lookup_tables.sin);
 
         for (node, src_ids) in self.linearized_graph.as_ref().unwrap() {
             if self.tensors.contains_key(&(*node, 0)) {
@@ -311,6 +321,11 @@ impl LuminairGraph for Graph {
                 else if <Box<dyn Operator> as HasProcessTrace<SinColumn, SinTable>>::has_process_trace(
                     node_op,
                 ) {
+
+                    if let Some(layout) = &sin_table.lut_layout {
+                        sin_table.lut_multiplicities = AtomicMultiplicityColumn::new(1 << layout.log_size)
+                    }
+
                     let tensors = <Box<dyn Operator> as HasProcessTrace<
                     SinColumn,
                     SinTable,
@@ -372,6 +387,8 @@ impl LuminairGraph for Graph {
 
             table_traces.push(TableTrace::from_max_reduce(max_reduce_table));
         }
+
+        let sin_multiplicities = sin_table.lut_multiplicities.clone();
         if !sin_table.table.is_empty() {
             let log_size = calculate_log_size(sin_table.table.len());
             max_log_size = max_log_size.max(log_size);
@@ -381,6 +398,9 @@ impl LuminairGraph for Graph {
 
         Ok(LuminairPie {
             table_traces,
+            lut_multiciplicities: LUTMultiplicities {
+                sin: sin_multiplicities
+            },
             execution_resources: ExecutionResources {
                 op_counter,
                 max_log_size,
@@ -554,7 +574,7 @@ impl LuminairGraph for Graph {
             interaction_claim,
             proof,
         }: LuminairProof<Blake2sMerkleHasher>,
-        CircuitSettings { lut_cols }: CircuitSettings,
+        CircuitSettings { lut_cols, .. }: CircuitSettings,
     ) -> Result<(), LuminairError> {
         // TODO: move preprocessed_trace to function param.
         let preprocessed_trace = PreProcessedTrace::new(lut_cols);
@@ -664,7 +684,7 @@ mod tests {
         let settings = cx.gen_circuit_settings();
 
         // Generate trace with direct table storage
-        let trace = cx.gen_trace().expect("Trace generation failed");
+        let trace = cx.gen_trace(settings.clone()).expect("Trace generation failed");
 
         // Verify that table traces contain both operation types
         let has_add = trace

@@ -269,6 +269,8 @@ impl LuminairOperator<SinColumn, SinTable> for LuminairSin {
         let input_id: BaseField = node_info.inputs[0].id.into();
         let output_size = inp[0].1.n_elements().to_usize().unwrap();
 
+        let lut_layout = table.lut_layout.clone().unwrap();
+
         for (idx, (input_val, out_val)) in intermediate_values.into_iter().enumerate() {
             let input_mult = if node_info.inputs[0].is_initializer {
                 BaseField::zero()
@@ -282,6 +284,12 @@ impl LuminairOperator<SinColumn, SinTable> for LuminairSin {
             };
 
             let is_last_idx: u32 = if idx == (output_size - 1) { 1 } else { 0 };
+
+            let mult_address = lut_layout
+                .find_index(input_val.0)
+                .expect("Value should fit in range.");
+
+            table.lut_multiplicities.increase_at(mult_address);
 
             table.add_row(SinTableRow {
                 node_id,

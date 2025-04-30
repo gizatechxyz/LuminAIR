@@ -1,9 +1,12 @@
 use serde::{Deserialize, Serialize};
 
-use crate::components::{
-    add::table::AddTable, max_reduce::table::MaxReduceTable, mul::table::MulTable,
-    recip::table::RecipTable, sin::table::SinTable, sum_reduce::table::SumReduceTable, ClaimType,
-    TraceError, TraceEval,
+use crate::{
+    components::{
+        add::table::AddTable, max_reduce::table::MaxReduceTable, mul::table::MulTable,
+        recip::table::RecipTable, sin::table::SinTable, sum_reduce::table::SumReduceTable,
+        ClaimType, TraceError, TraceEval,
+    },
+    utils::AtomicMultiplicityColumn,
 };
 
 /// Represents an operator's trace table along with its claim before conversion
@@ -100,7 +103,14 @@ impl TableTrace {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LuminairPie {
     pub table_traces: Vec<TableTrace>,
+    pub lut_multiciplicities: LUTMultiplicities,
     pub execution_resources: ExecutionResources,
+}
+
+/// Struct for all LUT multiplicities
+#[derive(Serialize, Deserialize, Debug)]
+pub struct LUTMultiplicities {
+    pub sin: AtomicMultiplicityColumn,
 }
 
 /// Represents a single trace with its evaluation, claim, and node information.

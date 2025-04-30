@@ -1,6 +1,7 @@
 use crate::{
     components::{InteractionClaim, NodeElements, SinClaim, TraceColumn, TraceError, TraceEval},
-    utils::calculate_log_size,
+    preprocessed::LUTLayout,
+    utils::{calculate_log_size, AtomicMultiplicityColumn},
 };
 use num_traits::One;
 use serde::{Deserialize, Serialize};
@@ -22,6 +23,9 @@ use stwo_prover::{
 pub struct SinTable {
     /// A vector of [`SinTableRow`] representing the table rows.
     pub table: Vec<SinTableRow>,
+    /// Layout of the Sin LUT.
+    pub lut_layout: Option<LUTLayout>,
+    pub lut_multiplicities: AtomicMultiplicityColumn,
 }
 
 /// Represents a single row of the [`SinTable`]
@@ -42,8 +46,12 @@ pub struct SinTableRow {
 
 impl SinTable {
     /// Creates a new, empty [`SinTable`].
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(lut_layout: Option<LUTLayout>) -> Self {
+        Self {
+            table: Vec::new(),
+            lut_layout,
+            lut_multiplicities: AtomicMultiplicityColumn::default(),
+        }
     }
 
     /// Adds a new row to the Sin Table.
