@@ -19,14 +19,14 @@ use num_traits::One;
 
 /// Represents the trace for the Mul component, containing the required registers for its
 /// constraints.
-#[derive(Debug, Default, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct MulTable {
     /// A vector of [`MulTableRow`] representing the table rows.
     pub table: Vec<MulTableRow>,
 }
 
 /// Represents a single row of the [`MulTable`]
-#[derive(Debug, Default, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct MulTableRow {
     pub node_id: BaseField,
     pub lhs_id: BaseField,
@@ -141,7 +141,7 @@ impl MulTable {
 }
 
 /// Enum representing the column indices in the Mul trace.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MulColumn {
     NodeId,
     LhsId,
@@ -213,11 +213,7 @@ pub fn interaction_trace_evaluation(
         let id = lhs_id_col[row];
         let multiplicity = lhs_mult_col[row];
 
-        lhs_int_col.write_frac(
-            row,
-            multiplicity.into(),
-            node_elements.combine(&[lhs, id]),
-        );
+        lhs_int_col.write_frac(row, multiplicity.into(), node_elements.combine(&[lhs, id]));
     }
     lhs_int_col.finalize_col();
 
@@ -231,11 +227,7 @@ pub fn interaction_trace_evaluation(
         let id = rhs_id_col[row];
         let multiplicity = rhs_mult_col[row];
 
-        rhs_int_col.write_frac(
-            row,
-            multiplicity.into(),
-            node_elements.combine(&[rhs, id]),
-        );
+        rhs_int_col.write_frac(row, multiplicity.into(), node_elements.combine(&[rhs, id]));
     }
     rhs_int_col.finalize_col();
 
@@ -249,11 +241,7 @@ pub fn interaction_trace_evaluation(
         let id = node_id_col[row];
         let multiplicity = out_mult_col[row];
 
-        out_int_col.write_frac(
-            row,
-            multiplicity.into(),
-            node_elements.combine(&[out, id]),
-        );
+        out_int_col.write_frac(row, multiplicity.into(), node_elements.combine(&[out, id]));
     }
     out_int_col.finalize_col();
 

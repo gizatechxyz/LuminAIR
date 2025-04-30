@@ -46,6 +46,7 @@ pub fn get_is_first_log_sizes(max_log_size: u32) -> Vec<u32> {
 
 /// A column of multiplicities for lookup arguments. Allow increasing the multiplicity at a give
 /// index. This version uses atomic operations to increase the multiplicity and is `Send`.
+#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct AtomicMultiplicityColumn {
     data: Vec<AtomicU32>,
 }

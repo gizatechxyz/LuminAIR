@@ -18,7 +18,7 @@ use stwo_prover::{
 
 /// Represents the trace for the Sin component, containing the required registers for its
 /// constraints.
-#[derive(Debug, Default, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct SinTable {
     /// A vector of [`SinTableRow`] representing the table rows.
     pub table: Vec<SinTableRow>,
@@ -200,11 +200,7 @@ pub fn interaction_trace_evaluation(
         let id = node_id_col[row];
         let multiplicity = out_mult_col[row];
 
-        out_int_col.write_frac(
-            row,
-            multiplicity.into(),
-            node_elements.combine(&[out, id]),
-        );
+        out_int_col.write_frac(row, multiplicity.into(), node_elements.combine(&[out, id]));
     }
     out_int_col.finalize_col();
 

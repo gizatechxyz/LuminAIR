@@ -1,5 +1,7 @@
 use crate::{
-    components::{InteractionClaim, NodeElements, SumReduceClaim, TraceColumn, TraceError, TraceEval},
+    components::{
+        InteractionClaim, NodeElements, SumReduceClaim, TraceColumn, TraceError, TraceEval,
+    },
     utils::calculate_log_size,
 };
 use num_traits::One;
@@ -18,14 +20,14 @@ use stwo_prover::{
 
 /// Represents the trace for the SumReduce component, containing the required registers for its
 /// constraints.
-#[derive(Debug, Default, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct SumReduceTable {
     /// A vector of [`SumReduceTableRow`] representing the table rows.
     pub table: Vec<SumReduceTableRow>,
 }
 
 /// Represents a single row of the [`SumReduceTable`]
-#[derive(Debug, Default, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct SumReduceTableRow {
     pub node_id: BaseField,
     pub input_id: BaseField,
@@ -132,7 +134,7 @@ impl SumReduceTable {
 }
 
 /// Enum representing the column indices in the SumReduce trace.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SumReduceColumn {
     NodeId,
     InputId,
@@ -218,11 +220,7 @@ pub fn interaction_trace_evaluation(
         let id = node_id_col[row];
         let multiplicity = out_mult_col[row];
 
-        out_int_col.write_frac(
-            row,
-            multiplicity.into(),
-            node_elements.combine(&[out, id]),
-        );
+        out_int_col.write_frac(row, multiplicity.into(), node_elements.combine(&[out, id]));
     }
     out_int_col.finalize_col();
 
