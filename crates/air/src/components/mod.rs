@@ -167,9 +167,7 @@ impl LuminairInteractionElements {
     pub fn draw(channel: &mut impl Channel) -> Self {
         let node_elements = NodeElements::draw(channel);
 
-        Self {
-            node_elements,
-        }
+        Self { node_elements }
     }
 }
 
@@ -207,10 +205,7 @@ impl LuminairComponents {
         let add = if let Some(ref add_claim) = claim.add {
             Some(AddComponent::new(
                 tree_span_provider,
-                AddEval::new(
-                    &add_claim,
-                    interaction_elements.node_elements.clone(),
-                ),
+                AddEval::new(&add_claim, interaction_elements.node_elements.clone()),
                 interaction_claim.add.as_ref().unwrap().claimed_sum,
             ))
         } else {
@@ -220,10 +215,7 @@ impl LuminairComponents {
         let mul = if let Some(ref mul_claim) = claim.mul {
             Some(MulComponent::new(
                 tree_span_provider,
-                MulEval::new(
-                    &mul_claim,
-                    interaction_elements.node_elements.clone(),
-                ),
+                MulEval::new(&mul_claim, interaction_elements.node_elements.clone()),
                 interaction_claim.mul.as_ref().unwrap().claimed_sum,
             ))
         } else {
@@ -246,10 +238,7 @@ impl LuminairComponents {
         let recip = if let Some(ref recip_claim) = claim.recip {
             Some(RecipComponent::new(
                 tree_span_provider,
-                RecipEval::new(
-                    &recip_claim,
-                    interaction_elements.node_elements.clone(),
-                ),
+                RecipEval::new(&recip_claim, interaction_elements.node_elements.clone()),
                 interaction_claim.recip.as_ref().unwrap().claimed_sum,
             ))
         } else {

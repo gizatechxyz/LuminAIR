@@ -1,4 +1,4 @@
-use std::{any::Any, cmp::Reverse, simd::Simd};
+use std::{any::Any, cmp::Reverse};
 
 use crate::{components::TraceEval, utils::calculate_log_size};
 use numerair::Fixed;
@@ -19,9 +19,6 @@ use stwo_prover::{
     },
 };
 use typetag;
-
-pub const SIMD_ENUMERATION_0: Simd<u32, N_LANES> =
-    Simd::from_array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Range(pub Fixed, pub Fixed);
@@ -110,6 +107,46 @@ impl SinLUT {
 
         PackedM31::from(values)
     }
+
+    /// Finds the index of a value in the LUT
+    pub fn find_index(&self, target: i64) -> Option<usize> {
+        // Check if target is in any range
+        if !self
+            .ranges
+            .iter()
+            .any(|r| target >= r.0 .0 && target <= r.1 .0)
+        {
+            return None;
+        }
+
+        // Sort ranges by start value
+        let mut sorted_ranges = self.ranges.clone();
+        sorted_ranges.sort_by_key(|r| r.0 .0);
+
+        // For each range, count its contribution to the index
+        let mut index = 0;
+        for range in sorted_ranges {
+            let start = range.0 .0;
+            let end = range.1 .0;
+
+            // Range is entirely greater than target, we can stop
+            if start > target {
+                break;
+            }
+
+            // If target is within this range
+            if target <= end {
+                // Add the offset within this range
+                index += (target - start) as usize;
+                return Some(index);
+            }
+
+            // Range is entirely less than target, count all its elements
+            index += (end - start + 1) as usize;
+        }
+
+        None
+    }
 }
 
 #[typetag::serde]
@@ -146,5 +183,85 @@ impl PreProcessedColumn for SinLUT {
         );
 
         CircleEvaluation::new(domain, column)
+    }
+}
+
+#[cfg(test)]
+mod range_tests {
+    use super::*;
+    use crate::preprocessed::Range;
+
+    fn range(min: i64, max: i64) -> Range {
+        Range(Fixed(min), Fixed(max))
+    }
+
+    fn calculate_expected_indices(ranges: &[Range]) -> Vec<(i64, Option<usize>)> {
+        // Get all values from ranges
+        let mut all_values: Vec<i64> = ranges.iter().flat_map(|r| (r.0 .0..=r.1 .0)).collect();
+
+        // Sort and deduplicate (mimicking what SinLUT does)
+        all_values.sort_unstable();
+        all_values.dedup();
+
+        // Map each value to its index
+        all_values
+            .iter()
+            .enumerate()
+            .map(|(idx, &val)| (val, Some(idx)))
+            .collect()
+    }
+
+    #[test]
+    fn test_find_index() {
+        // Test with multiple ranges having gaps between them
+        let ranges = vec![
+            range(-100, -50), // 51 values
+            range(0, 10),     // 11 values
+            range(200, 210),  // 11 values
+        ];
+
+        let lut = SinLUT::new(ranges.clone(), 0);
+
+        // Compute expected indices for validation
+        let expected_indices = calculate_expected_indices(&ranges);
+
+        // Test some specific values from different ranges
+        let test_values = vec![
+            -100, -75, -50, // First range
+            0, 5, 10, // Second range
+            200, 205, 210, // Third range
+        ];
+
+        for &val in &test_values {
+            let expected = expected_indices
+                .iter()
+                .find(|&&(v, _)| v == val)
+                .map(|&(_, idx)| idx)
+                .unwrap();
+            assert_eq!(
+                lut.find_index(val),
+                expected,
+                "Value {} should be at index {:?}",
+                val,
+                expected
+            );
+        }
+
+        // Test values in the gaps
+        assert_eq!(
+            lut.find_index(-49),
+            None,
+            "Value -49 should not be in the LUT"
+        );
+        assert_eq!(
+            lut.find_index(11),
+            None,
+            "Value 11 should not be in the LUT"
+        );
+        assert_eq!(
+            lut.find_index(199),
+            None,
+            "Value 199 should not be in the LUT"
+        );
     }
 }

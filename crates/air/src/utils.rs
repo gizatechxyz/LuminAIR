@@ -1,5 +1,14 @@
+use std::sync::atomic::{AtomicU32, Ordering};
+
 use num_traits::Zero;
-use stwo_prover::core::backend::simd::{m31::LOG_N_LANES, qm31::PackedSecureField};
+use stwo_prover::core::{
+    backend::simd::{
+        column::BaseColumn,
+        m31::{PackedM31, LOG_N_LANES},
+        qm31::PackedSecureField,
+    },
+    fields::m31::M31,
+};
 
 use crate::LuminairInteractionClaim;
 
@@ -40,4 +49,24 @@ pub fn log_sum_valid(interaction_claim: &LuminairInteractionClaim) -> bool {
 pub fn get_is_first_log_sizes(max_log_size: u32) -> Vec<u32> {
     let padded_max = max_log_size + 2;
     (4..=padded_max).rev().collect()
+}
+
+/// A column of multiplicities for lookup arguments. Allow increasing the multiplicity at a give
+/// index. This version uses atomic operations to increase the multiplicity and is `Send`.
+pub struct AtomicMultiplicityColumn {
+    data: Vec<AtomicU32>,
+}
+
+impl AtomicMultiplicityColumn {
+    /// Creates a new `AtomicMultiplicityColumn` with the given size.
+    /// The elements are initialized to 0.
+    pub fn new(size: usize) -> Self {
+        Self {
+            data: (0..size as u32).map(|_| AtomicU32::new(0)).collect(),
+        }
+    }
+
+    pub fn increase_at(&self, address: usize) {
+        self.data[address].fetch_add(1, Ordering::Relaxed);
+    }
 }
