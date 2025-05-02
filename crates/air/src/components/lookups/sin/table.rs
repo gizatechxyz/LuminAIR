@@ -1,9 +1,10 @@
+use num_traits::One;
 use serde::{Deserialize, Serialize};
 use stwo_prover::{
     constraint_framework::{logup::LogupTraceGenerator, Relation},
     core::{
         backend::{
-            simd::{column::BaseColumn, m31::LOG_N_LANES},
+            simd::{column::BaseColumn, qm31::PackedQM31},
             Column,
         },
         fields::m31::BaseField,
@@ -102,6 +103,7 @@ impl TraceColumn for SinLookupColumn {
 /// Generates the interaction trace for the SinLookup component using the main trace and node elements.
 pub fn interaction_trace_evaluation(
     main_trace_eval: &TraceEval,
+    preprocessed: &TraceEval,
     elements: &SinLookupElements,
 ) -> Result<(TraceEval, InteractionClaim), TraceError> {
     if main_trace_eval.is_empty() {
@@ -115,13 +117,13 @@ pub fn interaction_trace_evaluation(
     let mut int_col = logup_gen.new_col();
     for row in 0..1 << (log_size - LOG_N_LANES) {
         let mult = mult_col[row];
+        let input = todo!();
+        let output = todo!();
 
         int_col.write_frac(
             row,
-            mult.into(),
-            elements.combine(&[
-                // TODO: should combine the pair input-ouput of the LUT.
-            ]),
+            -PackedQM31::one() * mult,
+            elements.combine(&[input, output]),
         );
     }
     int_col.finalize_col();

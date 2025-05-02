@@ -4,7 +4,13 @@ use add::{
     component::{AddComponent, AddEval},
     table::AddColumn,
 };
-use lookups::sin::table::SinLookupColumn;
+use lookups::{
+    sin::{
+        component::{SinLookupComponent, SinLookupEval},
+        table::SinLookupColumn,
+    },
+    LookupElements,
+};
 use max_reduce::{
     component::{MaxReduceComponent, MaxReduceEval},
     table::MaxReduceColumn,
@@ -28,7 +34,11 @@ use stwo_prover::{
         air::{Component, ComponentProver},
         backend::simd::SimdBackend,
         channel::Channel,
-        fields::{m31::BaseField, qm31::SecureField, secure_column::SECURE_EXTENSION_DEGREE},
+        fields::{
+            m31::{BaseField, P},
+            qm31::SecureField,
+            secure_column::SECURE_EXTENSION_DEGREE,
+        },
         pcs::TreeVec,
         poly::{circle::CircleEvaluation, BitReversedOrder},
         ColumnVec,
@@ -75,7 +85,6 @@ pub type RecipClaim = Claim<RecipColumn>;
 pub type MaxReduceClaim = Claim<MaxReduceColumn>;
 /// Claim for the Sin trace.
 pub type SinClaim = Claim<SinColumn>;
-
 /// Claim for the SinLookup trace.
 pub type SinLookupClaim = Claim<SinLookupColumn>;
 
@@ -131,6 +140,7 @@ pub enum ClaimType {
     Recip(Claim<RecipColumn>),
     MaxReduce(Claim<MaxReduceColumn>),
     Sin(Claim<SinColumn>),
+    SinLookup(Claim<SinLookupColumn>),
 }
 
 /// The claim of the interaction phase 2 (with the logUp protocol).
@@ -164,6 +174,7 @@ relation!(NodeElements, 2);
 #[derive(Clone, Debug)]
 pub struct LuminairInteractionElements {
     pub node_elements: NodeElements,
+    pub lookup_elements: LookupElements,
 }
 
 impl LuminairInteractionElements {
@@ -171,8 +182,12 @@ impl LuminairInteractionElements {
     /// all the components of the system.
     pub fn draw(channel: &mut impl Channel) -> Self {
         let node_elements = NodeElements::draw(channel);
+        let lookup_elements = LookupElements::draw(channel);
 
-        Self { node_elements }
+        Self {
+            node_elements,
+            lookup_elements,
+        }
     }
 }
 
@@ -187,6 +202,7 @@ pub struct LuminairComponents {
     recip: Option<RecipComponent>,
     max_reduce: Option<MaxReduceComponent>,
     sin: Option<SinComponent>,
+    sin_lookup: Option<SinLookupComponent>,
 }
 
 impl LuminairComponents {
@@ -264,17 +280,21 @@ impl LuminairComponents {
         };
 
         let sin = if let Some(ref sin_claim) = claim.sin {
-            let lut_log_size = preprocessed_column_log_sizes
-                .get("sin_lut_0")
-                .copied()
-                .expect("The LUT should exist");
-
             Some(SinComponent::new(
                 tree_span_provider,
-                SinEval::new(
-                    &sin_claim,
-                    interaction_elements.node_elements.clone(),
-                    lut_log_size,
+                SinEval::new(&sin_claim, interaction_elements.node_elements.clone()),
+                interaction_claim.sin.as_ref().unwrap().claimed_sum,
+            ))
+        } else {
+            None
+        };
+
+        let sin_lookup = if let Some(ref sin_lookup_claim) = claim.sin_lookup {
+            Some(SinLookupComponent::new(
+                tree_span_provider,
+                SinLookupEval::new(
+                    &sin_lookup_claim,
+                    interaction_elements.lookup_elements.sin.clone(),
                 ),
                 interaction_claim.sin.as_ref().unwrap().claimed_sum,
             ))
@@ -289,6 +309,7 @@ impl LuminairComponents {
             recip,
             max_reduce,
             sin,
+            sin_lookup,
         }
     }
 
@@ -313,6 +334,9 @@ impl LuminairComponents {
         }
         if let Some(ref sin_component) = self.sin {
             components.push(sin_component);
+        }
+        if let Some(ref sin_lookup_component) = self.sin_lookup {
+            components.push(sin_lookup_component);
         }
         components
     }

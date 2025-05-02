@@ -25,6 +25,7 @@ pub fn log_sum_valid(interaction_claim: &LuminairInteractionClaim) -> bool {
         &interaction_claim.recip,
         &interaction_claim.max_reduce,
         &interaction_claim.sin,
+        &interaction_claim.sin_lookup,
     ] {
         if let Some(ref int_cl) = claim_opt {
             sum += int_cl.claimed_sum.into();
@@ -45,7 +46,7 @@ pub fn get_is_first_log_sizes(max_log_size: u32) -> Vec<u32> {
 /// index. This version uses atomic operations to increase the multiplicity and is `Send`.
 #[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct AtomicMultiplicityColumn {
-    data: Vec<AtomicU32>,
+    pub data: Vec<AtomicU32>,
 }
 
 impl AtomicMultiplicityColumn {

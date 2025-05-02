@@ -1,10 +1,19 @@
 use std::fmt::Debug;
 
-use luminair_air::{components::TraceColumn, pie::NodeInfo};
+use luminair_air::{
+    components::{lookups::Layout, TraceColumn},
+    pie::NodeInfo, utils::AtomicMultiplicityColumn,
+};
 use luminal::prelude::*;
+use stwo_prover::core::fields::m31::BaseField;
 
 pub(crate) mod other;
 pub(crate) mod prim;
+
+pub(crate) struct Lookup {
+    pub(crate) layout: Layout,
+    pub(crate) multiplicities: AtomicMultiplicityColumn,
+}
 
 /// Defines an operator that generates execution traces for proof generation.
 ///
@@ -22,6 +31,7 @@ pub(crate) trait LuminairOperator<C: TraceColumn + Debug + 'static, T: Debug + '
         inp: Vec<(InputTensor, ShapeTracker)>,
         table: &mut T,
         node_info: &NodeInfo,
+        lookup: &mut Option<Lookup>,
     ) -> Vec<Tensor>;
 }
 
@@ -41,6 +51,7 @@ pub(crate) trait HasProcessTrace<C: TraceColumn + Debug + 'static, T: Debug + 's
         _inp: Vec<(InputTensor, ShapeTracker)>,
         _table: &mut T,
         _node_info: &NodeInfo,
+        _lookup: &mut Option<Lookup>,
     ) -> Option<Vec<Tensor>> {
         None
     }
@@ -75,8 +86,9 @@ impl<C: TraceColumn + Debug + 'static, T: Debug + 'static> HasProcessTrace<C, T>
         inp: Vec<(InputTensor, ShapeTracker)>,
         table: &mut T,
         node_info: &NodeInfo,
+        lookup: &mut Option<Lookup>,
     ) -> Option<Vec<Tensor>> {
-        Some(self.0.process_trace(inp, table, node_info))
+        Some(self.0.process_trace(inp, table, node_info, lookup))
     }
 }
 
@@ -98,12 +110,13 @@ impl<C: TraceColumn + Debug + 'static, T: Debug + 'static> HasProcessTrace<C, T>
         inp: Vec<(InputTensor, ShapeTracker)>,
         table: &mut T,
         node_info: &NodeInfo,
+        lookup: &mut Option<Lookup>,
     ) -> Option<Vec<Tensor>> {
         if let Some(wrapper) = (**self)
             .as_any_mut()
             .downcast_mut::<LuminairWrapper<C, T>>()
         {
-            wrapper.call_process_trace(inp, table, node_info)
+            wrapper.call_process_trace(inp, table, node_info, lookup)
         } else {
             None
         }

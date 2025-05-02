@@ -3,7 +3,8 @@
 
 use ::serde::{Deserialize, Serialize};
 use components::{
-    AddClaim, InteractionClaim, MaxReduceClaim, MulClaim, RecipClaim, SinClaim, SumReduceClaim,
+    AddClaim, InteractionClaim, MaxReduceClaim, MulClaim, RecipClaim, SinClaim, SinLookupClaim,
+    SumReduceClaim,
 };
 use stwo_prover::core::{
     channel::Channel, pcs::TreeVec, prover::StarkProof, vcs::ops::MerkleHasher,
@@ -25,7 +26,7 @@ pub struct LuminairProof<H: MerkleHasher> {
 }
 
 /// Claim for system components.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct LuminairClaim {
     pub add: Option<AddClaim>,
     pub mul: Option<MulClaim>,
@@ -33,19 +34,13 @@ pub struct LuminairClaim {
     pub recip: Option<RecipClaim>,
     pub max_reduce: Option<MaxReduceClaim>,
     pub sin: Option<SinClaim>,
+    pub sin_lookup: Option<SinLookupClaim>,
 }
 
 impl LuminairClaim {
     /// Initializes a new claim.
     pub fn new() -> Self {
-        Self {
-            add: None,
-            mul: None,
-            sum_reduce: None,
-            recip: None,
-            max_reduce: None,
-            sin: None,
-        }
+        Self::default()
     }
 
     /// Mixes claim data into a Fiat-Shamir channel for proof binding.
@@ -67,6 +62,9 @@ impl LuminairClaim {
         }
         if let Some(ref sin) = self.sin {
             sin.mix_into(channel);
+        }
+        if let Some(ref sin_lookup) = self.sin_lookup {
+            sin_lookup.mix_into(channel);
         }
     }
 
@@ -93,6 +91,9 @@ impl LuminairClaim {
         if let Some(ref sin) = self.sin {
             log_sizes.push(sin.log_sizes());
         }
+        if let Some(ref sin_lookup) = self.sin_lookup {
+            log_sizes.push(sin_lookup.log_sizes());
+        }
 
         TreeVec::concat_cols(log_sizes.into_iter())
     }
@@ -109,6 +110,7 @@ pub struct LuminairInteractionClaim {
     pub recip: Option<InteractionClaim>,
     pub max_reduce: Option<InteractionClaim>,
     pub sin: Option<InteractionClaim>,
+    pub sin_lookup: Option<InteractionClaim>,
 }
 
 impl LuminairInteractionClaim {
@@ -131,6 +133,9 @@ impl LuminairInteractionClaim {
         }
         if let Some(ref sin) = self.sin {
             sin.mix_into(channel);
+        }
+        if let Some(ref sin_lookup) = self.sin_lookup {
+            sin_lookup.mix_into(channel);
         }
     }
 }

@@ -1,6 +1,8 @@
 use crate::{
-    components::{InteractionClaim, NodeElements, SinClaim, TraceColumn, TraceError, TraceEval},
-    preprocessed::LUTLayout,
+    components::{
+        lookups::{sin::SinLookupElements, Layout}, InteractionClaim, NodeElements, SinClaim, TraceColumn, TraceError,
+        TraceEval,
+    },
     utils::{calculate_log_size, AtomicMultiplicityColumn},
 };
 use num_traits::One;
@@ -23,9 +25,6 @@ use stwo_prover::{
 pub struct SinTable {
     /// A vector of [`SinTableRow`] representing the table rows.
     pub table: Vec<SinTableRow>,
-    /// Layout of the Sin LUT.
-    pub lut_layout: Option<LUTLayout>,
-    pub lut_multiplicities: AtomicMultiplicityColumn,
 }
 
 /// Represents a single row of the [`SinTable`]
@@ -46,12 +45,8 @@ pub struct SinTableRow {
 
 impl SinTable {
     /// Creates a new, empty [`SinTable`].
-    pub fn new(lut_layout: Option<LUTLayout>) -> Self {
-        Self {
-            table: Vec::new(),
-            lut_layout,
-            lut_multiplicities: AtomicMultiplicityColumn::default(),
-        }
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// Adds a new row to the Sin Table.
@@ -172,6 +167,7 @@ impl TraceColumn for SinColumn {
 pub fn interaction_trace_evaluation(
     main_trace_eval: &TraceEval,
     node_elements: &NodeElements,
+    lookup_elements: &SinLookupElements
 ) -> Result<(TraceEval, InteractionClaim), TraceError> {
     if main_trace_eval.is_empty() {
         return Err(TraceError::EmptyTrace);

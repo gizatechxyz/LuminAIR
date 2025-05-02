@@ -23,7 +23,7 @@ use crate::{
     utils::{get_buffer_from_tensor, get_index, is},
 };
 
-use super::{IntoOperator, LuminairOperator};
+use super::{IntoOperator, Lookup, LuminairOperator};
 
 // ================== COPY ==================
 
@@ -159,6 +159,7 @@ impl LuminairOperator<RecipColumn, RecipTable> for LuminairRecip {
         inp: Vec<(InputTensor, ShapeTracker)>,
         table: &mut RecipTable,
         node_info: &NodeInfo,
+        _lookup: &mut Option<Lookup>,
     ) -> Vec<Tensor> {
         let (out_data, intermediate_values) = self.compute(&inp, true);
         let intermediate_values = intermediate_values.unwrap();
@@ -261,6 +262,7 @@ impl LuminairOperator<SinColumn, SinTable> for LuminairSin {
         inp: Vec<(InputTensor, ShapeTracker)>,
         table: &mut SinTable,
         node_info: &NodeInfo,
+        lookup: &mut Option<Lookup>,
     ) -> Vec<Tensor> {
         let (out_data, intermediate_values) = self.compute(&inp, true);
         let intermediate_values = intermediate_values.unwrap();
@@ -268,8 +270,6 @@ impl LuminairOperator<SinColumn, SinTable> for LuminairSin {
         let node_id: BaseField = node_info.id.into();
         let input_id: BaseField = node_info.inputs[0].id.into();
         let output_size = inp[0].1.n_elements().to_usize().unwrap();
-
-        let lut_layout = table.lut_layout.clone().unwrap();
 
         for (idx, (input_val, out_val)) in intermediate_values.into_iter().enumerate() {
             let input_mult = if node_info.inputs[0].is_initializer {
@@ -285,11 +285,14 @@ impl LuminairOperator<SinColumn, SinTable> for LuminairSin {
 
             let is_last_idx: u32 = if idx == (output_size - 1) { 1 } else { 0 };
 
-            let mult_address = lut_layout
-                .find_index(input_val.0)
-                .expect("Value should fit in range.");
+            if let Some(lookup_ref) = lookup.as_mut() {
+                let mult_address = lookup_ref
+                    .layout
+                    .find_index(input_val.0)
+                    .expect("Value should fit in range.");
 
-            table.lut_multiplicities.increase_at(mult_address);
+                lookup_ref.multiplicities.increase_at(mult_address);
+            }
 
             table.add_row(SinTableRow {
                 node_id,
@@ -375,6 +378,7 @@ impl LuminairOperator<AddColumn, AddTable> for LuminairAdd {
         inp: Vec<(InputTensor, ShapeTracker)>,
         table: &mut AddTable,
         node_info: &NodeInfo,
+        _lookup: &mut Option<Lookup>,
     ) -> Vec<Tensor> {
         let (out_data, intermediate_values) = self.compute(&inp, true);
         let intermediate_values = intermediate_values.unwrap();
@@ -490,6 +494,7 @@ impl LuminairOperator<MulColumn, MulTable> for LuminairMul {
         inp: Vec<(InputTensor, ShapeTracker)>,
         table: &mut MulTable,
         node_info: &NodeInfo,
+        _lookup: &mut Option<Lookup>,
     ) -> Vec<Tensor> {
         let (out_data, intermediate_values) = self.compute(&inp, true);
         let intermediate_values = intermediate_values.unwrap();
@@ -628,6 +633,7 @@ impl LuminairOperator<SumReduceColumn, SumReduceTable> for LuminairSumReduce {
         inp: Vec<(InputTensor, ShapeTracker)>,
         table: &mut SumReduceTable,
         node_info: &NodeInfo,
+        _lookup: &mut Option<Lookup>,
     ) -> Vec<Tensor> {
         let (out_data, intermediate_values) = self.compute(&inp, true);
         let intermediate_values = intermediate_values.unwrap();
@@ -780,6 +786,7 @@ impl LuminairOperator<MaxReduceColumn, MaxReduceTable> for LuminairMaxReduce {
         inp: Vec<(InputTensor, ShapeTracker)>,
         table: &mut MaxReduceTable,
         node_info: &NodeInfo,
+        _lookup: &mut Option<Lookup>,
     ) -> Vec<Tensor> {
         let (out_data, intermediate_values) = self.compute(&inp, true);
         let intermediate_values = intermediate_values.unwrap();

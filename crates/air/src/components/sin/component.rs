@@ -10,16 +10,14 @@ pub type SinComponent = FrameworkComponent<SinEval>;
 /// Defines the AIR for the sin component.
 pub struct SinEval {
     log_size: u32,
-    lut_log_size: u32,
     node_elements: NodeElements,
 }
 
 impl SinEval {
     /// Creates a new `SinEval` instance from a claim and node elements.
-    pub fn new(claim: &SinClaim, node_elements: NodeElements, lut_log_size: u32) -> Self {
+    pub fn new(claim: &SinClaim, node_elements: NodeElements) -> Self {
         Self {
             log_size: claim.log_size,
-            lut_log_size,
             node_elements,
         }
     }
@@ -35,7 +33,7 @@ impl FrameworkEval for SinEval {
     ///
     /// Returns the ilog2 (upper) bound of the constraint degree for the component.
     fn max_constraint_log_degree_bound(&self) -> u32 {
-        std::cmp::max(self.log_size, self.lut_log_size) + 1
+        self.log_size + 1
     }
 
     /// Evaluates the AIR constraints for the sin operation.
@@ -58,13 +56,6 @@ impl FrameworkEval for SinEval {
         // Multiplicities for interaction constraints
         let input_mult = eval.next_trace_mask();
         let out_mult = eval.next_trace_mask();
-
-        // let sin_lut_0 = eval.get_preprocessed_column(PreProcessedColumnId {
-        //     id: "sin_lut_0".to_string(),
-        // });
-        // let sin_lut_1 = eval.get_preprocessed_column(PreProcessedColumnId {
-        //     id: "sin_lut_1".to_string(),
-        // });
 
         // ┌─────────────────────────────┐
         // │   Consistency Constraints   │

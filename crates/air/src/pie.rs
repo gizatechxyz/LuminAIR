@@ -2,9 +2,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     components::{
-        add::table::AddTable, max_reduce::table::MaxReduceTable, mul::table::MulTable,
-        recip::table::RecipTable, sin::table::SinTable, sum_reduce::table::SumReduceTable,
-        ClaimType, TraceError, TraceEval,
+        add::table::AddTable, lookups::sin::table::SinLookupTable,
+        max_reduce::table::MaxReduceTable, mul::table::MulTable, recip::table::RecipTable,
+        sin::table::SinTable, sum_reduce::table::SumReduceTable, ClaimType, TraceError, TraceEval,
     },
     utils::AtomicMultiplicityColumn,
 };
@@ -25,6 +25,8 @@ pub enum TableTrace {
     MaxReduce { table: MaxReduceTable },
     /// Sin operator trace table.
     Sin { table: SinTable },
+    /// Sin LUT trace table.
+    SinLookup { table: SinLookupTable },
 }
 
 impl TableTrace {
@@ -64,6 +66,12 @@ impl TableTrace {
         Self::Sin { table }
     }
 
+    /// Creates a new [`TableTrace`] from a [`SinLookupTable`]
+    /// for use in the proof generation.
+    pub fn from_sin_lookup(table: SinLookupTable) -> Self {
+        Self::SinLookup { table }
+    }
+
     pub fn to_trace(&self) -> Result<(TraceEval, ClaimType), TraceError> {
         match self {
             TableTrace::Add { table } => {
@@ -95,6 +103,11 @@ impl TableTrace {
                 let (trace, claim) = table.trace_evaluation()?;
                 Ok((trace, ClaimType::Sin(claim)))
             }
+
+            TableTrace::SinLookup { table } => {
+                let (trace, claim) = table.trace_evaluation()?;
+                Ok((trace, ClaimType::SinLookup(claim)))
+            }
         }
     }
 }
@@ -103,7 +116,6 @@ impl TableTrace {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LuminairPie {
     pub table_traces: Vec<TableTrace>,
-    pub lut_multiciplicities: LUTMultiplicities,
     pub execution_resources: ExecutionResources,
 }
 
@@ -135,12 +147,12 @@ pub struct ExecutionResources {
 /// Counts occurrences of specific operations.
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct OpCounter {
-    pub add: Option<usize>,
-    pub mul: Option<usize>,
-    pub sum_reduce: Option<usize>,
-    pub recip: Option<usize>,
-    pub max_reduce: Option<usize>,
-    pub sin: Option<usize>,
+    pub add: usize,
+    pub mul: usize,
+    pub sum_reduce: usize,
+    pub recip: usize,
+    pub max_reduce: usize,
+    pub sin: usize,
 }
 
 /// Indicates if a node input is an initializer (i.e., from initial input).

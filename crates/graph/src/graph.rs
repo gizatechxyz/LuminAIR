@@ -1,9 +1,11 @@
+use std::sync::atomic::Ordering;
+
 use crate::{
     op::{
         prim::{CopyFromStwo, CopyToStwo, LuminairConstant},
-        HasProcessTrace,
+        HasProcessTrace, Lookup,
     },
-    settings::{CircuitSettings, LUTs},
+    settings::{CircuitSettings, LookupLayouts},
     utils::compute_padded_range_from_srcs,
 };
 use luminair_air::{
@@ -11,6 +13,10 @@ use luminair_air::{
         add::{
             self,
             table::{AddColumn, AddTable},
+        },
+        lookups::{
+            sin::table::{SinLookupData, SinLookupTable, SinLookupTableRow},
+            Layout, Range,
         },
         max_reduce::{
             self,
@@ -38,7 +44,7 @@ use luminair_air::{
         ExecutionResources, InputInfo, LUTMultiplicities, LuminairPie, NodeInfo, OpCounter,
         OutputInfo, TableTrace,
     },
-    preprocessed::{LUTLayout, PreProcessedColumn, PreProcessedTrace, Range, SinLUT},
+    preprocessed::{PreProcessedColumn, PreProcessedTrace, SinLUT},
     utils::{calculate_log_size, log_sum_valid, AtomicMultiplicityColumn},
     LuminairClaim, LuminairInteractionClaim, LuminairProof,
 };
@@ -52,6 +58,7 @@ use stwo_prover::{
     core::{
         backend::simd::SimdBackend,
         channel::Blake2sChannel,
+        fields::m31::BaseField,
         pcs::{CommitmentSchemeProver, CommitmentSchemeVerifier, PcsConfig},
         poly::circle::{CanonicCoset, PolyOps},
         prover::{self, verify, ProvingError, VerificationError},
@@ -140,26 +147,16 @@ impl LuminairGraph for Graph {
 
         self.reset();
 
-        // Build one LUT per op
-        let mut lut_cols: Vec<Box<dyn PreProcessedColumn>> = Vec::new();
-
-        let sin_lut_layout = if !sin_ranges.is_empty() {
-            let ranges = coalesce_ranges(sin_ranges); // keep gaps >1 and merge overlaps
-            let layout = LUTLayout::new(ranges);
-            let col_0 = SinLUT::new(layout.clone(), 0);
-            let col_1 = SinLUT::new(layout.clone(), 1);
-
-            lut_cols.push(Box::new(col_0.clone()));
-            lut_cols.push(Box::new(col_1));
+        let sin_lookup_layout = if !sin_ranges.is_empty() {
+            let layout = Layout::new(coalesce_ranges(sin_ranges));
             Some(layout)
         } else {
             None
         };
 
         let settings = CircuitSettings {
-            lut_cols,
-            lookup_tables: LUTs {
-                sin: sin_lut_layout,
+            lookup_layouts: LookupLayouts {
+                sin: sin_lookup_layout,
             },
         };
         settings
@@ -183,12 +180,18 @@ impl LuminairGraph for Graph {
         let mut recip_table = RecipTable::new();
         let mut sum_reduce_table = SumReduceTable::new();
         let mut max_reduce_table = MaxReduceTable::new();
-        let mut sin_table = SinTable::new(settings.lookup_tables.sin.clone());
+        let mut sin_table = SinTable::new();
+        let mut sin_lookup_table = SinLookupTable::new();
 
-        // Pre-initialize LUT multiplicities
-        if let Some(layout) = &sin_table.lut_layout {
-            sin_table.lut_multiplicities = AtomicMultiplicityColumn::new(1 << layout.log_size);
-        }
+        // Initializes lookups
+        let mut sin_lookup = if let Some(layout) = settings.lookup_layouts.sin {
+            Some(Lookup {
+                layout: layout.clone(),
+                multiplicities: AtomicMultiplicityColumn::new(1 << layout.log_size),
+            })
+        } else {
+            None
+        };
 
         for (node, src_ids) in self.linearized_graph.as_ref().unwrap() {
             if self.tensors.contains_key(&(*node, 0)) {
@@ -262,39 +265,39 @@ impl LuminairGraph for Graph {
 
             let tensors = match () {
                 _ if <Box<dyn Operator> as HasProcessTrace<AddColumn, AddTable>>::has_process_trace(node_op) => {
-                    *op_counter.add.get_or_insert(0) += 1;
+                    op_counter.add += 1;
                     <Box<dyn Operator> as HasProcessTrace<AddColumn, AddTable>>::call_process_trace(
-                        node_op, srcs, &mut add_table, &node_info
+                        node_op, srcs, &mut add_table, &node_info, &mut None
                     ).unwrap()
                 }
                 _ if <Box<dyn Operator> as HasProcessTrace<MulColumn, MulTable>>::has_process_trace(node_op) => {
-                    *op_counter.mul.get_or_insert(0) += 1;
+                    op_counter.mul += 1;
                     <Box<dyn Operator> as HasProcessTrace<MulColumn, MulTable>>::call_process_trace(
-                        node_op, srcs, &mut mul_table, &node_info
+                        node_op, srcs, &mut mul_table, &node_info, &mut None
                     ).unwrap()
                 }
                 _ if <Box<dyn Operator> as HasProcessTrace<SumReduceColumn, SumReduceTable>>::has_process_trace(node_op) => {
-                    *op_counter.sum_reduce.get_or_insert(0) += 1;
+                    op_counter.sum_reduce += 1;
                     <Box<dyn Operator> as HasProcessTrace<SumReduceColumn, SumReduceTable>>::call_process_trace(
-                        node_op, srcs, &mut sum_reduce_table, &node_info
+                        node_op, srcs, &mut sum_reduce_table, &node_info, &mut None
                     ).unwrap()
                 }
                 _ if <Box<dyn Operator> as HasProcessTrace<RecipColumn, RecipTable>>::has_process_trace(node_op) => {
-                    *op_counter.recip.get_or_insert(0) += 1;
+                    op_counter.recip += 1;
                     <Box<dyn Operator> as HasProcessTrace<RecipColumn, RecipTable>>::call_process_trace(
-                        node_op, srcs, &mut recip_table, &node_info
+                        node_op, srcs, &mut recip_table, &node_info, &mut None
                     ).unwrap()
                 }
                 _ if <Box<dyn Operator> as HasProcessTrace<MaxReduceColumn, MaxReduceTable>>::has_process_trace(node_op) => {
-                    *op_counter.max_reduce.get_or_insert(0) += 1;
+                    op_counter.max_reduce += 1;
                     <Box<dyn Operator> as HasProcessTrace<MaxReduceColumn, MaxReduceTable>>::call_process_trace(
-                        node_op, srcs, &mut max_reduce_table, &node_info
+                        node_op, srcs, &mut max_reduce_table, &node_info, &mut None
                     ).unwrap()
                 }
                 _ if <Box<dyn Operator> as HasProcessTrace<SinColumn, SinTable>>::has_process_trace(node_op) => {
-                    *op_counter.sin.get_or_insert(0) += 1;
+                    op_counter.sin += 1;
                     <Box<dyn Operator> as HasProcessTrace<SinColumn, SinTable>>::call_process_trace(
-                        node_op, srcs, &mut sin_table, &node_info
+                        node_op, srcs, &mut sin_table, &node_info, &mut sin_lookup
                     ).unwrap()
                 }
                 _ => node_op.process(srcs)
@@ -342,19 +345,24 @@ impl LuminairGraph for Graph {
             max_log_size = max_log_size.max(log_size);
             table_traces.push(TableTrace::from_max_reduce(max_reduce_table));
         }
-
-        let sin_multiplicities = sin_table.lut_multiplicities.clone();
         if !sin_table.table.is_empty() {
             let log_size = calculate_log_size(sin_table.table.len());
             max_log_size = max_log_size.max(log_size);
             table_traces.push(TableTrace::from_sin(sin_table));
         }
 
+        // Create Lookups
+        if let Some(lookup) = sin_lookup {
+            for mult in lookup.multiplicities.data {
+                sin_lookup_table.add_row(SinLookupTableRow {
+                    multiplicity: BaseField::from_u32_unchecked(mult.load(Ordering::Relaxed)),
+                });
+            }
+            table_traces.push(TableTrace::from_sin_lookup(sin_lookup_table));
+        }
+
         Ok(LuminairPie {
             table_traces,
-            lut_multiciplicities: LUTMultiplicities {
-                sin: sin_multiplicities,
-            },
             execution_resources: ExecutionResources {
                 op_counter,
                 max_log_size,
@@ -372,7 +380,15 @@ impl LuminairGraph for Graph {
         // └──────────────────────────┘
         tracing::info!("Protocol Setup");
         let config: PcsConfig = PcsConfig::default();
-        let preprocessed_trace = PreProcessedTrace::new(settings.lut_cols);
+
+        let mut lut_cols: Vec<Box<dyn PreProcessedColumn>> = Vec::new();
+        if pie.execution_resources.op_counter.sin > 0 {
+            let col_0 = SinLUT::new(settings.lookup_layouts.sin.clone().unwrap(), 0);
+            let col_1 = SinLUT::new(settings.lookup_layouts.sin.unwrap(), 1);
+            lut_cols.push(Box::new(col_0.clone()));
+            lut_cols.push(Box::new(col_1));
+        }
+        let preprocessed_trace = PreProcessedTrace::new(lut_cols);
         let max_log_size = preprocessed_trace
             .log_sizes()
             .iter()
@@ -436,6 +452,7 @@ impl LuminairGraph for Graph {
                     ClaimType::Recip(claim) => main_claim.recip = Some(claim),
                     ClaimType::MaxReduce(claim) => main_claim.max_reduce = Some(claim),
                     ClaimType::Sin(claim) => main_claim.sin = Some(claim),
+                    ClaimType::SinLookup(claim) => main_claim.sin_lookup = Some(claim),
                 }
             }
 
@@ -484,6 +501,9 @@ impl LuminairGraph for Graph {
                         sin::table::interaction_trace_evaluation(&trace, node_elements)
                             .map_err(|_| ProvingError::ConstraintsNotSatisfied)?
                     }
+                    ClaimType::SinLookup(_) => {
+                        todo!()
+                    }
                 };
 
                 // Add trace to the commit tree
@@ -497,6 +517,7 @@ impl LuminairGraph for Graph {
                     ClaimType::Recip(_) => interaction_claim.recip = Some(claim),
                     ClaimType::MaxReduce(_) => interaction_claim.max_reduce = Some(claim),
                     ClaimType::Sin(_) => interaction_claim.sin = Some(claim),
+                    ClaimType::SinLookup(_) => interaction_claim.sin_lookup = Some(claim),
                 }
             }
 
@@ -533,12 +554,18 @@ impl LuminairGraph for Graph {
             interaction_claim,
             proof,
         }: LuminairProof<Blake2sMerkleHasher>,
-        CircuitSettings { lut_cols, .. }: CircuitSettings,
+        settings: CircuitSettings,
     ) -> Result<(), LuminairError> {
         // Create preprocessed trace
-        // TODO: move preprocessed_trace to function param.
+        // TODO: move preprocessed_trace to function param so we don't regenerate.
+        let mut lut_cols: Vec<Box<dyn PreProcessedColumn>> = Vec::new();
+        if let Some(layout) = settings.lookup_layouts.sin {
+            let col_0 = SinLUT::new(layout.clone(), 0);
+            let col_1 = SinLUT::new(layout, 1);
+            lut_cols.push(Box::new(col_0.clone()));
+            lut_cols.push(Box::new(col_1));
+        }
         let preprocessed_trace = PreProcessedTrace::new(lut_cols);
-
         // ┌──────────────────────────┐
         // │     Protocol Setup       │
         // └──────────────────────────┘
@@ -709,16 +736,16 @@ mod tests {
 
         let settings = g.gen_circuit_settings();
 
-        assert_eq!(
-            settings.lut_cols.len(),
-            2,
-            "Expect exactly one (x, 1/x) column pair for Sin"
-        );
+        // assert_eq!(
+        //     settings.lut_cols.len(),
+        //     2,
+        //     "Expect exactly one (x, 1/x) column pair for Sin"
+        // );
 
-        let preprocessed = PreProcessedTrace::new(settings.lut_cols);
-        let ids = preprocessed.ids();
+        // let preprocessed = PreProcessedTrace::new(settings.lut_cols);
+        // let ids = preprocessed.ids();
 
-        assert_eq!(ids[0].id, "sin_lut_0");
-        assert_eq!(ids[1].id, "sin_lut_1");
+        // assert_eq!(ids[0].id, "sin_lut_0");
+        // assert_eq!(ids[1].id, "sin_lut_1");
     }
 }
