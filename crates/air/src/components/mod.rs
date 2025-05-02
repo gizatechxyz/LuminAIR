@@ -4,6 +4,7 @@ use add::{
     component::{AddComponent, AddEval},
     table::AddColumn,
 };
+use lookups::sin::table::SinLookupColumn;
 use max_reduce::{
     component::{MaxReduceComponent, MaxReduceEval},
     table::MaxReduceColumn,
@@ -44,6 +45,7 @@ use thiserror::Error;
 use crate::{preprocessed::PreProcessedTrace, LuminairClaim, LuminairInteractionClaim};
 
 pub mod add;
+pub mod lookups;
 pub mod max_reduce;
 pub mod mul;
 pub mod recip;
@@ -73,6 +75,9 @@ pub type RecipClaim = Claim<RecipColumn>;
 pub type MaxReduceClaim = Claim<MaxReduceColumn>;
 /// Claim for the Sin trace.
 pub type SinClaim = Claim<SinColumn>;
+
+/// Claim for the SinLookup trace.
+pub type SinLookupClaim = Claim<SinLookupColumn>;
 
 /// Represents columns of a trace.
 pub trait TraceColumn {
