@@ -1,9 +1,6 @@
 use crate::{
-    components::{
-        lookups::{sin::SinLookupElements, Layout}, InteractionClaim, NodeElements, SinClaim, TraceColumn, TraceError,
-        TraceEval,
-    },
-    utils::{calculate_log_size, AtomicMultiplicityColumn},
+    components::{ InteractionClaim, NodeElements, SinClaim, TraceColumn, TraceError, TraceEval},
+    utils::calculate_log_size,
 };
 use num_traits::One;
 use serde::{Deserialize, Serialize};
@@ -167,7 +164,6 @@ impl TraceColumn for SinColumn {
 pub fn interaction_trace_evaluation(
     main_trace_eval: &TraceEval,
     node_elements: &NodeElements,
-    lookup_elements: &SinLookupElements
 ) -> Result<(TraceEval, InteractionClaim), TraceError> {
     if main_trace_eval.is_empty() {
         return Err(TraceError::EmptyTrace);

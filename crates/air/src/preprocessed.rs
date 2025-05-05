@@ -1,6 +1,9 @@
 use std::{any::Any, cmp::Reverse};
 
-use crate::components::{lookups::Layout, TraceEval};
+use crate::components::{
+    lookups::{Layout, Lookups},
+    TraceEval,
+};
 use numerair::Fixed;
 use serde::{Deserialize, Serialize};
 use stwo_prover::{
@@ -50,6 +53,17 @@ impl PreProcessedTrace {
     pub fn gen_trace(&self) -> TraceEval {
         self.columns.iter().map(|c| c.gen_column_simd()).collect()
     }
+}
+
+pub fn lookups_to_preprocessed_column(lookups: &Lookups) -> Vec<Box<dyn PreProcessedColumn>> {
+    let mut lut_cols: Vec<Box<dyn PreProcessedColumn>> = Vec::new();
+    if let Some(sin_lookup) = &lookups.sin {
+        let col_0 = SinLUT::new(sin_lookup.layout.clone(), 0);
+        let col_1 = SinLUT::new(sin_lookup.layout.clone(), 1);
+        lut_cols.push(Box::new(col_0));
+        lut_cols.push(Box::new(col_1));
+    }
+    lut_cols
 }
 
 // ================== SIN ==================

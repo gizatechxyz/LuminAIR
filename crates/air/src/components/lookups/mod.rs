@@ -1,6 +1,6 @@
 use numerair::Fixed;
 use serde::{Deserialize, Serialize};
-use sin::SinLookupElements;
+use sin::{table::SinLookup, SinLookupElements};
 use stwo_prover::core::channel::Channel;
 
 use crate::utils::calculate_log_size;
@@ -15,6 +15,11 @@ pub struct Range(pub Fixed, pub Fixed);
 /// padded to the next power‑of‑two.
 fn value_count(ranges: &Vec<Range>) -> u32 {
     ranges.iter().map(|r| (r.1 .0 - r.0 .0 + 1) as u32).sum()
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct Lookups {
+    pub sin: Option<SinLookup>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]

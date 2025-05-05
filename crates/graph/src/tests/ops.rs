@@ -38,11 +38,13 @@ fn test_sum_reduce() {
         (&mut b, &mut c, &mut d),
     );
 
-    let settings = cx.gen_circuit_settings();
+    let mut settings = cx.gen_circuit_settings();
     b.drop();
     c.drop();
     d.drop();
-    let trace = cx.gen_trace(settings.clone()).expect("Trace generation failed");
+    let trace = cx
+        .gen_trace(&mut settings)
+        .expect("Trace generation failed");
     let proof = cx
         .prove(trace, settings.clone())
         .expect("Proof generation failed");
@@ -84,11 +86,13 @@ fn test_max_reduce() {
         <(GenericCompiler, StwoCompiler)>::default(),
         (&mut b, &mut c, &mut d),
     );
-    let settings = cx.gen_circuit_settings();
+    let mut settings = cx.gen_circuit_settings();
     b.drop();
     c.drop();
     d.drop();
-    let trace = cx.gen_trace(settings.clone()).expect("Trace generation failed");
+    let trace = cx
+        .gen_trace(&mut settings)
+        .expect("Trace generation failed");
     let proof = cx
         .prove(trace, settings.clone())
         .expect("Proof generation failed");

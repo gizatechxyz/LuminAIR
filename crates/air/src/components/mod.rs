@@ -34,11 +34,7 @@ use stwo_prover::{
         air::{Component, ComponentProver},
         backend::simd::SimdBackend,
         channel::Channel,
-        fields::{
-            m31::{BaseField, P},
-            qm31::SecureField,
-            secure_column::SECURE_EXTENSION_DEGREE,
-        },
+        fields::{m31::BaseField, qm31::SecureField, secure_column::SECURE_EXTENSION_DEGREE},
         pcs::TreeVec,
         poly::{circle::CircleEvaluation, BitReversedOrder},
         ColumnVec,
