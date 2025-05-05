@@ -15,7 +15,7 @@ use luminair_air::{
             table::{AddColumn, AddTable},
         },
         lookups::{
-            sin::table::{SinLookup,  SinLookupTable, SinLookupTableRow}, Layout, Lookups, Range
+            self, sin::table::{SinLookup,  SinLookupTable, SinLookupTableRow}, Layout, Lookups, Range
         },
         max_reduce::{
             self,
@@ -43,7 +43,7 @@ use luminair_air::{
         ExecutionResources, InputInfo,  LuminairPie, NodeInfo, OpCounter,
         OutputInfo, TableTrace,
     },
-    preprocessed::{lookups_to_preprocessed_column,  PreProcessedTrace},
+    preprocessed::{lookups_to_preprocessed_column,  PreProcessedTrace, SinLUT},
     utils::{calculate_log_size, log_sum_valid},
     LuminairClaim, LuminairInteractionClaim, LuminairProof,
 };
@@ -458,6 +458,7 @@ impl LuminairGraph for Graph {
         let interaction_elements = LuminairInteractionElements::draw(channel);
         let mut interaction_claim = LuminairInteractionClaim::default();
         let node_elements = &interaction_elements.node_elements;
+        let lookup_elements = &interaction_elements.lookup_elements;
 
         {
             // Generate the interaction trace from the main trace, and compute the logUp sum.
@@ -490,7 +491,10 @@ impl LuminairGraph for Graph {
                             .map_err(|_| ProvingError::ConstraintsNotSatisfied)?
                     }
                     ClaimType::SinLookup(_) => {
-                        continue;
+                        let mut sin_luts = preprocessed_trace.columns_of::<SinLUT>();
+                        sin_luts.sort_by_key(|c| c.col_index);
+
+                        lookups::sin::table::interaction_trace_evaluation(&trace, &sin_luts, &lookup_elements.sin)                            .map_err(|_| ProvingError::ConstraintsNotSatisfied)?
                     }
                 };
 

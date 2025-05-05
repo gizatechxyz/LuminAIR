@@ -1,4 +1,4 @@
-use std::{any::Any, cmp::Reverse};
+use std::{any::Any, cell::OnceCell, cmp::Reverse};
 
 use crate::components::{
     lookups::{Layout, Lookups},
@@ -29,6 +29,7 @@ pub trait PreProcessedColumn: Any {
     fn id(&self) -> PreProcessedColumnId;
     fn gen_column_simd(&self) -> CircleEvaluation<SimdBackend, BaseField, BitReversedOrder>;
     fn clone_box(&self) -> Box<dyn PreProcessedColumn>;
+    fn as_any(&self) -> &dyn Any;
 }
 
 /// A collection of preprocessed columns, whose values are publicly acknowledged.
@@ -53,6 +54,13 @@ impl PreProcessedTrace {
     pub fn gen_trace(&self) -> TraceEval {
         self.columns.iter().map(|c| c.gen_column_simd()).collect()
     }
+
+    pub fn columns_of<T: Any>(&self) -> Vec<&T> {
+        self.columns
+            .iter()
+            .filter_map(|c| c.as_any().downcast_ref::<T>())
+            .collect()
+    }
 }
 
 pub fn lookups_to_preprocessed_column(lookups: &Lookups) -> Vec<Box<dyn PreProcessedColumn>> {
@@ -72,13 +80,26 @@ pub fn lookups_to_preprocessed_column(lookups: &Lookups) -> Vec<Box<dyn PreProce
 pub struct SinLUT {
     pub layout: Layout,
     pub col_index: usize,
+
+    #[serde(skip)]
+    // lazy cache
+    pub eval: OnceCell<CircleEvaluation<SimdBackend, BaseField, BitReversedOrder>>,
 }
 
 impl SinLUT {
     pub fn new(layout: Layout, col_index: usize) -> Self {
         assert!(col_index < 2, "Sin LUT must have 2 columns");
 
-        Self { layout, col_index }
+        Self {
+            layout,
+            col_index,
+            eval: OnceCell::new(),
+        }
+    }
+
+    /// Lazily build (or fetch) the full column evaluation.
+    pub fn evaluation(&self) -> &CircleEvaluation<SimdBackend, BaseField, BitReversedOrder> {
+        self.eval.get_or_init(|| self.gen_column_simd())
     }
 
     /// Given a vector of row index, computes the packed M31 values for that row
@@ -150,6 +171,10 @@ impl PreProcessedColumn for SinLUT {
         );
 
         CircleEvaluation::new(domain, column)
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
 

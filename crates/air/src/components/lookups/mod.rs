@@ -95,12 +95,12 @@ impl Layout {
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct LookupElements {
-    pub(crate) sin: SinLookupElements,
+pub struct LookupElements {
+    pub sin: SinLookupElements,
 }
 
 impl LookupElements {
-    pub(crate) fn draw(channel: &mut impl Channel) -> Self {
+    pub fn draw(channel: &mut impl Channel) -> Self {
         Self {
             sin: SinLookupElements::draw(channel),
         }

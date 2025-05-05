@@ -23,6 +23,7 @@ use crate::{
     components::{
         lookups::Layout, InteractionClaim, SinLookupClaim, TraceColumn, TraceError, TraceEval,
     },
+    preprocessed::SinLUT,
     utils::{calculate_log_size, AtomicMultiplicityColumn},
 };
 
@@ -172,7 +173,7 @@ impl TraceColumn for SinLookupColumn {
 /// Generates the interaction trace for the SinLookup component using the main trace and node elements.
 pub fn interaction_trace_evaluation(
     main_trace_eval: &TraceEval,
-    preprocessed: &TraceEval,
+    luts: &Vec<&SinLUT>,
     elements: &SinLookupElements,
 ) -> Result<(TraceEval, InteractionClaim), TraceError> {
     if main_trace_eval.is_empty() {
@@ -183,11 +184,13 @@ pub fn interaction_trace_evaluation(
     let mut logup_gen = LogupTraceGenerator::new(log_size);
 
     let mult_col = &main_trace_eval[SinLookupColumn::Multiplicity.index()].data;
+    let lut_col_0 = &luts.get(0).expect("missing sin col 0").evaluation().data;
+    let lut_col_1 = &luts.get(1).expect("missing sin col 1").evaluation().data;
     let mut int_col = logup_gen.new_col();
     for row in 0..1 << (log_size - LOG_N_LANES) {
         let mult = mult_col[row];
-        let input: PackedM31 = todo!();
-        let output: PackedM31 = todo!();
+        let input: PackedM31 = lut_col_0[row];
+        let output: PackedM31 = lut_col_1[row];
 
         int_col.write_frac(
             row,
