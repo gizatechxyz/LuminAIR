@@ -1,4 +1,4 @@
-use crate::components::{NodeElements, SinClaim};
+use crate::components::{lookups::sin::SinLookupElements, NodeElements, SinClaim};
 use num_traits::One;
 use stwo_prover::constraint_framework::{
     EvalAtRow, FrameworkComponent, FrameworkEval, RelationEntry,
@@ -10,15 +10,24 @@ pub type SinComponent = FrameworkComponent<SinEval>;
 /// Defines the AIR for the sin component.
 pub struct SinEval {
     log_size: u32,
+    lut_log_size: u32,
     node_elements: NodeElements,
+    lookup_elemnents: SinLookupElements,
 }
 
 impl SinEval {
     /// Creates a new `SinEval` instance from a claim and node elements.
-    pub fn new(claim: &SinClaim, node_elements: NodeElements) -> Self {
+    pub fn new(
+        claim: &SinClaim,
+        node_elements: NodeElements,
+        lookup_elemnents: SinLookupElements,
+        lut_log_size: u32,
+    ) -> Self {
         Self {
             log_size: claim.log_size,
+            lut_log_size,
             node_elements,
+            lookup_elemnents,
         }
     }
 }
@@ -33,7 +42,7 @@ impl FrameworkEval for SinEval {
     ///
     /// Returns the ilog2 (upper) bound of the constraint degree for the component.
     fn max_constraint_log_degree_bound(&self) -> u32 {
-        self.log_size + 1
+        std::cmp::max(self.log_size, self.lut_log_size) + 1
     }
 
     /// Evaluates the AIR constraints for the sin operation.
@@ -89,13 +98,19 @@ impl FrameworkEval for SinEval {
         eval.add_to_relation(RelationEntry::new(
             &self.node_elements,
             input_mult.into(),
-            &[input_val, input_id],
+            &[input_val.clone(), input_id],
         ));
 
         eval.add_to_relation(RelationEntry::new(
             &self.node_elements,
             out_mult.into(),
-            &[out_val, node_id],
+            &[out_val.clone(), node_id],
+        ));
+
+        eval.add_to_relation(RelationEntry::new(
+            &self.lookup_elemnents,
+            E::EF::one(),
+            &[input_val, out_val],
         ));
 
         eval.finalize_logup();

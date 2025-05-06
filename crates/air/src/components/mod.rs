@@ -9,7 +9,7 @@ use lookups::{
         component::{SinLookupComponent, SinLookupEval},
         table::SinLookupColumn,
     },
-    LookupElements,
+    LookupElements, Lookups,
 };
 use max_reduce::{
     component::{MaxReduceComponent, MaxReduceEval},
@@ -208,6 +208,7 @@ impl LuminairComponents {
         interaction_elements: &LuminairInteractionElements,
         interaction_claim: &LuminairInteractionClaim,
         preprocessed_trace: &PreProcessedTrace,
+        lookups: &Lookups,
     ) -> Self {
         let preprocessed_column_ids = &preprocessed_trace.ids();
         // Create a mapping from preprocessed column ID to log size
@@ -276,9 +277,15 @@ impl LuminairComponents {
         };
 
         let sin = if let Some(ref sin_claim) = claim.sin {
+            let sin_log_size = lookups.sin.as_ref().map(|s| s.layout.log_size).unwrap();
             Some(SinComponent::new(
                 tree_span_provider,
-                SinEval::new(&sin_claim, interaction_elements.node_elements.clone()),
+                SinEval::new(
+                    &sin_claim,
+                    interaction_elements.node_elements.clone(),
+                    interaction_elements.lookup_elements.sin.clone(),
+                    sin_log_size,
+                ),
                 interaction_claim.sin.as_ref().unwrap().claimed_sum,
             ))
         } else {

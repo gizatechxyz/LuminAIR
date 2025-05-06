@@ -1,5 +1,8 @@
 use crate::{
-    components::{ InteractionClaim, NodeElements, SinClaim, TraceColumn, TraceError, TraceEval},
+    components::{
+        lookups::sin::SinLookupElements, InteractionClaim, NodeElements, SinClaim, TraceColumn,
+        TraceError, TraceEval,
+    },
     utils::calculate_log_size,
 };
 use num_traits::One;
@@ -8,7 +11,7 @@ use stwo_prover::{
     constraint_framework::{logup::LogupTraceGenerator, Relation},
     core::{
         backend::{
-            simd::{column::BaseColumn, m31::LOG_N_LANES},
+            simd::{column::BaseColumn, m31::LOG_N_LANES, qm31::PackedQM31},
             Column,
         },
         fields::m31::BaseField,
@@ -164,6 +167,7 @@ impl TraceColumn for SinColumn {
 pub fn interaction_trace_evaluation(
     main_trace_eval: &TraceEval,
     node_elements: &NodeElements,
+    lookup_elements: &SinLookupElements,
 ) -> Result<(TraceEval, InteractionClaim), TraceError> {
     if main_trace_eval.is_empty() {
         return Err(TraceError::EmptyTrace);
@@ -203,6 +207,19 @@ pub fn interaction_trace_evaluation(
         out_int_col.write_frac(row, multiplicity.into(), node_elements.combine(&[out, id]));
     }
     out_int_col.finalize_col();
+
+    // Create col for the lookup
+    let mut lookup_int_col = logup_gen.new_col();
+    for row in 0..1 << (log_size - LOG_N_LANES) {
+        let input = input_main_col[row];
+        let out = out_main_col[row];
+
+        lookup_int_col.write_frac(
+            row,
+            PackedQM31::one(),
+            lookup_elements.combine(&[input, out]),
+        );
+    }
 
     let (trace, claimed_sum) = logup_gen.finalize_last();
 

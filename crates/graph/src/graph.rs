@@ -487,7 +487,7 @@ impl LuminairGraph for Graph {
                             .map_err(|_| ProvingError::ConstraintsNotSatisfied)?
                     }
                     ClaimType::Sin(_) => {
-                        sin::table::interaction_trace_evaluation(&trace, node_elements)
+                        sin::table::interaction_trace_evaluation(&trace, node_elements, &lookup_elements.sin)
                             .map_err(|_| ProvingError::ConstraintsNotSatisfied)?
                     }
                     ClaimType::SinLookup(_) => {
@@ -528,6 +528,7 @@ impl LuminairGraph for Graph {
             &interaction_elements,
             &interaction_claim,
             &preprocessed_trace,
+            &settings.lookups
         );
         let components = component_builder.provers();
         let proof = prover::prove::<SimdBackend, _>(&components, channel, commitment_scheme)?;
@@ -608,6 +609,7 @@ impl LuminairGraph for Graph {
             &interaction_elements,
             &interaction_claim,
             &preprocessed_trace,
+            &settings.lookups
         );
         let components = component_builder.components();
 

@@ -190,12 +190,12 @@ pub fn interaction_trace_evaluation(
     for row in 0..1 << (log_size - LOG_N_LANES) {
         let mult = mult_col[row];
         let input: PackedM31 = lut_col_0[row];
-        let output: PackedM31 = lut_col_1[row];
+        let out: PackedM31 = lut_col_1[row];
 
         int_col.write_frac(
             row,
             -PackedQM31::one() * mult,
-            elements.combine(&[input, output]),
+            elements.combine(&[input, out]),
         );
     }
     int_col.finalize_col();
