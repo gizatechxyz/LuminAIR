@@ -1387,7 +1387,6 @@ dependencies = [
 [[package]]
 name = "numerair"
 version = "0.1.0"
-source = "git+https://github.com/gizatechxyz/NumerAir.git?rev=a45e65f#a45e65feb7566ecb25d2e781a989f0c033ce7f4e"
 dependencies = [
  "bytemuck",
  "lazy_static",
@@ -1891,7 +1890,7 @@ dependencies = [
 [[package]]
 name = "stwo-prover"
 version = "0.1.1"
-source = "git+https://github.com/starkware-libs/stwo.git?rev=8902113#8902113710a45672d068f847cb7aa72913265731"
+source = "git+https://github.com/starkware-libs/stwo?rev=045963c#045963c3814e605e18d3edafadc79f52de8f21bb"
 dependencies = [
  "blake2",
  "blake3",
@@ -1902,6 +1901,7 @@ dependencies = [
  "itertools 0.12.1",
  "num-traits",
  "rand",
+ "rayon",
  "serde",
  "starknet-crypto",
  "starknet-ff",

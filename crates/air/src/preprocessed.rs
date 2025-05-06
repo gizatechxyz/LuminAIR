@@ -9,10 +9,13 @@ use serde::{Deserialize, Serialize};
 use stwo_prover::{
     constraint_framework::preprocessed_columns::PreProcessedColumnId,
     core::{
-        backend::simd::{
-            column::BaseColumn,
-            m31::{PackedM31, LOG_N_LANES, N_LANES},
-            SimdBackend,
+        backend::{
+            simd::{
+                column::BaseColumn,
+                m31::{PackedM31, N_LANES},
+                SimdBackend,
+            },
+            Column,
         },
         fields::m31::{BaseField, M31},
         poly::{
@@ -27,7 +30,7 @@ use typetag;
 pub trait PreProcessedColumn: Any {
     fn log_size(&self) -> u32;
     fn id(&self) -> PreProcessedColumnId;
-    fn gen_column_simd(&self) -> CircleEvaluation<SimdBackend, BaseField, BitReversedOrder>;
+    fn gen_column(&self) -> CircleEvaluation<SimdBackend, BaseField, BitReversedOrder>;
     fn clone_box(&self) -> Box<dyn PreProcessedColumn>;
     fn as_any(&self) -> &dyn Any;
 }
@@ -52,7 +55,7 @@ impl PreProcessedTrace {
     }
 
     pub fn gen_trace(&self) -> TraceEval {
-        self.columns.iter().map(|c| c.gen_column_simd()).collect()
+        self.columns.iter().map(|c| c.gen_column()).collect()
     }
 
     pub fn columns_of<T: Any>(&self) -> Vec<&T> {
@@ -99,7 +102,7 @@ impl SinLUT {
 
     /// Lazily build (or fetch) the full column evaluation.
     pub fn evaluation(&self) -> &CircleEvaluation<SimdBackend, BaseField, BitReversedOrder> {
-        self.eval.get_or_init(|| self.gen_column_simd())
+        self.eval.get_or_init(|| self.gen_column())
     }
 
     /// Given a vector of row index, computes the packed M31 values for that row
@@ -148,8 +151,8 @@ impl PreProcessedColumn for SinLUT {
         Box::new(self.clone())
     }
 
-    /// Generate the entire column using SIMD
-    fn gen_column_simd(&self) -> CircleEvaluation<SimdBackend, BaseField, BitReversedOrder> {
+    /// Generate the entire column
+    fn gen_column(&self) -> CircleEvaluation<SimdBackend, BaseField, BitReversedOrder> {
         let log_size = self.log_size();
         let domain = CanonicCoset::new(log_size).circle_domain();
 
@@ -163,12 +166,17 @@ impl PreProcessedColumn for SinLUT {
         all_values.sort_unstable();
         all_values.dedup();
 
-        // Generate column using packed_at
-        let column = BaseColumn::from_simd(
-            (0..(1 << (log_size - LOG_N_LANES)))
-                .map(|i| self.packed_at(i, &all_values))
-                .collect(),
-        );
+        let trace_size = 1 << log_size;
+        let mut column = BaseColumn::zeros(trace_size);
+
+        for (i, value) in all_values.iter().enumerate() {
+            match self.col_index {
+                0 => column.set(i, Fixed(*value).to_m31()),
+                1 => column.set(i, Fixed::from_f64(Fixed(*value).to_f64().sin()).to_m31()),
+
+                _ => unreachable!(),
+            }
+        }
 
         CircleEvaluation::new(domain, column)
     }

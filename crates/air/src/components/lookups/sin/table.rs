@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-use num_traits::One;
+use num_traits::{One, Zero};
 use numerair::Fixed;
 use serde::{Deserialize, Serialize};
 use stwo_prover::{

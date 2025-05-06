@@ -26,7 +26,7 @@ macro_rules! single_unary_test {
                 c.drop();
                 let trace = cx.gen_trace(&mut settings).expect("Trace generation failed");
                 let proof = cx.prove(trace, settings.clone()).expect("Proof generation failed");
-                // cx.verify(proof, settings.clone()).expect("Proof verification failed");
+                cx.verify(proof, settings.clone()).expect("Proof verification failed");
                 // Retrieve output data
                 let stwo_output = c.data();
 

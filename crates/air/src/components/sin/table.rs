@@ -5,7 +5,7 @@ use crate::{
     },
     utils::calculate_log_size,
 };
-use num_traits::One;
+use num_traits::{One, Zero};
 use serde::{Deserialize, Serialize};
 use stwo_prover::{
     constraint_framework::{logup::LogupTraceGenerator, Relation},
@@ -159,7 +159,7 @@ impl SinColumn {
 impl TraceColumn for SinColumn {
     /// Returns the number of columns in the main trace and interaction trace.
     fn count() -> (usize, usize) {
-        (11, 2)
+        (11, 3)
     }
 }
 
@@ -220,6 +220,7 @@ pub fn interaction_trace_evaluation(
             lookup_elements.combine(&[input, out]),
         );
     }
+    lookup_int_col.finalize_col();
 
     let (trace, claimed_sum) = logup_gen.finalize_last();
 

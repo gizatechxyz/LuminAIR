@@ -1,4 +1,3 @@
-#![feature(trait_upcasting)]
 #![feature(portable_simd)]
 
 use ::serde::{Deserialize, Serialize};
