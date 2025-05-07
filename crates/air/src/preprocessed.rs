@@ -79,7 +79,7 @@ pub fn lookups_to_preprocessed_column(lookups: &Lookups) -> Vec<Box<dyn PreProce
 
 // ================== SIN ==================
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct SinLUT {
     pub layout: Layout,
     pub col_index: usize,
@@ -173,7 +173,6 @@ impl PreProcessedColumn for SinLUT {
             match self.col_index {
                 0 => column.set(i, Fixed(*value).to_m31()),
                 1 => column.set(i, Fixed::from_f64(Fixed(*value).to_f64().sin()).to_m31()),
-
                 _ => unreachable!(),
             }
         }

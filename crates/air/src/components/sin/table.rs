@@ -5,7 +5,7 @@ use crate::{
     },
     utils::calculate_log_size,
 };
-use num_traits::{One, Zero};
+use num_traits::One;
 use serde::{Deserialize, Serialize};
 use stwo_prover::{
     constraint_framework::{logup::LogupTraceGenerator, Relation},

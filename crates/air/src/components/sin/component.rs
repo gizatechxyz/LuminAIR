@@ -12,7 +12,7 @@ pub struct SinEval {
     log_size: u32,
     lut_log_size: u32,
     node_elements: NodeElements,
-    lookup_elemnents: SinLookupElements,
+    lookup_elements: SinLookupElements,
 }
 
 impl SinEval {
@@ -20,14 +20,14 @@ impl SinEval {
     pub fn new(
         claim: &SinClaim,
         node_elements: NodeElements,
-        lookup_elemnents: SinLookupElements,
+        lookup_elements: SinLookupElements,
         lut_log_size: u32,
     ) -> Self {
         Self {
             log_size: claim.log_size,
             lut_log_size,
             node_elements,
-            lookup_elemnents,
+            lookup_elements,
         }
     }
 }
@@ -108,7 +108,7 @@ impl FrameworkEval for SinEval {
         ));
 
         eval.add_to_relation(RelationEntry::new(
-            &self.lookup_elemnents,
+            &self.lookup_elements,
             E::EF::one(),
             &[input_val, out_val],
         ));

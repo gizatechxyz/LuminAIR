@@ -68,6 +68,15 @@ use thiserror::Error;
 
 #[derive(Clone, Debug, Error)]
 pub enum LuminairError {
+    #[error("Main trace generation failed.")]
+    MainTraceEvalGenError,
+    
+    #[error("Interaction trace generation failed.")]
+    InteractionTraceEvalGenError,
+
+    #[error(transparent)]
+    ProverError(#[from] ProvingError),
+
     #[error(transparent)]
     StwoVerifierError(#[from] VerificationError),
 
@@ -91,7 +100,7 @@ pub trait LuminairGraph {
         &mut self,
         pie: LuminairPie,
         settings: CircuitSettings,
-    ) -> Result<LuminairProof<Blake2sMerkleHasher>, ProvingError>;
+    ) -> Result<LuminairProof<Blake2sMerkleHasher>, LuminairError>;
 
     /// Verifies a proof to ensure integrity of graph's computation.
     fn verify(
@@ -376,7 +385,7 @@ impl LuminairGraph for Graph {
         &mut self,
         pie: LuminairPie,
         settings: CircuitSettings,
-    ) -> Result<LuminairProof<Blake2sMerkleHasher>, ProvingError> {
+    ) -> Result<LuminairProof<Blake2sMerkleHasher>, LuminairError> {
         // ┌──────────────────────────┐
         // │     Protocol Setup       │
         // └──────────────────────────┘
@@ -400,7 +409,7 @@ impl LuminairGraph for Graph {
         tracing::info!("Preprocessed Trace");
         // Convert lookups in circuit settings to preprocessed column.
         let lut_cols = lookups_to_preprocessed_column(&settings.lookups);
-        let preprocessed_trace = PreProcessedTrace::new(lut_cols);        
+          let preprocessed_trace = PreProcessedTrace::new(lut_cols);        
         let mut tree_builder = commitment_scheme.tree_builder();
         tree_builder.extend_evals(preprocessed_trace.gen_trace());
         // Commit the preprocessed trace
@@ -421,8 +430,8 @@ impl LuminairGraph for Graph {
                 let (trace, claim_type) = match table_trace.to_trace() {
                     Ok(result) => result,
                     Err(err) => {
-                        tracing::error!("Trace evaluation failed: {:?}", err);
-                        return Err(ProvingError::ConstraintsNotSatisfied);
+                        tracing::error!("Trace eval generation failed: {:?}", err);
+                        return Err(LuminairError::MainTraceEvalGenError);
                     }
                 };
 
@@ -468,33 +477,33 @@ impl LuminairGraph for Graph {
                 let (interaction_trace, claim) = match claim_type {
                     ClaimType::Add(_) => {
                         add::table::interaction_trace_evaluation(&trace, node_elements)
-                            .map_err(|_| ProvingError::ConstraintsNotSatisfied)?
+                            .map_err(|_| LuminairError::InteractionTraceEvalGenError)?
                     }
                     ClaimType::Mul(_) => {
                         mul::table::interaction_trace_evaluation(&trace, node_elements)
-                            .map_err(|_| ProvingError::ConstraintsNotSatisfied)?
+                            .map_err(|_| LuminairError::InteractionTraceEvalGenError)?
                     }
                     ClaimType::SumReduce(_) => {
                         sum_reduce::table::interaction_trace_evaluation(&trace, node_elements)
-                            .map_err(|_| ProvingError::ConstraintsNotSatisfied)?
+                            .map_err(|_| LuminairError::InteractionTraceEvalGenError)?
                     }
                     ClaimType::Recip(_) => {
                         recip::table::interaction_trace_evaluation(&trace, node_elements)
-                            .map_err(|_| ProvingError::ConstraintsNotSatisfied)?
+                            .map_err(|_| LuminairError::InteractionTraceEvalGenError)?
                     }
                     ClaimType::MaxReduce(_) => {
                         max_reduce::table::interaction_trace_evaluation(&trace, node_elements)
-                            .map_err(|_| ProvingError::ConstraintsNotSatisfied)?
+                            .map_err(|_| LuminairError::InteractionTraceEvalGenError)?
                     }
                     ClaimType::Sin(_) => {
                         sin::table::interaction_trace_evaluation(&trace, node_elements, &lookup_elements.sin)
-                            .map_err(|_| ProvingError::ConstraintsNotSatisfied)?
+                            .map_err(|_| LuminairError::InteractionTraceEvalGenError)?
                     }
                     ClaimType::SinLookup(_) => {
                         let mut sin_luts = preprocessed_trace.columns_of::<SinLUT>();
                         sin_luts.sort_by_key(|c| c.col_index);
 
-                        lookups::sin::table::interaction_trace_evaluation(&trace, &sin_luts, &lookup_elements.sin)                            .map_err(|_| ProvingError::ConstraintsNotSatisfied)?
+                        lookups::sin::table::interaction_trace_evaluation(&trace, &sin_luts, &lookup_elements.sin)                            .map_err(|_| LuminairError::InteractionTraceEvalGenError)?
                     }
                 };
 

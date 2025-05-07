@@ -1,7 +1,7 @@
 use stwo_prover::relation;
 
-pub mod table;
 pub mod component;
+pub mod table;
 
 // Defines the relation for the LUT elements.
 // It allows to constrain LUTs.
