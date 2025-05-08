@@ -1,6 +1,15 @@
+use std::collections::HashMap;
+
 use add::{
     component::{AddComponent, AddEval},
     table::AddColumn,
+};
+use lookups::{
+    sin::{
+        component::{SinLookupComponent, SinLookupEval},
+        table::SinLookupColumn,
+    },
+    LookupElements, Lookups,
 };
 use max_reduce::{
     component::{MaxReduceComponent, MaxReduceEval},
@@ -15,8 +24,12 @@ use recip::{
     table::RecipColumn,
 };
 use serde::{Deserialize, Serialize};
+use sin::{
+    component::{SinComponent, SinEval},
+    table::SinColumn,
+};
 use stwo_prover::{
-    constraint_framework::{preprocessed_columns::IsFirst, TraceLocationAllocator},
+    constraint_framework::TraceLocationAllocator,
     core::{
         air::{Component, ComponentProver},
         backend::simd::SimdBackend,
@@ -35,12 +48,14 @@ use sum_reduce::{
 
 use thiserror::Error;
 
-use crate::{LuminairClaim, LuminairInteractionClaim};
+use crate::{preprocessed::PreProcessedTrace, LuminairClaim, LuminairInteractionClaim};
 
 pub mod add;
+pub mod lookups;
 pub mod max_reduce;
 pub mod mul;
 pub mod recip;
+pub mod sin;
 pub mod sum_reduce;
 
 /// Errors related to trace operations.
@@ -64,6 +79,10 @@ pub type SumReduceClaim = Claim<SumReduceColumn>;
 pub type RecipClaim = Claim<RecipColumn>;
 /// Claim for the MaxReduce trace.
 pub type MaxReduceClaim = Claim<MaxReduceColumn>;
+/// Claim for the Sin trace.
+pub type SinClaim = Claim<SinColumn>;
+/// Claim for the SinLookup trace.
+pub type SinLookupClaim = Claim<SinLookupColumn>;
 
 /// Represents columns of a trace.
 pub trait TraceColumn {
@@ -92,18 +111,13 @@ impl<T: TraceColumn> Claim<T> {
         }
     }
 
-    /// Computes log sizes for preprocessed, main, and interaction traces.
+    /// Computes log sizes for main, and interaction traces.
     pub fn log_sizes(&self) -> TreeVec<Vec<u32>> {
         let (main_trace_cols, interaction_trace_cols) = T::count();
-        let preprocessed_trace_log_sizes: Vec<u32> = vec![self.log_size];
         let trace_log_sizes = vec![self.log_size; main_trace_cols];
         let interaction_trace_log_sizes: Vec<u32> =
             vec![self.log_size; SECURE_EXTENSION_DEGREE * interaction_trace_cols];
-        TreeVec::new(vec![
-            preprocessed_trace_log_sizes,
-            trace_log_sizes,
-            interaction_trace_log_sizes,
-        ])
+        TreeVec::new(vec![vec![], trace_log_sizes, interaction_trace_log_sizes])
     }
 
     /// Mix the log size of the table and the node structure to the Fiat-Shamir [`Channel`].
@@ -121,6 +135,8 @@ pub enum ClaimType {
     SumReduce(Claim<SumReduceColumn>),
     Recip(Claim<RecipColumn>),
     MaxReduce(Claim<MaxReduceColumn>),
+    Sin(Claim<SinColumn>),
+    SinLookup(Claim<SinLookupColumn>),
 }
 
 /// The claim of the interaction phase 2 (with the logUp protocol).
@@ -144,7 +160,7 @@ impl InteractionClaim {
     }
 }
 
-// Defines the relation for the node lookup elements.
+// Defines the relation for the node elements.
 // It allows to constrain relationship between nodes.
 relation!(NodeElements, 2);
 
@@ -153,17 +169,20 @@ relation!(NodeElements, 2);
 /// The elements are drawn from a Fiat-Shamir [`Channel`], currently using the BLAKE2 hash.
 #[derive(Clone, Debug)]
 pub struct LuminairInteractionElements {
-    pub node_lookup_elements: NodeElements,
+    pub node_elements: NodeElements,
+    pub lookup_elements: LookupElements,
 }
 
 impl LuminairInteractionElements {
     /// Draw all the interaction elements needed for
     /// all the components of the system.
     pub fn draw(channel: &mut impl Channel) -> Self {
-        let node_lookup_elements = NodeElements::draw(channel);
+        let node_elements = NodeElements::draw(channel);
+        let lookup_elements = LookupElements::draw(channel);
 
         Self {
-            node_lookup_elements,
+            node_elements,
+            lookup_elements,
         }
     }
 }
@@ -178,6 +197,8 @@ pub struct LuminairComponents {
     sum_reduce: Option<SumReduceComponent>,
     recip: Option<RecipComponent>,
     max_reduce: Option<MaxReduceComponent>,
+    sin: Option<SinComponent>,
+    sin_lookup: Option<SinLookupComponent>,
 }
 
 impl LuminairComponents {
@@ -186,23 +207,23 @@ impl LuminairComponents {
         claim: &LuminairClaim,
         interaction_elements: &LuminairInteractionElements,
         interaction_claim: &LuminairInteractionClaim,
-        is_first_log_sizes: &[u32],
+        preprocessed_trace: &PreProcessedTrace,
+        lookups: &Lookups,
     ) -> Self {
-        let tree_span_provider = &mut TraceLocationAllocator::new_with_preproccessed_columns(
-            &is_first_log_sizes
-                .iter()
-                .copied()
-                .map(|log_size| IsFirst::new(log_size).id())
-                .collect::<Vec<_>>(),
-        );
+        let preprocessed_column_ids = &preprocessed_trace.ids();
+        // Create a mapping from preprocessed column ID to log size
+        let mut preprocessed_column_log_sizes = HashMap::new();
+        for column in preprocessed_trace.columns.iter() {
+            preprocessed_column_log_sizes.insert(column.id().id.clone(), column.log_size());
+        }
+
+        let tree_span_provider =
+            &mut TraceLocationAllocator::new_with_preproccessed_columns(preprocessed_column_ids);
 
         let add = if let Some(ref add_claim) = claim.add {
             Some(AddComponent::new(
                 tree_span_provider,
-                AddEval::new(
-                    &add_claim,
-                    interaction_elements.node_lookup_elements.clone(),
-                ),
+                AddEval::new(&add_claim, interaction_elements.node_elements.clone()),
                 interaction_claim.add.as_ref().unwrap().claimed_sum,
             ))
         } else {
@@ -212,10 +233,7 @@ impl LuminairComponents {
         let mul = if let Some(ref mul_claim) = claim.mul {
             Some(MulComponent::new(
                 tree_span_provider,
-                MulEval::new(
-                    &mul_claim,
-                    interaction_elements.node_lookup_elements.clone(),
-                ),
+                MulEval::new(&mul_claim, interaction_elements.node_elements.clone()),
                 interaction_claim.mul.as_ref().unwrap().claimed_sum,
             ))
         } else {
@@ -227,7 +245,7 @@ impl LuminairComponents {
                 tree_span_provider,
                 SumReduceEval::new(
                     &sum_reduce_claim,
-                    interaction_elements.node_lookup_elements.clone(),
+                    interaction_elements.node_elements.clone(),
                 ),
                 interaction_claim.sum_reduce.as_ref().unwrap().claimed_sum,
             ))
@@ -238,10 +256,7 @@ impl LuminairComponents {
         let recip = if let Some(ref recip_claim) = claim.recip {
             Some(RecipComponent::new(
                 tree_span_provider,
-                RecipEval::new(
-                    &recip_claim,
-                    interaction_elements.node_lookup_elements.clone(),
-                ),
+                RecipEval::new(&recip_claim, interaction_elements.node_elements.clone()),
                 interaction_claim.recip.as_ref().unwrap().claimed_sum,
             ))
         } else {
@@ -253,9 +268,38 @@ impl LuminairComponents {
                 tree_span_provider,
                 MaxReduceEval::new(
                     &max_reduce_claim,
-                    interaction_elements.node_lookup_elements.clone(),
+                    interaction_elements.node_elements.clone(),
                 ),
                 interaction_claim.max_reduce.as_ref().unwrap().claimed_sum,
+            ))
+        } else {
+            None
+        };
+
+        let sin = if let Some(ref sin_claim) = claim.sin {
+            let sin_log_size = lookups.sin.as_ref().map(|s| s.layout.log_size).unwrap();
+            Some(SinComponent::new(
+                tree_span_provider,
+                SinEval::new(
+                    &sin_claim,
+                    interaction_elements.node_elements.clone(),
+                    interaction_elements.lookup_elements.sin.clone(),
+                    sin_log_size,
+                ),
+                interaction_claim.sin.as_ref().unwrap().claimed_sum,
+            ))
+        } else {
+            None
+        };
+
+        let sin_lookup = if let Some(ref sin_lookup_claim) = claim.sin_lookup {
+            Some(SinLookupComponent::new(
+                tree_span_provider,
+                SinLookupEval::new(
+                    &sin_lookup_claim,
+                    interaction_elements.lookup_elements.sin.clone(),
+                ),
+                interaction_claim.sin_lookup.as_ref().unwrap().claimed_sum,
             ))
         } else {
             None
@@ -267,6 +311,8 @@ impl LuminairComponents {
             sum_reduce,
             recip,
             max_reduce,
+            sin,
+            sin_lookup,
         }
     }
 
@@ -288,6 +334,12 @@ impl LuminairComponents {
         }
         if let Some(ref max_reduce_component) = self.max_reduce {
             components.push(max_reduce_component);
+        }
+        if let Some(ref sin_component) = self.sin {
+            components.push(sin_component);
+        }
+        if let Some(ref sin_lookup_component) = self.sin_lookup {
+            components.push(sin_lookup_component);
         }
         components
     }

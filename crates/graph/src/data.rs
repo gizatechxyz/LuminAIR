@@ -1,4 +1,5 @@
 use luminal::prelude::*;
+use num_traits::Zero;
 use numerair::Fixed;
 use std::sync::Arc;
 
@@ -9,23 +10,33 @@ pub(crate) struct StwoData(pub(crate) Arc<Vec<Fixed>>);
 impl StwoData {
     /// Creates a new `StwoData` instance from a slice of `f32` values.
     pub(crate) fn from_f32(data: &[f32]) -> Self {
-        let mut fixed_data = Vec::with_capacity(data.len());
-        for d in data {
-            fixed_data.push(Fixed::from_f64(*d as f64));
-        }
+        let fixed_data = data.iter()
+            .map(|&d| Fixed::from_f64(d as f64))
+            .collect::<Vec<_>>();
 
         StwoData(Arc::new(fixed_data))
     }
 
     /// Converts the fixed point data back to a vector of `f32` values.
     pub(crate) fn to_f32(&self) -> Vec<f32> {
-        let mut float_data = Vec::with_capacity(self.0.len());
+        self.0.iter()
+            .map(|&d| d.to_f64() as f32)
+            .collect()
+    }
 
-        for &d in self.0.iter() {
-            float_data.push(d.to_f64() as f32);
-        }
-
-        float_data
+    /// Returns both minimum and maximum values in the data
+    pub(crate) fn min_max(&self) -> (Fixed, Fixed) {
+        self.0.iter().fold(
+            (Fixed::zero(), Fixed::zero()),
+            |(min_val, max_val), &val| match self.0.len() {
+                0 => (Fixed::zero(), Fixed::zero()),
+                _ if min_val.0 == 0 && max_val.0 == 0 => (val, val),
+                _ => (
+                    if val.0 < min_val.0 { val } else { min_val },
+                    if val.0 > max_val.0 { val } else { max_val },
+                ),
+            },
+        )
     }
 }
 

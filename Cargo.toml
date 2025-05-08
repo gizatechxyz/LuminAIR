@@ -9,13 +9,15 @@ repository = "https://github.com/raphaelDkhn/Luminair"
 license = "MIT"
 
 [workspace.dependencies]
-stwo-prover = { git = "https://github.com/starkware-libs/stwo.git", rev = "8902113" }
+stwo-prover = { git = "https://github.com/starkware-libs/stwo", rev = "045963c", features = [
+    "parallel",
+], default-features = false }
 luminal = { git = "https://github.com/raphaelDkhn/luminal.git", rev = "80ae0fd" }
-numerair = { git = "https://github.com/gizatechxyz/NumerAir.git", rev = "9e6d422" }
-
+numerair = { git = "https://github.com/gizatechxyz/NumerAir.git", rev = "79d84ec" }
 rayon = "1.10.0"
 tracing = "0.1"
 tracing-subscriber = "0.3"
+typetag = "0.2.20"
 serde = { version = "1.0.217", features = ["derive"] }
 serde_json = "1.0.135"
 thiserror = "2.0"

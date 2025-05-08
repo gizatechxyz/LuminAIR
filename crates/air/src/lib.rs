@@ -1,19 +1,17 @@
-#![feature(trait_upcasting)]
-
-use std::vec;
+#![feature(portable_simd)]
 
 use ::serde::{Deserialize, Serialize};
 use components::{
-    AddClaim, InteractionClaim, MaxReduceClaim, MulClaim, RecipClaim, SumReduceClaim,
+    AddClaim, InteractionClaim, MaxReduceClaim, MulClaim, RecipClaim, SinClaim, SinLookupClaim,
+    SumReduceClaim,
 };
-use pie::ExecutionResources;
-use stwo_prover::constraint_framework::PREPROCESSED_TRACE_IDX;
 use stwo_prover::core::{
     channel::Channel, pcs::TreeVec, prover::StarkProof, vcs::ops::MerkleHasher,
 };
 
 pub mod components;
 pub mod pie;
+pub mod preprocessed;
 pub mod utils;
 
 /// STARK proof for a Luminair computational graph execution.
@@ -24,31 +22,24 @@ pub struct LuminairProof<H: MerkleHasher> {
     pub claim: LuminairClaim,
     pub interaction_claim: LuminairInteractionClaim,
     pub proof: StarkProof<H>,
-    pub execution_resources: ExecutionResources,
 }
 
 /// Claim for system components.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct LuminairClaim {
     pub add: Option<AddClaim>,
     pub mul: Option<MulClaim>,
     pub sum_reduce: Option<SumReduceClaim>,
     pub recip: Option<RecipClaim>,
     pub max_reduce: Option<MaxReduceClaim>,
-    pub is_first_log_sizes: Vec<u32>,
+    pub sin: Option<SinClaim>,
+    pub sin_lookup: Option<SinLookupClaim>,
 }
 
 impl LuminairClaim {
-    /// Initializes a new claim with specified preprocessed trace log sizes.
-    pub fn new(is_first_log_sizes: Vec<u32>) -> Self {
-        Self {
-            add: None,
-            mul: None,
-            sum_reduce: None,
-            recip: None,
-            max_reduce: None,
-            is_first_log_sizes,
-        }
+    /// Initializes a new claim.
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// Mixes claim data into a Fiat-Shamir channel for proof binding.
@@ -68,9 +59,16 @@ impl LuminairClaim {
         if let Some(ref max_reduce) = self.max_reduce {
             max_reduce.mix_into(channel);
         }
+        if let Some(ref sin) = self.sin {
+            sin.mix_into(channel);
+        }
+        if let Some(ref sin_lookup) = self.sin_lookup {
+            sin_lookup.mix_into(channel);
+        }
     }
 
-    /// Computes log sizes for all trace types in the claim.
+    /// Returns the log sizes of the components.
+    /// Does not include the preprocessed trace log sizes.
     pub fn log_sizes(&self) -> TreeVec<Vec<u32>> {
         let mut log_sizes = vec![];
 
@@ -89,16 +87,20 @@ impl LuminairClaim {
         if let Some(ref max_reduce) = self.max_reduce {
             log_sizes.push(max_reduce.log_sizes());
         }
+        if let Some(ref sin) = self.sin {
+            log_sizes.push(sin.log_sizes());
+        }
+        if let Some(ref sin_lookup) = self.sin_lookup {
+            log_sizes.push(sin_lookup.log_sizes());
+        }
 
-        let mut log_sizes = TreeVec::concat_cols(log_sizes.into_iter());
-        log_sizes[PREPROCESSED_TRACE_IDX] = self.is_first_log_sizes.clone();
-        log_sizes
+        TreeVec::concat_cols(log_sizes.into_iter())
     }
 }
 
 /// Claim over the sum of interaction columns per system component.
 ///
-/// Used in the logUp lookup protocol with AIR.
+/// Used in the logUp protocol with AIR.
 #[derive(Serialize, Deserialize, Default, Debug)]
 pub struct LuminairInteractionClaim {
     pub add: Option<InteractionClaim>,
@@ -106,6 +108,8 @@ pub struct LuminairInteractionClaim {
     pub sum_reduce: Option<InteractionClaim>,
     pub recip: Option<InteractionClaim>,
     pub max_reduce: Option<InteractionClaim>,
+    pub sin: Option<InteractionClaim>,
+    pub sin_lookup: Option<InteractionClaim>,
 }
 
 impl LuminairInteractionClaim {
@@ -125,6 +129,12 @@ impl LuminairInteractionClaim {
         }
         if let Some(ref max_reduce) = self.max_reduce {
             max_reduce.mix_into(channel);
+        }
+        if let Some(ref sin) = self.sin {
+            sin.mix_into(channel);
+        }
+        if let Some(ref sin_lookup) = self.sin_lookup {
+            sin_lookup.mix_into(channel);
         }
     }
 }

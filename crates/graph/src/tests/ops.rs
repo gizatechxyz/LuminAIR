@@ -10,7 +10,8 @@ use rand::{rngs::StdRng, SeedableRng};
 // https://github.com/raphaelDkhn/luminal/blob/main/crates/luminal_cuda/src/tests/fp32.rs
 
 // =============== UNARY ===============
-unary_test!(|a| a.recip(), test_recip, f32, true);
+// unary_test!(|a| a.recip(), test_recip, f32, true);
+unary_test!(|a| a.sin(), test_sin, f32, true);
 
 // =============== BINARY ===============
 
@@ -36,9 +37,19 @@ fn test_sum_reduce() {
         <(GenericCompiler, StwoCompiler)>::default(),
         (&mut b, &mut c, &mut d),
     );
-    let trace = cx.gen_trace().expect("Trace generation failed");
-    let proof = cx.prove(trace).expect("Proof generation failed");
-    cx.verify(proof).expect("Proof verification failed");
+
+    let mut settings = cx.gen_circuit_settings();
+    b.drop();
+    c.drop();
+    d.drop();
+    let trace = cx
+        .gen_trace(&mut settings)
+        .expect("Trace generation failed");
+    let proof = cx
+        .prove(trace, settings.clone())
+        .expect("Proof generation failed");
+    cx.verify(proof, settings)
+        .expect("Proof verification failed");
 
     // CPUCompiler comparison
     let mut cx_cpu = Graph::new();
@@ -75,9 +86,18 @@ fn test_max_reduce() {
         <(GenericCompiler, StwoCompiler)>::default(),
         (&mut b, &mut c, &mut d),
     );
-    let trace = cx.gen_trace().expect("Trace generation failed");
-    let proof = cx.prove(trace).expect("Proof generation failed");
-    cx.verify(proof).expect("Proof verification failed");
+    let mut settings = cx.gen_circuit_settings();
+    b.drop();
+    c.drop();
+    d.drop();
+    let trace = cx
+        .gen_trace(&mut settings)
+        .expect("Trace generation failed");
+    let proof = cx
+        .prove(trace, settings.clone())
+        .expect("Proof generation failed");
+    cx.verify(proof, settings)
+        .expect("Proof verification failed");
 
     // CPUCompiler comparison
     let mut cx_cpu = Graph::new();

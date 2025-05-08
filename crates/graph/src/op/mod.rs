@@ -10,8 +10,11 @@ pub(crate) mod prim;
 ///
 /// Extends the Luminal's `Operator` trait with the ability to produce a trace and claim
 /// compatible with the Stwo prover, specific to a given `TraceColumn` type `C` and table type `T`.
-pub(crate) trait LuminairOperator<C: TraceColumn + Debug + 'static, T: Debug + 'static>:
-    Operator
+pub(crate) trait LuminairOperator<
+    C: TraceColumn + Debug + 'static,
+    T: Debug + 'static,
+    L: Debug + 'static,
+>: Operator
 {
     /// Processes inputs to generate a trace, claim, and output tensor.
     ///
@@ -22,6 +25,7 @@ pub(crate) trait LuminairOperator<C: TraceColumn + Debug + 'static, T: Debug + '
         inp: Vec<(InputTensor, ShapeTracker)>,
         table: &mut T,
         node_info: &NodeInfo,
+        lookup: &mut L,
     ) -> Vec<Tensor>;
 }
 
@@ -29,7 +33,12 @@ pub(crate) trait LuminairOperator<C: TraceColumn + Debug + 'static, T: Debug + '
 ///
 /// Provides methods to determine if an operator supports trace generation and
 /// to execute it if available, defaulting to no support.
-pub(crate) trait HasProcessTrace<C: TraceColumn + Debug + 'static, T: Debug + 'static> {
+pub(crate) trait HasProcessTrace<
+    C: TraceColumn + Debug + 'static,
+    T: Debug + 'static,
+    L: Debug + 'static,
+>
+{
     /// Returns `true` if the operator supports trace generation, `false` otherwise.
     fn has_process_trace(&self) -> bool {
         false
@@ -41,6 +50,7 @@ pub(crate) trait HasProcessTrace<C: TraceColumn + Debug + 'static, T: Debug + 's
         _inp: Vec<(InputTensor, ShapeTracker)>,
         _table: &mut T,
         _node_info: &NodeInfo,
+        _lookup: &mut L,
     ) -> Option<Vec<Tensor>> {
         None
     }
@@ -50,19 +60,21 @@ pub(crate) trait HasProcessTrace<C: TraceColumn + Debug + 'static, T: Debug + 's
 ///
 /// Bridges operators that generate traces with the standard Luminal's `Operator` trait.
 #[derive(Debug)]
-struct LuminairWrapper<C: TraceColumn + Debug + 'static, T: Debug + 'static>(
-    Box<dyn LuminairOperator<C, T>>,
+struct LuminairWrapper<C: TraceColumn + Debug + 'static, T: Debug + 'static, L: Debug + 'static>(
+    Box<dyn LuminairOperator<C, T, L>>,
 );
 
-impl<C: TraceColumn + Debug + 'static, T: Debug + 'static> Operator for LuminairWrapper<C, T> {
+impl<C: TraceColumn + Debug + 'static, T: Debug + 'static, L: Debug + 'static> Operator
+    for LuminairWrapper<C, T, L>
+{
     /// Delegates processing to the wrapped `LuminairOperator`.
     fn process(&mut self, inp: Vec<(InputTensor, ShapeTracker)>) -> Vec<Tensor> {
         self.0.process(inp)
     }
 }
 
-impl<C: TraceColumn + Debug + 'static, T: Debug + 'static> HasProcessTrace<C, T>
-    for LuminairWrapper<C, T>
+impl<C: TraceColumn + Debug + 'static, T: Debug + 'static, L: Debug + 'static>
+    HasProcessTrace<C, T, L> for LuminairWrapper<C, T, L>
 {
     /// Indicates that this wrapper supports trace generation.
     fn has_process_trace(&self) -> bool {
@@ -75,17 +87,18 @@ impl<C: TraceColumn + Debug + 'static, T: Debug + 'static> HasProcessTrace<C, T>
         inp: Vec<(InputTensor, ShapeTracker)>,
         table: &mut T,
         node_info: &NodeInfo,
+        lookup: &mut L,
     ) -> Option<Vec<Tensor>> {
-        Some(self.0.process_trace(inp, table, node_info))
+        Some(self.0.process_trace(inp, table, node_info, lookup))
     }
 }
 
-impl<C: TraceColumn + Debug + 'static, T: Debug + 'static> HasProcessTrace<C, T>
-    for Box<dyn Operator>
+impl<C: TraceColumn + Debug + 'static, T: Debug + 'static, L: Debug + 'static>
+    HasProcessTrace<C, T, L> for Box<dyn Operator>
 {
     /// Checks if the boxed operator is a `LuminairWrapper` supporting tracing.
     fn has_process_trace(&self) -> bool {
-        if let Some(wrapper) = (**self).as_any().downcast_ref::<LuminairWrapper<C, T>>() {
+        if let Some(wrapper) = (**self).as_any().downcast_ref::<LuminairWrapper<C, T, L>>() {
             wrapper.has_process_trace()
         } else {
             false
@@ -98,12 +111,13 @@ impl<C: TraceColumn + Debug + 'static, T: Debug + 'static> HasProcessTrace<C, T>
         inp: Vec<(InputTensor, ShapeTracker)>,
         table: &mut T,
         node_info: &NodeInfo,
+        lookup: &mut L,
     ) -> Option<Vec<Tensor>> {
         if let Some(wrapper) = (**self)
             .as_any_mut()
-            .downcast_mut::<LuminairWrapper<C, T>>()
+            .downcast_mut::<LuminairWrapper<C, T, L>>()
         {
-            wrapper.call_process_trace(inp, table, node_info)
+            wrapper.call_process_trace(inp, table, node_info, lookup)
         } else {
             None
         }
@@ -113,15 +127,21 @@ impl<C: TraceColumn + Debug + 'static, T: Debug + 'static> HasProcessTrace<C, T>
 /// Converts a type into a boxed `Operator` for use in the graph.
 ///
 /// Facilitates wrapping `LuminairOperator` implementations into the Luminal system.
-pub(crate) trait IntoOperator<C: TraceColumn + Debug + 'static, T: Debug + 'static> {
+pub(crate) trait IntoOperator<
+    C: TraceColumn + Debug + 'static,
+    T: Debug + 'static,
+    L: Debug + 'static,
+>
+{
     fn into_operator(self) -> Box<dyn Operator>;
 }
 
-impl<O, C, T> IntoOperator<C, T> for O
+impl<O, C, T, L> IntoOperator<C, T, L> for O
 where
-    O: LuminairOperator<C, T> + 'static,
+    O: LuminairOperator<C, T, L> + 'static,
     C: TraceColumn + Debug + 'static,
     T: Debug + 'static,
+    L: Debug + 'static,
 {
     /// Wraps the operator in a `LuminairWrapper` and boxes it.
     fn into_operator(self) -> Box<dyn Operator> {

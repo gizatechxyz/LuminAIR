@@ -1,13 +1,17 @@
 use serde::{Deserialize, Serialize};
 
-use crate::components::{
-    add::table::AddTable, max_reduce::table::MaxReduceTable, mul::table::MulTable,
-    recip::table::RecipTable, sum_reduce::table::SumReduceTable, ClaimType, TraceError, TraceEval,
+use crate::{
+    components::{
+        add::table::AddTable, lookups::sin::table::SinLookupTable,
+        max_reduce::table::MaxReduceTable, mul::table::MulTable, recip::table::RecipTable,
+        sin::table::SinTable, sum_reduce::table::SumReduceTable, ClaimType, TraceError, TraceEval,
+    },
+    utils::AtomicMultiplicityColumn,
 };
 
 /// Represents an operator's trace table along with its claim before conversion
 /// to a serialized trace format. Used to defer trace evaluation until proving.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub enum TableTrace {
     /// Addition operator trace table.
     Add { table: AddTable },
@@ -19,6 +23,10 @@ pub enum TableTrace {
     Recip { table: RecipTable },
     /// Max Reduce operator trace table.
     MaxReduce { table: MaxReduceTable },
+    /// Sin operator trace table.
+    Sin { table: SinTable },
+    /// Sin LUT trace table.
+    SinLookup { table: SinLookupTable },
 }
 
 impl TableTrace {
@@ -52,6 +60,18 @@ impl TableTrace {
         Self::MaxReduce { table }
     }
 
+    /// Creates a new [`TableTrace`] from a [`SinTable`]
+    /// for use in the proof generation.
+    pub fn from_sin(table: SinTable) -> Self {
+        Self::Sin { table }
+    }
+
+    /// Creates a new [`TableTrace`] from a [`SinLookupTable`]
+    /// for use in the proof generation.
+    pub fn from_sin_lookup(table: SinLookupTable) -> Self {
+        Self::SinLookup { table }
+    }
+
     pub fn to_trace(&self) -> Result<(TraceEval, ClaimType), TraceError> {
         match self {
             TableTrace::Add { table } => {
@@ -78,6 +98,16 @@ impl TableTrace {
                 let (trace, claim) = table.trace_evaluation()?;
                 Ok((trace, ClaimType::MaxReduce(claim)))
             }
+
+            TableTrace::Sin { table } => {
+                let (trace, claim) = table.trace_evaluation()?;
+                Ok((trace, ClaimType::Sin(claim)))
+            }
+
+            TableTrace::SinLookup { table } => {
+                let (trace, claim) = table.trace_evaluation()?;
+                Ok((trace, ClaimType::SinLookup(claim)))
+            }
         }
     }
 }
@@ -87,6 +117,12 @@ impl TableTrace {
 pub struct LuminairPie {
     pub table_traces: Vec<TableTrace>,
     pub execution_resources: ExecutionResources,
+}
+
+/// Struct for all LUT multiplicities
+#[derive(Serialize, Deserialize, Debug)]
+pub struct LUTMultiplicities {
+    pub sin: AtomicMultiplicityColumn,
 }
 
 /// Represents a single trace with its evaluation, claim, and node information.
@@ -111,11 +147,12 @@ pub struct ExecutionResources {
 /// Counts occurrences of specific operations.
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct OpCounter {
-    pub add: Option<usize>,
-    pub mul: Option<usize>,
-    pub sum_reduce: Option<usize>,
-    pub recip: Option<usize>,
-    pub max_reduce: Option<usize>,
+    pub add: usize,
+    pub mul: usize,
+    pub sum_reduce: usize,
+    pub recip: usize,
+    pub max_reduce: usize,
+    pub sin: usize,
 }
 
 /// Indicates if a node input is an initializer (i.e., from initial input).

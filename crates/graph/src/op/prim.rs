@@ -1,9 +1,11 @@
 use luminair_air::{
     components::{
         add::table::{AddColumn, AddTable, AddTableRow},
+        lookups::sin::table::SinLookup,
         max_reduce::table::{MaxReduceColumn, MaxReduceTable, MaxReduceTableRow},
         mul::table::{MulColumn, MulTable, MulTableRow},
         recip::table::{RecipColumn, RecipTable, RecipTableRow},
+        sin::table::{SinColumn, SinTable, SinTableRow},
         sum_reduce::table::{SumReduceColumn, SumReduceTable, SumReduceTableRow},
     },
     pie::NodeInfo,
@@ -106,9 +108,9 @@ impl Operator for LuminairConstant {
 
 // ================== UNARY ==================
 
-/// Implements element-wise addition for LuminAIR.
+/// Implements element-wise recip for LuminAIR.
 #[derive(Debug, Clone, Default, PartialEq)]
-struct LuminairRecip {}
+pub(crate) struct LuminairRecip {}
 
 impl LuminairRecip {
     /// Creates a new `LuminairRecip` instance.
@@ -117,28 +119,57 @@ impl LuminairRecip {
     }
 }
 
-impl LuminairOperator<RecipColumn, RecipTable> for LuminairRecip {
-    /// Processes input tensor, generating a trace, claim, and output tensor.
-    fn process_trace(
-        &mut self,
-        inp: Vec<(InputTensor, ShapeTracker)>,
-        table: &mut RecipTable,
-        node_info: &NodeInfo,
-    ) -> Vec<Tensor> {
-        let input = get_buffer_from_tensor(&inp[0].0);
+impl LuminairRecip {
+    fn compute(
+        &self,
+        inp: &[(InputTensor, ShapeTracker)],
+        trace_mode: bool,
+    ) -> (Vec<Fixed>, Option<Vec<(Fixed, Fixed, Fixed)>>) {
+        let input = get_buffer_from_tensor(&inp[0].0).unwrap();
         let expr = (inp[0].1.index_expression(), inp[0].1.valid_expression());
 
         let mut stack: Vec<i64> = vec![];
         let output_size = inp[0].1.n_elements().to_usize().unwrap();
         let mut out_data = vec![Fixed::zero(); output_size];
 
-        let node_id: BaseField = node_info.id.into();
-        let input_id: BaseField = node_info.inputs[0].id.into();
+        // Only allocate for intermediate values if in trace mode
+        let mut intermediate_values = if trace_mode {
+            Some(Vec::with_capacity(output_size))
+        } else {
+            None
+        };
 
         for (idx, out) in out_data.iter_mut().enumerate() {
             let input_val = get_index(input, &expr, &mut stack, idx);
             let (out_val, rem_val) = input_val.recip();
+            *out = out_val;
 
+            // Only collect intermediate values if in trace mode
+            if let Some(values) = &mut intermediate_values {
+                values.push((input_val, out_val, rem_val));
+            }
+        }
+
+        (out_data, intermediate_values)
+    }
+}
+
+impl LuminairOperator<RecipColumn, RecipTable, ()> for LuminairRecip {
+    fn process_trace(
+        &mut self,
+        inp: Vec<(InputTensor, ShapeTracker)>,
+        table: &mut RecipTable,
+        node_info: &NodeInfo,
+        _lookup: &mut (),
+    ) -> Vec<Tensor> {
+        let (out_data, intermediate_values) = self.compute(&inp, true);
+        let intermediate_values = intermediate_values.unwrap();
+
+        let node_id: BaseField = node_info.id.into();
+        let input_id: BaseField = node_info.inputs[0].id.into();
+        let output_size = inp[0].1.n_elements().to_usize().unwrap();
+
+        for (idx, (input_val, out_val, rem_val)) in intermediate_values.into_iter().enumerate() {
             let input_mult = if node_info.inputs[0].is_initializer {
                 BaseField::zero()
             } else {
@@ -152,7 +183,6 @@ impl LuminairOperator<RecipColumn, RecipTable> for LuminairRecip {
 
             let is_last_idx: u32 = if idx == (output_size - 1) { 1 } else { 0 };
 
-            *out = out_val;
             table.add_row(RecipTableRow {
                 node_id,
                 input_id,
@@ -167,7 +197,7 @@ impl LuminairOperator<RecipColumn, RecipTable> for LuminairRecip {
                 scale: SCALE_FACTOR,
                 input_mult,
                 out_mult,
-            })
+            });
         }
 
         vec![Tensor::new(StwoData(Arc::new(out_data)))]
@@ -175,9 +205,118 @@ impl LuminairOperator<RecipColumn, RecipTable> for LuminairRecip {
 }
 
 impl Operator for LuminairRecip {
-    /// This method is not used as `process_trace` handles all computation for this operator.
-    fn process(&mut self, _inp: Vec<(InputTensor, ShapeTracker)>) -> Vec<Tensor> {
-        unimplemented!()
+    fn process(&mut self, inp: Vec<(InputTensor, ShapeTracker)>) -> Vec<Tensor> {
+        let (out_data, _) = self.compute(&inp, false);
+        vec![Tensor::new(StwoData(Arc::new(out_data)))]
+    }
+}
+
+/// Implements element-wise sin for LuminAIR.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub(crate) struct LuminairSin {}
+
+impl LuminairSin {
+    /// Creates a new `LuminairSin` instance.
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl LuminairSin {
+    fn compute(
+        &self,
+        inp: &[(InputTensor, ShapeTracker)],
+        trace_mode: bool,
+    ) -> (Vec<Fixed>, Option<Vec<(Fixed, Fixed)>>) {
+        let input = get_buffer_from_tensor(&inp[0].0).unwrap();
+        let expr = (inp[0].1.index_expression(), inp[0].1.valid_expression());
+
+        let mut stack: Vec<i64> = vec![];
+        let output_size = inp[0].1.n_elements().to_usize().unwrap();
+        let mut out_data = vec![Fixed::zero(); output_size];
+
+        // Only allocate for intermediate values if in trace mode
+        let mut intermediate_values = if trace_mode {
+            Some(Vec::with_capacity(output_size))
+        } else {
+            None
+        };
+
+        for (idx, out) in out_data.iter_mut().enumerate() {
+            let input_val = get_index(input, &expr, &mut stack, idx);
+            let out_val = Fixed::from_f64(input_val.to_f64().sin());
+            *out = out_val;
+
+            // Only collect intermediate values if in trace mode
+            if let Some(values) = &mut intermediate_values {
+                values.push((input_val, out_val));
+            }
+        }
+
+        (out_data, intermediate_values)
+    }
+}
+
+impl LuminairOperator<SinColumn, SinTable, SinLookup> for LuminairSin {
+    fn process_trace(
+        &mut self,
+        inp: Vec<(InputTensor, ShapeTracker)>,
+        table: &mut SinTable,
+        node_info: &NodeInfo,
+        lookup: &mut SinLookup,
+    ) -> Vec<Tensor> {
+        let (out_data, intermediate_values) = self.compute(&inp, true);
+        let intermediate_values = intermediate_values.unwrap();
+
+        let node_id: BaseField = node_info.id.into();
+        let input_id: BaseField = node_info.inputs[0].id.into();
+        let output_size = inp[0].1.n_elements().to_usize().unwrap();
+
+        for (idx, (input_val, out_val)) in intermediate_values.into_iter().enumerate() {
+            let input_mult = if node_info.inputs[0].is_initializer {
+                BaseField::zero()
+            } else {
+                -BaseField::one()
+            };
+            let out_mult = if node_info.output.is_final_output {
+                BaseField::zero()
+            } else {
+                BaseField::one() * BaseField::from_u32_unchecked(node_info.num_consumers)
+            };
+
+            let is_last_idx: u32 = if idx == (output_size - 1) { 1 } else { 0 };
+
+            table.add_row(SinTableRow {
+                node_id,
+                input_id,
+                idx: idx.into(),
+                is_last_idx: (is_last_idx).into(),
+                next_idx: (idx + 1).into(),
+                next_node_id: node_id,
+                next_input_id: input_id,
+                input: input_val.to_m31(),
+                out: out_val.to_m31(),
+                input_mult,
+                out_mult,
+            });
+
+            // Update multiplicities of the lookup.
+            // Allows you to track the occurrence of a specific Sin operation.
+            let mult_address = lookup
+                .layout
+                .find_index(input_val.0)
+                .expect("Value should fit in range.");
+            lookup.multiplicities.increase_at(mult_address);
+        }
+
+        vec![Tensor::new(StwoData(Arc::new(out_data)))]
+    }
+}
+
+impl Operator for LuminairSin {
+    fn process(&mut self, inp: Vec<(InputTensor, ShapeTracker)>) -> Vec<Tensor> {
+        let (out_data, _) = self.compute(&inp, false);
+        vec![Tensor::new(StwoData(Arc::new(out_data)))]
     }
 }
 
@@ -194,17 +333,15 @@ impl LuminairAdd {
     }
 }
 
-impl LuminairOperator<AddColumn, AddTable> for LuminairAdd {
-    /// Processes two input tensors, generating a trace, claim, and output tensor.
-    fn process_trace(
-        &mut self,
-        inp: Vec<(InputTensor, ShapeTracker)>,
-        table: &mut AddTable,
-        node_info: &NodeInfo,
-    ) -> Vec<Tensor> {
+impl LuminairAdd {
+    fn compute(
+        &self,
+        inp: &[(InputTensor, ShapeTracker)],
+        trace_mode: bool,
+    ) -> (Vec<Fixed>, Option<Vec<(Fixed, Fixed, Fixed)>>) {
         let (lhs, rhs) = (
-            get_buffer_from_tensor(&inp[0].0),
-            get_buffer_from_tensor(&inp[1].0),
+            get_buffer_from_tensor(&inp[0].0).unwrap(),
+            get_buffer_from_tensor(&inp[1].0).unwrap(),
         );
         let lexpr = (inp[0].1.index_expression(), inp[0].1.valid_expression());
         let rexpr = (inp[1].1.index_expression(), inp[1].1.valid_expression());
@@ -213,14 +350,45 @@ impl LuminairOperator<AddColumn, AddTable> for LuminairAdd {
         let output_size = inp[0].1.n_elements().to_usize().unwrap();
         let mut out_data = vec![Fixed::zero(); output_size];
 
-        let node_id: BaseField = node_info.id.into();
-        let lhs_id: BaseField = node_info.inputs[0].id.into();
-        let rhs_id: BaseField = node_info.inputs[1].id.into();
+        // Only allocate for intermediate values if in trace mode
+        let mut intermediate_values = if trace_mode {
+            Some(Vec::with_capacity(output_size))
+        } else {
+            None
+        };
 
         for (idx, out) in out_data.iter_mut().enumerate() {
             let lhs_val = get_index(lhs, &lexpr, &mut stack, idx);
             let rhs_val = get_index(rhs, &rexpr, &mut stack, idx);
             let out_val = lhs_val + rhs_val;
+            *out = out_val;
+            // Only collect intermediate values if in trace mode
+            if let Some(values) = &mut intermediate_values {
+                values.push((lhs_val, rhs_val, out_val));
+            }
+        }
+
+        (out_data, intermediate_values)
+    }
+}
+
+impl LuminairOperator<AddColumn, AddTable, ()> for LuminairAdd {
+    fn process_trace(
+        &mut self,
+        inp: Vec<(InputTensor, ShapeTracker)>,
+        table: &mut AddTable,
+        node_info: &NodeInfo,
+        _lookup: &mut (),
+    ) -> Vec<Tensor> {
+        let (out_data, intermediate_values) = self.compute(&inp, true);
+        let intermediate_values = intermediate_values.unwrap();
+
+        let output_size = inp[0].1.n_elements().to_usize().unwrap();
+        let node_id: BaseField = node_info.id.into();
+        let lhs_id: BaseField = node_info.inputs[0].id.into();
+        let rhs_id: BaseField = node_info.inputs[1].id.into();
+
+        for (idx, (lhs_val, rhs_val, out_val)) in intermediate_values.into_iter().enumerate() {
             let lhs_mult = if node_info.inputs[0].is_initializer {
                 BaseField::zero()
             } else {
@@ -239,7 +407,6 @@ impl LuminairOperator<AddColumn, AddTable> for LuminairAdd {
 
             let is_last_idx: u32 = if idx == (output_size - 1) { 1 } else { 0 };
 
-            *out = out_val;
             table.add_row(AddTableRow {
                 node_id,
                 lhs_id,
@@ -264,9 +431,9 @@ impl LuminairOperator<AddColumn, AddTable> for LuminairAdd {
 }
 
 impl Operator for LuminairAdd {
-    /// This method is not used as `process_trace` handles all computation for this operator.
-    fn process(&mut self, _inp: Vec<(InputTensor, ShapeTracker)>) -> Vec<Tensor> {
-        unimplemented!()
+    fn process(&mut self, inp: Vec<(InputTensor, ShapeTracker)>) -> Vec<Tensor> {
+        let (out_data, _) = self.compute(&inp, false);
+        vec![Tensor::new(StwoData(Arc::new(out_data)))]
     }
 }
 
@@ -281,17 +448,15 @@ impl LuminairMul {
     }
 }
 
-impl LuminairOperator<MulColumn, MulTable> for LuminairMul {
-    /// Processes two input tensors, generating a trace, claim, and output tensor.
-    fn process_trace(
-        &mut self,
-        inp: Vec<(InputTensor, ShapeTracker)>,
-        table: &mut MulTable,
-        node_info: &NodeInfo,
-    ) -> Vec<Tensor> {
+impl LuminairMul {
+    fn compute(
+        &self,
+        inp: &[(InputTensor, ShapeTracker)],
+        trace_mode: bool,
+    ) -> (Vec<Fixed>, Option<Vec<(Fixed, Fixed, Fixed, Fixed)>>) {
         let (lhs, rhs) = (
-            get_buffer_from_tensor(&inp[0].0),
-            get_buffer_from_tensor(&inp[1].0),
+            get_buffer_from_tensor(&inp[0].0).unwrap(),
+            get_buffer_from_tensor(&inp[1].0).unwrap(),
         );
         let lexpr = (inp[0].1.index_expression(), inp[0].1.valid_expression());
         let rexpr = (inp[1].1.index_expression(), inp[1].1.valid_expression());
@@ -300,14 +465,48 @@ impl LuminairOperator<MulColumn, MulTable> for LuminairMul {
         let output_size = inp[0].1.n_elements().to_usize().unwrap();
         let mut out_data = vec![Fixed::zero(); output_size];
 
-        let node_id: BaseField = node_info.id.into();
-        let lhs_id: BaseField = node_info.inputs[0].id.into();
-        let rhs_id: BaseField = node_info.inputs[1].id.into();
+        // Only allocate for intermediate values if in trace mode
+        let mut intermediate_values = if trace_mode {
+            Some(Vec::with_capacity(output_size))
+        } else {
+            None
+        };
 
         for (idx, out) in out_data.iter_mut().enumerate() {
             let lhs_val = get_index(lhs, &lexpr, &mut stack, idx);
             let rhs_val = get_index(rhs, &rexpr, &mut stack, idx);
             let (out_val, rem_val) = lhs_val * rhs_val;
+            *out = out_val;
+
+            // Only collect intermediate values if in trace mode
+            if let Some(values) = &mut intermediate_values {
+                values.push((lhs_val, rhs_val, out_val, rem_val));
+            }
+        }
+
+        (out_data, intermediate_values)
+    }
+}
+
+impl LuminairOperator<MulColumn, MulTable, ()> for LuminairMul {
+    fn process_trace(
+        &mut self,
+        inp: Vec<(InputTensor, ShapeTracker)>,
+        table: &mut MulTable,
+        node_info: &NodeInfo,
+        _lookup: &mut (),
+    ) -> Vec<Tensor> {
+        let (out_data, intermediate_values) = self.compute(&inp, true);
+        let intermediate_values = intermediate_values.unwrap();
+
+        let output_size = inp[0].1.n_elements().to_usize().unwrap();
+        let node_id: BaseField = node_info.id.into();
+        let lhs_id: BaseField = node_info.inputs[0].id.into();
+        let rhs_id: BaseField = node_info.inputs[1].id.into();
+
+        for (idx, (lhs_val, rhs_val, out_val, rem_val)) in
+            intermediate_values.into_iter().enumerate()
+        {
             let lhs_mult = if node_info.inputs[0].is_initializer {
                 BaseField::zero()
             } else {
@@ -326,7 +525,6 @@ impl LuminairOperator<MulColumn, MulTable> for LuminairMul {
 
             let is_last_idx: u32 = if idx == (output_size - 1) { 1 } else { 0 };
 
-            *out = out_val;
             table.add_row(MulTableRow {
                 node_id,
                 lhs_id,
@@ -352,9 +550,9 @@ impl LuminairOperator<MulColumn, MulTable> for LuminairMul {
 }
 
 impl Operator for LuminairMul {
-    /// This method is not used as `process_trace` handles all computation for this operator.
-    fn process(&mut self, _inp: Vec<(InputTensor, ShapeTracker)>) -> Vec<Tensor> {
-        unimplemented!()
+    fn process(&mut self, inp: Vec<(InputTensor, ShapeTracker)>) -> Vec<Tensor> {
+        let (out_data, _) = self.compute(&inp, false);
+        vec![Tensor::new(StwoData(Arc::new(out_data)))]
     }
 }
 
@@ -371,14 +569,15 @@ impl LuminairSumReduce {
     }
 }
 
-impl LuminairOperator<SumReduceColumn, SumReduceTable> for LuminairSumReduce {
-    /// Processes input tensor, generating a trace, claim, and output tensor.
-    fn process_trace(
-        &mut self,
-        inp: Vec<(InputTensor, ShapeTracker)>,
-        table: &mut SumReduceTable,
-        node_info: &NodeInfo,
-    ) -> Vec<Tensor> {
+impl LuminairSumReduce {
+    fn compute(
+        &self,
+        inp: &[(InputTensor, ShapeTracker)],
+        trace_mode: bool,
+    ) -> (
+        Vec<Fixed>,
+        Option<Vec<(usize, Fixed, Fixed, Fixed, Fixed, BaseField)>>,
+    ) {
         let sh = inp[0].1.shape_usize();
         let front_size = sh.iter().take(self.0).product::<usize>().max(1);
         let back_size = sh.iter().skip(self.0 + 1).product::<usize>().max(1);
@@ -386,12 +585,16 @@ impl LuminairOperator<SumReduceColumn, SumReduceTable> for LuminairSumReduce {
 
         let output_size = front_size * back_size;
         let mut out_data = vec![Fixed::zero(); output_size];
-        let input = get_buffer_from_tensor(&inp[0].0);
+        let input = get_buffer_from_tensor(&inp[0].0).unwrap();
         let expr = (inp[0].1.index_expression(), inp[0].1.valid_expression());
         let mut stack: Vec<i64> = vec![];
 
-        let node_id: BaseField = node_info.id.into();
-        let input_id: BaseField = node_info.inputs[0].id.into();
+        // Only allocate for intermediate values if in trace mode
+        let mut intermediate_values = if trace_mode {
+            Some(Vec::with_capacity(output_size))
+        } else {
+            None
+        };
 
         for i in 0..front_size {
             for j in 0..back_size {
@@ -400,57 +603,87 @@ impl LuminairOperator<SumReduceColumn, SumReduceTable> for LuminairSumReduce {
                     let orig_index = i * dim_size * back_size + k * back_size + j;
                     let input_val = get_index(input, &expr, &mut stack, orig_index);
                     let next_acc = acc + input_val; // Compute next accumulator
+                    let idx = i * back_size + j; // Index for out_data
 
                     // Set out_data only in the last reduction step
                     let (out_val, is_last_step) = if k == dim_size - 1 {
-                        out_data[i * back_size + j] = next_acc;
+                        out_data[idx] = next_acc;
                         (next_acc, BaseField::one())
                     } else {
                         (Fixed::zero(), BaseField::zero()) // Placeholder for incomplete reductions
                     };
 
-                    let input_mult = if node_info.inputs[0].is_initializer {
-                        BaseField::zero()
-                    } else {
-                        -BaseField::one()
-                    };
-                    let out_mult = if node_info.output.is_final_output {
-                        BaseField::zero()
-                    } else {
-                        BaseField::one() * BaseField::from_u32_unchecked(node_info.num_consumers)
-                    };
-                    let idx = i * back_size + j; // Index for out_data
+                    // Only collect intermediate values if in trace mode
+                    if let Some(values) = &mut intermediate_values {
+                        values.push((idx, input_val, out_val, acc, next_acc, is_last_step));
 
-                    let is_last_idx: u32 = if idx == (output_size - 1) { 1 } else { 0 };
-                    // Add row to the trace table with acc and next_acc
-                    table.add_row(SumReduceTableRow {
-                        node_id,
-                        input_id,
-                        idx: idx.into(),
-                        is_last_idx: (is_last_idx).into(),
-                        next_node_id: node_id,
-                        next_input_id: input_id,
-                        next_idx: (idx + 1).into(),
-                        input: input_val.to_m31(),
-                        out: out_val.to_m31(),
-                        acc: acc.to_m31(),
-                        next_acc: next_acc.to_m31(),
-                        is_last_step,
-                        input_mult,
-                        out_mult,
-                    });
-                    acc = next_acc;
+                        acc = next_acc;
+                    }
                 }
             }
         }
+
+        (out_data, intermediate_values)
+    }
+}
+
+impl LuminairOperator<SumReduceColumn, SumReduceTable, ()> for LuminairSumReduce {
+    fn process_trace(
+        &mut self,
+        inp: Vec<(InputTensor, ShapeTracker)>,
+        table: &mut SumReduceTable,
+        node_info: &NodeInfo,
+        _lookup: &mut (),
+    ) -> Vec<Tensor> {
+        let (out_data, intermediate_values) = self.compute(&inp, true);
+        let intermediate_values = intermediate_values.unwrap();
+
+        let node_id: BaseField = node_info.id.into();
+        let input_id: BaseField = node_info.inputs[0].id.into();
+        let output_size = out_data.len();
+
+        for entry in intermediate_values {
+            let (idx, input_val, out_val, acc, next_acc, is_last_step) = entry;
+
+            let input_mult = if node_info.inputs[0].is_initializer {
+                BaseField::zero()
+            } else {
+                -BaseField::one()
+            };
+            let out_mult = if node_info.output.is_final_output {
+                BaseField::zero()
+            } else {
+                BaseField::one() * BaseField::from_u32_unchecked(node_info.num_consumers)
+            };
+
+            let is_last_idx: u32 = if idx == (output_size - 1) { 1 } else { 0 };
+
+            table.add_row(SumReduceTableRow {
+                node_id,
+                input_id,
+                idx: idx.into(),
+                is_last_idx: (is_last_idx).into(),
+                next_node_id: node_id,
+                next_input_id: input_id,
+                next_idx: (idx + 1).into(),
+                input: input_val.to_m31(),
+                out: out_val.to_m31(),
+                acc: acc.to_m31(),
+                next_acc: next_acc.to_m31(),
+                is_last_step,
+                input_mult,
+                out_mult,
+            });
+        }
+
         vec![Tensor::new(StwoData(Arc::new(out_data)))]
     }
 }
 
 impl Operator for LuminairSumReduce {
-    /// This method is not used as `process_trace` handles all computation for this operator.
-    fn process(&mut self, _inp: Vec<(InputTensor, ShapeTracker)>) -> Vec<Tensor> {
-        unimplemented!()
+    fn process(&mut self, inp: Vec<(InputTensor, ShapeTracker)>) -> Vec<Tensor> {
+        let (out_data, _) = self.compute(&inp, false);
+        vec![Tensor::new(StwoData(Arc::new(out_data)))]
     }
 }
 
@@ -464,14 +697,15 @@ impl LuminairMaxReduce {
     }
 }
 
-impl LuminairOperator<MaxReduceColumn, MaxReduceTable> for LuminairMaxReduce {
-    /// Processes input tensor, generating a trace, claim, and output tensor.
-    fn process_trace(
-        &mut self,
-        inp: Vec<(InputTensor, ShapeTracker)>,
-        table: &mut MaxReduceTable,
-        node_info: &NodeInfo,
-    ) -> Vec<Tensor> {
+impl LuminairMaxReduce {
+    fn compute(
+        &self,
+        inp: &[(InputTensor, ShapeTracker)],
+        trace_mode: bool,
+    ) -> (
+        Vec<Fixed>,
+        Option<Vec<(usize, Fixed, Fixed, Fixed, Fixed, BaseField, BaseField)>>,
+    ) {
         let sh = inp[0].1.shape_usize();
         let front_size = sh.iter().take(self.0).product::<usize>().max(1);
         let back_size = sh.iter().skip(self.0 + 1).product::<usize>().max(1);
@@ -479,12 +713,16 @@ impl LuminairOperator<MaxReduceColumn, MaxReduceTable> for LuminairMaxReduce {
 
         let output_size = front_size * back_size;
         let mut out_data = vec![Fixed::zero(); output_size];
-        let input = get_buffer_from_tensor(&inp[0].0);
+        let input = get_buffer_from_tensor(&inp[0].0).unwrap();
         let expr = (inp[0].1.index_expression(), inp[0].1.valid_expression());
         let mut stack: Vec<i64> = vec![];
 
-        let node_id: BaseField = node_info.id.into();
-        let input_id: BaseField = node_info.inputs[0].id.into();
+        // Only allocate for intermediate values if in trace mode
+        let mut intermediate_values = if trace_mode {
+            Some(Vec::with_capacity(output_size))
+        } else {
+            None
+        };
 
         for i in 0..front_size {
             for j in 0..back_size {
@@ -518,51 +756,88 @@ impl LuminairOperator<MaxReduceColumn, MaxReduceTable> for LuminairMaxReduce {
                         (Fixed::zero(), BaseField::zero()) // Placeholder for incomplete reductions
                     };
 
-                    let input_mult = if node_info.inputs[0].is_initializer {
-                        BaseField::zero()
-                    } else {
-                        -BaseField::one()
-                    };
-                    let out_mult = if node_info.output.is_final_output {
-                        BaseField::zero()
-                    } else {
-                        BaseField::one() * BaseField::from_u32_unchecked(node_info.num_consumers)
-                    };
                     let idx = i * back_size + j; // Index for out_data
 
-                    let is_last_idx: u32 = if idx == (output_size - 1) { 1 } else { 0 };
+                    // Only collect intermediate values if in trace mode
+                    if let Some(values) = &mut intermediate_values {
+                        values.push((
+                            idx,
+                            input_val,
+                            out_val,
+                            max_val,
+                            next_max_val,
+                            is_max,
+                            is_last_step,
+                        ));
 
-                    // Add row to the trace table with max_val and next_max_val
-                    table.add_row(MaxReduceTableRow {
-                        node_id,
-                        input_id,
-                        idx: idx.into(),
-                        is_last_idx: (is_last_idx).into(),
-                        next_node_id: node_id,
-                        next_input_id: input_id,
-                        next_idx: (idx + 1).into(),
-                        input: input_val.to_m31(),
-                        out: out_val.to_m31(),
-                        max_val: max_val.to_m31(),
-                        next_max_val: next_max_val.to_m31(),
-                        is_last_step,
-                        is_max,
-                        input_mult,
-                        out_mult,
-                    });
-
-                    max_val = next_max_val;
+                        max_val = next_max_val;
+                    }
                 }
             }
         }
+
+        (out_data, intermediate_values)
+    }
+}
+
+impl LuminairOperator<MaxReduceColumn, MaxReduceTable, ()> for LuminairMaxReduce {
+    fn process_trace(
+        &mut self,
+        inp: Vec<(InputTensor, ShapeTracker)>,
+        table: &mut MaxReduceTable,
+        node_info: &NodeInfo,
+        _lookup: &mut (),
+    ) -> Vec<Tensor> {
+        let (out_data, intermediate_values) = self.compute(&inp, true);
+        let intermediate_values = intermediate_values.unwrap();
+
+        let node_id: BaseField = node_info.id.into();
+        let input_id: BaseField = node_info.inputs[0].id.into();
+        let output_size = out_data.len();
+
+        for entry in intermediate_values {
+            let (idx, input_val, out_val, max_val, next_max_val, is_max, is_last_step) = entry;
+
+            let input_mult = if node_info.inputs[0].is_initializer {
+                BaseField::zero()
+            } else {
+                -BaseField::one()
+            };
+            let out_mult = if node_info.output.is_final_output {
+                BaseField::zero()
+            } else {
+                BaseField::one() * BaseField::from_u32_unchecked(node_info.num_consumers)
+            };
+
+            let is_last_idx: u32 = if idx == (output_size - 1) { 1 } else { 0 };
+
+            table.add_row(MaxReduceTableRow {
+                node_id,
+                input_id,
+                idx: idx.into(),
+                is_last_idx: (is_last_idx).into(),
+                next_node_id: node_id,
+                next_input_id: input_id,
+                next_idx: (idx + 1).into(),
+                input: input_val.to_m31(),
+                out: out_val.to_m31(),
+                max_val: max_val.to_m31(),
+                next_max_val: next_max_val.to_m31(),
+                is_max,
+                is_last_step,
+                input_mult,
+                out_mult,
+            });
+        }
+
         vec![Tensor::new(StwoData(Arc::new(out_data)))]
     }
 }
 
 impl Operator for LuminairMaxReduce {
-    /// This method is not used as `process_trace` handles all computation for this operator.
-    fn process(&mut self, _inp: Vec<(InputTensor, ShapeTracker)>) -> Vec<Tensor> {
-        unimplemented!()
+    fn process(&mut self, inp: Vec<(InputTensor, ShapeTracker)>) -> Vec<Tensor> {
+        let (out_data, _) = self.compute(&inp, false);
+        vec![Tensor::new(StwoData(Arc::new(out_data)))]
     }
 }
 
@@ -573,14 +848,7 @@ impl Operator for LuminairMaxReduce {
 /// Replaces standard Luminal operators with LuminAIR-specific implementations
 /// that support trace generation.
 #[derive(Default)]
-pub struct PrimitiveCompiler {}
-
-impl PrimitiveCompiler {
-    /// Creates a new `PrimitiveCompiler` instance.
-    pub fn new() -> Self {
-        Self {}
-    }
-}
+pub struct PrimitiveCompiler();
 
 impl Compiler for PrimitiveCompiler {
     type Output = ();
@@ -701,6 +969,8 @@ impl Compiler for PrimitiveCompiler {
                 *op_ref = LuminairMaxReduce::new(dim_index).into_operator()
             } else if is::<luminal::op::Recip>(op) {
                 *op_ref = LuminairRecip::new().into_operator()
+            } else if is::<luminal::op::Sin>(op) {
+                *op_ref = LuminairSin::new().into_operator()
             } else if is::<luminal::op::Contiguous>(op) {
                 *op_ref = Box::new(Contiguous)
             }

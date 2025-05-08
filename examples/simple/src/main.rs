@@ -19,19 +19,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     cx.compile(<(GenericCompiler, StwoCompiler)>::default(), &mut e);
     println!("Graph compiled successfully. ✅");
 
+    // ======= Generate circuit settings =======
+    println!("Generating circuits settings...");
+    let mut settings = cx.gen_circuit_settings();
+    println!("Settings generated successfully. ✅");
+
     // ======= Execute graph & generate trace =======
     println!("Executing graph and generating execution trace...");
-    let trace = cx.gen_trace()?;
+    let trace = cx.gen_trace(&mut settings)?;
     println!("Execution trace generated successfully. ✅");
     println!("Final result: {:?}", e);
 
     // ======= Prove & Verify =======
     println!("Generating proof for execution trace...");
-    let proof = cx.prove(trace)?;
+    let proof = cx.prove(trace, settings.clone())?;
     println!("Proof generated successfully. ✅");
 
     println!("Verifying proof...");
-    cx.verify(proof)?;
+    cx.verify(proof, settings)?;
     println!("Proof verified successfully. Computation integrity ensured. 🎉");
 
     Ok(())

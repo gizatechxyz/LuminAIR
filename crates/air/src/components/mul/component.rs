@@ -11,15 +11,15 @@ pub type MulComponent = FrameworkComponent<MulEval>;
 /// Defines the AIR for the multiplication component.
 pub struct MulEval {
     log_size: u32,
-    lookup_elements: NodeElements,
+    node_elements: NodeElements,
 }
 
 impl MulEval {
-    /// Creates a new `MulEval` instance from a claim and lookup elements.
-    pub fn new(claim: &MulClaim, lookup_elements: NodeElements) -> Self {
+    /// Creates a new `MulEval` instance from a claim and node elements.
+    pub fn new(claim: &MulClaim, node_elements: NodeElements) -> Self {
         Self {
             log_size: claim.log_size,
-            lookup_elements,
+            node_elements,
         }
     }
 }
@@ -102,19 +102,19 @@ impl FrameworkEval for MulEval {
         // └─────────────────────────────┘
 
         eval.add_to_relation(RelationEntry::new(
-            &self.lookup_elements,
+            &self.node_elements,
             lhs_mult.into(),
             &[lhs_val, lhs_id],
         ));
 
         eval.add_to_relation(RelationEntry::new(
-            &self.lookup_elements,
+            &self.node_elements,
             rhs_mult.into(),
             &[rhs_val, rhs_id],
         ));
 
         eval.add_to_relation(RelationEntry::new(
-            &self.lookup_elements,
+            &self.node_elements,
             out_mult.into(),
             &[out_val, node_id],
         ));

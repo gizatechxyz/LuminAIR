@@ -6,7 +6,7 @@ use super::prim::{CopyFromStwo, CopyToStwo};
 // Sometimes CopyTo -> CopyFrom and CopyFrom -> CopyTo patterns remain, so let's clean them up.
 /// Compiler that optimizes copy operations by removing redundant copies
 #[derive(Debug, Default)]
-pub struct CopyCompiler {}
+pub struct CopyCompiler();
 
 impl Compiler for CopyCompiler {
     type Output = ();
