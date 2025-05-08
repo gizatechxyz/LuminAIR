@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1744554536463,
+  "lastUpdate": 1746704282515,
   "repoUrl": "https://github.com/gizatechxyz/LuminAIR",
   "entries": {
     "LuminAIR Benchmarks": [
@@ -1511,6 +1511,138 @@ window.BENCHMARK_DATA = {
             "name": "Max Reduce Operator/Verification (32x32)",
             "value": 272981,
             "range": "± 3967",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "113879115+raphaelDkhn@users.noreply.github.com",
+            "name": "raphaelDkhn",
+            "username": "raphaelDkhn"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9c5959498c43585065e58c8eb67f69e3a0275f3e",
+          "message": "Merge pull request #61 from gizatechxyz/lut\n\nIntroduce Lookups",
+          "timestamp": "2025-05-08T14:32:47+03:00",
+          "tree_id": "5543dde75ccbe44456c11fb1e2049c8862111c5a",
+          "url": "https://github.com/gizatechxyz/LuminAIR/commit/9c5959498c43585065e58c8eb67f69e3a0275f3e"
+        },
+        "date": 1746704282166,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "Add Operator/Trace Generation (32x32)",
+            "value": 64133,
+            "range": "± 863",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Add Operator/Proving (32x32)",
+            "value": 6495576,
+            "range": "± 492128",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Add Operator/Verification (32x32)",
+            "value": 212171,
+            "range": "± 6551",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Mul Operator/Trace Generation (32x32)",
+            "value": 65034,
+            "range": "± 998",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Mul Operator/Proving (32x32)",
+            "value": 6543969,
+            "range": "± 115628",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Mul Operator/Verification (32x32)",
+            "value": 207187,
+            "range": "± 3376",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Recip Operator/Trace Generation (32x32)",
+            "value": 44943,
+            "range": "± 1212",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Recip Operator/Proving (32x32)",
+            "value": 6195887,
+            "range": "± 199158",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Recip Operator/Verification (32x32)",
+            "value": 198187,
+            "range": "± 5240",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Sum Reduce Operator/Trace Generation (32x32)",
+            "value": 40973,
+            "range": "± 514",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Sum Reduce Operator/Proving (32x32)",
+            "value": 6143147,
+            "range": "± 107339",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Sum Reduce Operator/Verification (32x32)",
+            "value": 205834,
+            "range": "± 3242",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Max Reduce Operator/Trace Generation (32x32)",
+            "value": 44845,
+            "range": "± 381",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Max Reduce Operator/Proving (32x32)",
+            "value": 6232997,
+            "range": "± 274409",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Max Reduce Operator/Verification (32x32)",
+            "value": 190894,
+            "range": "± 3424",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Sin Operator/Trace Generation (32x32)",
+            "value": 76700,
+            "range": "± 683",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Sin Operator/Proving (32x32)",
+            "value": 21477755,
+            "range": "± 829510",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Sin Operator/Verification (32x32)",
+            "value": 293391,
+            "range": "± 72768",
             "unit": "ns/iter"
           }
         ]
