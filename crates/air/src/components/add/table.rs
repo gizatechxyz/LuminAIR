@@ -282,6 +282,22 @@ impl AddColumn {
             Self::OutMult => 14,
         }
     }
+
+    /// Returns the index of the column in the interaction trace.
+    pub const fn interaction_index(self) -> usize {
+        match self {
+            Self::NodeId => 0,
+            Self::Lhs => 1,
+            Self::LhsId => 2,
+            Self::LhsMult => 3,
+            Self::Rhs => 4,
+            Self::RhsId => 5,
+            Self::RhsMult => 6,
+            Self::Out => 7,
+            Self::OutMult => 8,
+            _ => unreachable!(),
+        }
+    }
 }
 impl TraceColumn for AddColumn {
     /// Returns the number of columns in the main trace and interaction trace.
