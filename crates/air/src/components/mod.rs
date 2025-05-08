@@ -299,7 +299,7 @@ impl LuminairComponents {
                     &sin_lookup_claim,
                     interaction_elements.lookup_elements.sin.clone(),
                 ),
-                interaction_claim.sin.as_ref().unwrap().claimed_sum,
+                interaction_claim.sin_lookup.as_ref().unwrap().claimed_sum,
             ))
         } else {
             None

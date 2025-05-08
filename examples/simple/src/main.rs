@@ -5,7 +5,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut cx = Graph::new();
 
     // ======= Define initializers =======
-    let a = cx.tensor((1,1)).set(vec![1.0]);
+    let a = cx.tensor((2,1)).set(vec![1.0, 1.0]);
     // let b = cx.tensor((2, 2)).set(vec![10.0, 20.0, 30.0, 40.0]);
     // let w = cx.tensor((2, 2)).set(vec![-1.0, -1.0, -1.0, -1.0]);
 
