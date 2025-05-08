@@ -4,7 +4,11 @@ use stwo_prover::{
     constraint_framework::{logup::LogupTraceGenerator, Relation},
     core::{
         backend::{
-            simd::{column::BaseColumn, m31::LOG_N_LANES},
+            simd::{
+                column::BaseColumn,
+                conversion::{Pack, Unpack},
+                m31::{PackedM31, LOG_N_LANES, N_LANES},
+            },
             Column,
         },
         fields::m31::BaseField,
@@ -26,7 +30,7 @@ pub struct AddTable {
 }
 
 /// Represents a single row of the [`AddTable`]
-#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Default, Copy, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AddTableRow {
     pub node_id: BaseField,
     pub lhs_id: BaseField,
@@ -43,6 +47,107 @@ pub struct AddTableRow {
     pub lhs_mult: BaseField,
     pub rhs_mult: BaseField,
     pub out_mult: BaseField,
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct PackedAddTableRow {
+    pub node_id: PackedM31,
+    pub lhs_id: PackedM31,
+    pub rhs_id: PackedM31,
+    pub idx: PackedM31,
+    pub is_last_idx: PackedM31,
+    pub next_node_id: PackedM31,
+    pub next_lhs_id: PackedM31,
+    pub next_rhs_id: PackedM31,
+    pub next_idx: PackedM31,
+    pub lhs: PackedM31,
+    pub rhs: PackedM31,
+    pub out: PackedM31,
+    pub lhs_mult: PackedM31,
+    pub rhs_mult: PackedM31,
+    pub out_mult: PackedM31,
+}
+
+impl Pack for AddTableRow {
+    type SimdType = PackedAddTableRow;
+
+    fn pack(inputs: [Self; N_LANES]) -> Self::SimdType {
+        PackedAddTableRow {
+            node_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].node_id)),
+            lhs_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].lhs_id)),
+            rhs_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].rhs_id)),
+            idx: PackedM31::from_array(std::array::from_fn(|i| inputs[i].idx)),
+            is_last_idx: PackedM31::from_array(std::array::from_fn(|i| inputs[i].is_last_idx)),
+            next_node_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].next_node_id)),
+            next_lhs_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].next_lhs_id)),
+            next_rhs_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].next_rhs_id)),
+            next_idx: PackedM31::from_array(std::array::from_fn(|i| inputs[i].next_idx)),
+            lhs: PackedM31::from_array(std::array::from_fn(|i| inputs[i].lhs)),
+            rhs: PackedM31::from_array(std::array::from_fn(|i| inputs[i].rhs)),
+            out: PackedM31::from_array(std::array::from_fn(|i| inputs[i].out)),
+            lhs_mult: PackedM31::from_array(std::array::from_fn(|i| inputs[i].lhs_mult)),
+            rhs_mult: PackedM31::from_array(std::array::from_fn(|i| inputs[i].rhs_mult)),
+            out_mult: PackedM31::from_array(std::array::from_fn(|i| inputs[i].out_mult)),
+        }
+    }
+}
+
+impl Unpack for PackedAddTableRow {
+    type CpuType = AddTableRow;
+
+    fn unpack(self) -> [Self::CpuType; N_LANES] {
+        let (
+            node_id,
+            lhs_id,
+            rhs_id,
+            idx,
+            is_last_idx,
+            next_node_id,
+            next_lhs_id,
+            next_rhs_id,
+            next_idx,
+            lhs,
+            rhs,
+            out,
+            lhs_mult,
+            rhs_mult,
+            out_mult,
+        ) = (
+            self.node_id.to_array(),
+            self.lhs_id.to_array(),
+            self.rhs_id.to_array(),
+            self.idx.to_array(),
+            self.is_last_idx.to_array(),
+            self.next_node_id.to_array(),
+            self.next_lhs_id.to_array(),
+            self.next_rhs_id.to_array(),
+            self.next_idx.to_array(),
+            self.lhs.to_array(),
+            self.rhs.to_array(),
+            self.out.to_array(),
+            self.lhs_mult.to_array(),
+            self.rhs_mult.to_array(),
+            self.out_mult.to_array(),
+        );
+
+        std::array::from_fn(|i| AddTableRow {
+            node_id: node_id[i],
+            lhs_id: lhs_id[i],
+            rhs_id: rhs_id[i],
+            idx: idx[i],
+            is_last_idx: is_last_idx[i],
+            next_node_id: next_node_id[i],
+            next_lhs_id: next_lhs_id[i],
+            next_rhs_id: next_rhs_id[i],
+            next_idx: next_idx[i],
+            lhs: lhs[i],
+            rhs: rhs[i],
+            out: out[i],
+            lhs_mult: lhs_mult[i],
+            rhs_mult: rhs_mult[i],
+            out_mult: out_mult[i],
+        })
+    }
 }
 
 impl AddTable {

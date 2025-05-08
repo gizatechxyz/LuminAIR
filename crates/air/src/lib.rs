@@ -1,4 +1,4 @@
-#![feature(portable_simd)]
+#![feature(portable_simd, iter_array_chunks, array_chunks)]
 
 use ::serde::{Deserialize, Serialize};
 use components::{

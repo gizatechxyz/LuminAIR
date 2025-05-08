@@ -897,6 +897,15 @@ dependencies = [
 
 [[package]]
 name = "itertools"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
+dependencies = [
+ "either",
+]
+
+[[package]]
+name = "itertools"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2b192c782037fadd9cfa75548310488aabdbf3d2da73885b31bd0abd03351285"
@@ -984,7 +993,10 @@ dependencies = [
  "luminal",
  "num-traits",
  "numerair",
+ "rayon",
  "serde",
+ "stwo-air-utils",
+ "stwo-air-utils-derive",
  "stwo-prover",
  "thiserror 2.0.12",
  "tracing",
@@ -1540,6 +1552,29 @@ dependencies = [
  "getrandom 0.2.16",
  "hex",
  "serde",
+]
+
+[[package]]
+name = "stwo-air-utils"
+version = "0.1.1"
+source = "git+https://github.com/starkware-libs/stwo?rev=045963c#045963c3814e605e18d3edafadc79f52de8f21bb"
+dependencies = [
+ "bytemuck",
+ "itertools 0.12.1",
+ "rayon",
+ "stwo-air-utils-derive",
+ "stwo-prover",
+]
+
+[[package]]
+name = "stwo-air-utils-derive"
+version = "0.1.0"
+source = "git+https://github.com/starkware-libs/stwo?rev=045963c#045963c3814e605e18d3edafadc79f52de8f21bb"
+dependencies = [
+ "itertools 0.13.0",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.101",
 ]
 
 [[package]]

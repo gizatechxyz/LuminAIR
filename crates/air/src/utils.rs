@@ -1,7 +1,20 @@
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use num_traits::Zero;
-use stwo_prover::core::backend::simd::{m31::LOG_N_LANES, qm31::PackedSecureField};
+use stwo_prover::core::{
+    backend::{
+        simd::{
+            conversion::Pack,
+            m31::{LOG_N_LANES, N_LANES},
+            qm31::PackedSecureField,
+        },
+        Backend, BackendForChannel,
+    },
+    channel::MerkleChannel,
+    fields::m31::M31,
+    pcs::TreeSubspan,
+    poly::{circle::CircleEvaluation, BitReversedOrder},
+};
 
 use crate::LuminairInteractionClaim;
 
@@ -40,6 +53,13 @@ pub fn log_sum_valid(interaction_claim: &LuminairInteractionClaim) -> bool {
 pub fn get_is_first_log_sizes(max_log_size: u32) -> Vec<u32> {
     let padded_max = max_log_size + 2;
     (4..=padded_max).rev().collect()
+}
+
+pub fn pack_values<T: Pack>(values: &[T]) -> Vec<T::SimdType> {
+    values
+        .array_chunks::<N_LANES>()
+        .map(|c| T::pack(*c))
+        .collect()
 }
 
 /// A column of multiplicities for lookup arguments. Allow increasing the multiplicity at a give
@@ -91,5 +111,24 @@ impl Clone for AtomicMultiplicityColumn {
         }
 
         Self { data: new_data }
+    }
+}
+
+/// Extenders of a commitment-tree with evaluations.
+pub trait TreeBuilder<B: Backend> {
+    fn extend_evals(
+        &mut self,
+        columns: impl IntoIterator<Item = CircleEvaluation<B, M31, BitReversedOrder>>,
+    ) -> TreeSubspan;
+}
+
+impl<B: BackendForChannel<MC>, MC: MerkleChannel> TreeBuilder<B>
+    for stwo_prover::core::pcs::TreeBuilder<'_, '_, B, MC>
+{
+    fn extend_evals(
+        &mut self,
+        columns: impl IntoIterator<Item = CircleEvaluation<B, M31, BitReversedOrder>>,
+    ) -> TreeSubspan {
+        self.extend_evals(columns)
     }
 }
