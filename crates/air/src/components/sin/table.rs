@@ -11,7 +11,7 @@ use stwo_prover::{
     constraint_framework::{logup::LogupTraceGenerator, Relation},
     core::{
         backend::{
-            simd::{column::BaseColumn, m31::LOG_N_LANES, qm31::PackedQM31},
+            simd::{column::BaseColumn, m31::LOG_N_LANES},
             Column,
         },
         fields::m31::BaseField,
@@ -79,6 +79,7 @@ impl SinTable {
         let mut out = BaseColumn::zeros(trace_size);
         let mut input_mult = BaseColumn::zeros(trace_size);
         let mut out_mult = BaseColumn::zeros(trace_size);
+        let mut lookup_mult = BaseColumn::zeros(trace_size);
 
         // Fill columns
         for (vec_row, row) in self.table.iter().enumerate() {
@@ -93,6 +94,7 @@ impl SinTable {
             out.set(vec_row, row.out);
             input_mult.set(vec_row, row.input_mult);
             out_mult.set(vec_row, row.out_mult);
+            lookup_mult.set(vec_row, BaseField::one());
         }
 
         for i in self.table.len()..trace_size {
@@ -115,6 +117,7 @@ impl SinTable {
         trace.push(CircleEvaluation::new(domain, out));
         trace.push(CircleEvaluation::new(domain, input_mult));
         trace.push(CircleEvaluation::new(domain, out_mult));
+        trace.push(CircleEvaluation::new(domain, lookup_mult));
 
         assert_eq!(trace.len(), SinColumn::count().0);
 
@@ -136,6 +139,7 @@ pub enum SinColumn {
     Out,
     InputMult,
     OutMult,
+    LookupMult,
 }
 
 impl SinColumn {
@@ -153,13 +157,14 @@ impl SinColumn {
             Self::Out => 8,
             Self::InputMult => 9,
             Self::OutMult => 10,
+            Self::LookupMult => 11,
         }
     }
 }
 impl TraceColumn for SinColumn {
     /// Returns the number of columns in the main trace and interaction trace.
     fn count() -> (usize, usize) {
-        (11, 3)
+        (12, 3)
     }
 }
 
@@ -210,15 +215,13 @@ pub fn interaction_trace_evaluation(
 
     // Create col for the lookup
     let mut lookup_int_col = logup_gen.new_col();
+    let lookup_mult_col = &main_trace_eval[SinColumn::LookupMult.index()].data;
     for row in 0..1 << (log_size - LOG_N_LANES) {
         let input = input_main_col[row];
         let out = out_main_col[row];
+        let mult = lookup_mult_col[row];
 
-        lookup_int_col.write_frac(
-            row,
-            PackedQM31::one(),
-            lookup_elements.combine(&[input, out]),
-        );
+        lookup_int_col.write_frac(row, mult.into(), lookup_elements.combine(&[input, out]));
     }
     lookup_int_col.finalize_col();
 

@@ -49,14 +49,14 @@ macro_rules! single_unary_test {
 #[macro_export]
 macro_rules! unary_test {
     ($func: expr, $name: ident, $type: ty,  $nonzero: expr) => {
-        // // Test with 2D tensor
-        // $crate::single_unary_test!($func, $name, $type, (3, 4), $nonzero);
+        // Test with 2D tensor
+        $crate::single_unary_test!($func, $name, $type, (3, 4), $nonzero);
         // Test with a scalar
         $crate::single_unary_test!($func, $name, $type, (1, 1), $nonzero);
         // Test with a row vector
-        // $crate::single_unary_test!($func, $name, $type, (1, 8), $nonzero);
-        // // Test with a column vector
-        // $crate::single_unary_test!($func, $name, $type, (8, 1), $nonzero);
+        $crate::single_unary_test!($func, $name, $type, (1, 8), $nonzero);
+        // Test with a column vector
+        $crate::single_unary_test!($func, $name, $type, (8, 1), $nonzero);
     };
 }
 
