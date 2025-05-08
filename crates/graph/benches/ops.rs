@@ -502,12 +502,99 @@ fn benchmark_max_reduce(c: &mut Criterion) {
     group.finish();
 }
 
+
+// Benchmark for Sin operator
+fn benchmark_sin(c: &mut Criterion) {
+    let mut group = c.benchmark_group("Sin Operator");
+    group
+        .plot_config(PlotConfiguration::default().summary_scale(criterion::AxisScale::Logarithmic));
+
+    let sizes = [(32, 32)];
+
+    for &size in &sizes {
+        let (rows, cols) = size;
+
+        // Trace generation
+        let params = BenchParams {
+            stage: Stage::TraceGeneration,
+            size,
+        };
+        group.bench_function(params.to_string(), |b| {
+            b.iter_with_setup(
+                || {
+                    let mut graph =
+                        create_unary!(|a: GraphTensor| a.sin(), (rows, cols), true);
+                    let settings = graph.gen_circuit_settings();
+                    (graph, settings)
+                },
+                |(mut graph, mut settings)| {
+                    let _trace = graph.gen_trace(&mut settings);
+                },
+            )
+        });
+
+        // Proof generation
+        let params = BenchParams {
+            stage: Stage::Proving,
+            size,
+        };
+        group.bench_function(params.to_string(), |b| {
+            b.iter_with_setup(
+                || {
+                    let mut graph =
+                        create_unary!(|a: GraphTensor| a.sin(), (rows, cols), true);
+                    let mut settings = graph.gen_circuit_settings();
+                    let trace = graph
+                        .gen_trace(&mut settings)
+                        .expect("Trace generation failed");
+                    (graph, settings, trace)
+                },
+                |(mut graph, settings, trace)| {
+                    let _proof = graph
+                        .prove(trace, settings)
+                        .expect("Proof generation failed");
+                },
+            )
+        });
+
+        // Verification
+        let params = BenchParams {
+            stage: Stage::Verification,
+            size,
+        };
+        group.bench_function(params.to_string(), |b| {
+            b.iter_with_setup(
+                || {
+                    let mut graph =
+                        create_unary!(|a: GraphTensor| a.sin(), (rows, cols), true);
+                    let mut settings = graph.gen_circuit_settings();
+                    let trace = graph
+                        .gen_trace(&mut settings)
+                        .expect("Trace generation failed");
+                    let proof = graph
+                        .prove(trace, settings.clone())
+                        .expect("Proof generation failed");
+                    (graph, settings, proof)
+                },
+                |(graph, settings, proof)| {
+                    graph
+                        .verify(proof, settings)
+                        .expect("Proof verification failed");
+                },
+            )
+        });
+    }
+
+    group.finish();
+}
+
 criterion_group!(
     benches,
     benchmark_add,
     benchmark_mul,
     benchmark_recip,
     benchmark_sum_reduce,
-    benchmark_max_reduce
+    benchmark_max_reduce,
+    benchmark_sin
 );
 criterion_main!(benches);
