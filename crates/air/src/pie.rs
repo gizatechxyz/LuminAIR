@@ -1,7 +1,10 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    components::{add::table::AddTable, mul::table::MulTable, recip::table::RecipTable, ClaimType},
+    components::{
+        add::table::AddTable, mul::table::MulTable, recip::table::RecipTable, sin::table::SinTable,
+        ClaimType,
+    },
     utils::AtomicMultiplicityColumn,
 };
 
@@ -12,6 +15,7 @@ pub enum TableTrace {
     Add { table: AddTable },
     Mul { table: MulTable },
     Recip { table: RecipTable },
+    Sin { table: SinTable },
 }
 
 impl TableTrace {
@@ -23,6 +27,9 @@ impl TableTrace {
     }
     pub fn from_recip(table: RecipTable) -> Self {
         Self::Recip { table }
+    }
+    pub fn from_sin(table: SinTable) -> Self {
+        Self::Sin { table }
     }
 }
 
@@ -64,6 +71,7 @@ pub struct OpCounter {
     pub add: usize,
     pub mul: usize,
     pub recip: usize,
+    pub sin: usize,
 }
 
 /// Indicates if a node input is an initializer (i.e., from initial input).

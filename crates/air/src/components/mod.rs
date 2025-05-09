@@ -13,6 +13,7 @@ use recip::{
     table::RecipColumn,
 };
 use serde::{Deserialize, Serialize};
+use sin::{component::{SinComponent, SinEval}, table::SinColumn};
 use stwo_prover::{
     constraint_framework::TraceLocationAllocator,
     core::{
@@ -35,6 +36,7 @@ pub mod add;
 pub mod lookups;
 pub mod mul;
 pub mod recip;
+pub mod sin;
 
 /// Errors related to trace operations.
 #[derive(Debug, Clone, Error, Eq, PartialEq)]
@@ -50,6 +52,7 @@ pub type TraceEval = ColumnVec<CircleEvaluation<SimdBackend, BaseField, BitRever
 pub type AddClaim = Claim<AddColumn>;
 pub type MulClaim = Claim<MulColumn>;
 pub type RecipClaim = Claim<RecipColumn>;
+pub type SinClaim = Claim<SinColumn>;
 
 /// Represents columns of a trace.
 pub trait TraceColumn {
@@ -100,6 +103,7 @@ pub enum ClaimType {
     Add(Claim<AddColumn>),
     Mul(Claim<MulColumn>),
     Recip(Claim<RecipColumn>),
+    Sin(Claim<SinColumn>),
 }
 
 /// The claim of the interaction phase 2 (with the logUp protocol).
@@ -153,6 +157,7 @@ pub struct LuminairComponents {
     add: Option<AddComponent>,
     mul: Option<MulComponent>,
     recip: Option<RecipComponent>,
+    sin: Option<SinComponent>,
 }
 
 impl LuminairComponents {
@@ -203,23 +208,42 @@ impl LuminairComponents {
             None
         };
 
-        Self { add, mul, recip }
+        let sin = if let Some(ref sin_claim) = claim.sin {
+            Some(SinComponent::new(
+                tree_span_provider,
+                SinEval::new(&sin_claim, interaction_elements.node_elements.clone()),
+                interaction_claim.sin.as_ref().unwrap().claimed_sum,
+            ))
+        } else {
+            None
+        };
+
+        Self {
+            add,
+            mul,
+            recip,
+            sin,
+        }
     }
 
     /// Returns the `ComponentProver` of each components, used by the prover.
     pub fn provers(&self) -> Vec<&dyn ComponentProver<SimdBackend>> {
         let mut components: Vec<&dyn ComponentProver<SimdBackend>> = vec![];
 
-        if let Some(ref add_component) = self.add {
-            components.push(add_component);
+        if let Some(ref component) = self.add {
+            components.push(component);
         }
 
-        if let Some(ref mul_component) = self.mul {
-            components.push(mul_component);
+        if let Some(ref component) = self.mul {
+            components.push(component);
         }
 
-        if let Some(ref recip_component) = self.recip {
-            components.push(recip_component);
+        if let Some(ref component) = self.recip {
+            components.push(component);
+        }
+
+        if let Some(ref component) = self.sin {
+            components.push(component);
         }
         components
     }

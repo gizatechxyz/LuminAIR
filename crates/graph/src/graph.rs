@@ -7,11 +7,9 @@ use crate::{
 };
 use luminair_air::{
     components::{
-        self,
         add::{
             self,
             table::{AddColumn, AddTable},
-            witness::ClaimGenerator,
         },
         lookups::{Lookups, Range},
         mul::{
@@ -21,6 +19,10 @@ use luminair_air::{
         recip::{
             self,
             table::{RecipColumn, RecipTable},
+        },
+        sin::{
+            self,
+            table::{SinColumn, SinTable},
         },
         LuminairComponents, LuminairInteractionElements, TraceError,
     },
@@ -163,6 +165,7 @@ impl LuminairGraph for Graph {
         let mut add_table = AddTable::new();
         let mut mul_table = MulTable::new();
         let mut recip_table = RecipTable::new();
+        let mut sin_table = SinTable::new();
 
         for (node, src_ids) in self.linearized_graph.as_ref().unwrap() {
             if self.tensors.contains_key(&(*node, 0)) {
@@ -253,6 +256,12 @@ impl LuminairGraph for Graph {
                         node_op, srcs, &mut recip_table, &node_info, &mut ()
                     ).unwrap()
                 }
+                _ if <Box<dyn Operator> as HasProcessTrace<SinColumn, SinTable, ()>>::has_process_trace(node_op) => {
+                    op_counter.mul += 1;
+                    <Box<dyn Operator> as HasProcessTrace<SinColumn, SinTable, ()>>::call_process_trace(
+                        node_op, srcs, &mut sin_table, &node_info, &mut ()
+                    ).unwrap()
+                }
                 _ => node_op.process(srcs)
             };
 
@@ -287,6 +296,11 @@ impl LuminairGraph for Graph {
             let log_size = calculate_log_size(recip_table.table.len());
             max_log_size = max_log_size.max(log_size);
             table_traces.push(TableTrace::from_recip(recip_table));
+        }
+        if !sin_table.table.is_empty() {
+            let log_size = calculate_log_size(sin_table.table.len());
+            max_log_size = max_log_size.max(log_size);
+            table_traces.push(TableTrace::from_sin(sin_table));
         }
 
         Ok(LuminairPie {
@@ -361,6 +375,12 @@ impl LuminairGraph for Graph {
                     main_claim.recip = Some(cl.clone());
                     interaction_claim_gen.recip = Some(in_cl_gen);
                 }
+                TableTrace::Sin { table } => {
+                    let claim_gen = sin::witness::ClaimGenerator::new(table);
+                    let (cl, in_cl_gen) = claim_gen.write_trace(&mut tree_builder)?;
+                    main_claim.sin = Some(cl.clone());
+                    interaction_claim_gen.sin = Some(in_cl_gen);
+                }
             }
         }
         // Mix the claim into the Fiat-Shamir channel.
@@ -388,6 +408,10 @@ impl LuminairGraph for Graph {
         if let Some(claim_gen) = interaction_claim_gen.recip {
             let claim = claim_gen.write_interaction_trace(&mut tree_builder, node_elements);
             interaction_claim.recip = Some(claim)
+        }
+        if let Some(claim_gen) = interaction_claim_gen.sin {
+            let claim = claim_gen.write_interaction_trace(&mut tree_builder, node_elements);
+            interaction_claim.sin = Some(claim)
         }
         // Mix the interaction claim into the Fiat-Shamir channel.
         interaction_claim.mix_into(channel);
