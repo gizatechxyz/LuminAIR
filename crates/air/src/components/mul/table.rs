@@ -10,19 +10,17 @@ use stwo_prover::core::{
 
 use crate::components::TraceColumn;
 
-use super::witness::N_TRACE_COLUMNS;
-
-/// Represents the trace for the Add component, containing the required registers for its
+/// Represents the table for the component, containing the required registers for its
 /// constraints.
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
-pub struct AddTable {
-    /// A vector of [`AddTableRow`] representing the table rows.
-    pub table: Vec<AddTableRow>,
+pub struct MulTable {
+    /// A vector of [`MulTableRow`] representing the table rows.
+    pub table: Vec<MulTableRow>,
 }
 
-/// Represents a single row of the [`AddTable`]
+/// Represents a single row of the [`MulTable`]
 #[derive(Debug, Copy, Clone, serde::Serialize, serde::Deserialize)]
-pub struct AddTableRow {
+pub struct MulTableRow {
     pub node_id: M31,
     pub lhs_id: M31,
     pub rhs_id: M31,
@@ -35,12 +33,13 @@ pub struct AddTableRow {
     pub lhs: M31,
     pub rhs: M31,
     pub out: M31,
+    pub rem: M31,
     pub lhs_mult: M31,
     pub rhs_mult: M31,
     pub out_mult: M31,
 }
 
-impl AddTableRow {
+impl MulTableRow {
     pub(crate) fn padding() -> Self {
         Self {
             node_id: M31::zero(),
@@ -55,6 +54,7 @@ impl AddTableRow {
             lhs: M31::zero(),
             rhs: M31::zero(),
             out: M31::zero(),
+            rem: M31::zero(),
             lhs_mult: M31::zero(),
             rhs_mult: M31::zero(),
             out_mult: M31::zero(),
@@ -63,7 +63,7 @@ impl AddTableRow {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct PackedAddTableRow {
+pub struct PackedMulTableRow {
     pub node_id: PackedM31,
     pub lhs_id: PackedM31,
     pub rhs_id: PackedM31,
@@ -76,16 +76,17 @@ pub struct PackedAddTableRow {
     pub lhs: PackedM31,
     pub rhs: PackedM31,
     pub out: PackedM31,
+    pub rem: PackedM31,
     pub lhs_mult: PackedM31,
     pub rhs_mult: PackedM31,
     pub out_mult: PackedM31,
 }
 
-impl Pack for AddTableRow {
-    type SimdType = PackedAddTableRow;
+impl Pack for MulTableRow {
+    type SimdType = PackedMulTableRow;
 
     fn pack(inputs: [Self; N_LANES]) -> Self::SimdType {
-        PackedAddTableRow {
+        PackedMulTableRow {
             node_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].node_id)),
             lhs_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].lhs_id)),
             rhs_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].rhs_id)),
@@ -98,6 +99,7 @@ impl Pack for AddTableRow {
             lhs: PackedM31::from_array(std::array::from_fn(|i| inputs[i].lhs)),
             rhs: PackedM31::from_array(std::array::from_fn(|i| inputs[i].rhs)),
             out: PackedM31::from_array(std::array::from_fn(|i| inputs[i].out)),
+            rem: PackedM31::from_array(std::array::from_fn(|i| inputs[i].rem)),
             lhs_mult: PackedM31::from_array(std::array::from_fn(|i| inputs[i].lhs_mult)),
             rhs_mult: PackedM31::from_array(std::array::from_fn(|i| inputs[i].rhs_mult)),
             out_mult: PackedM31::from_array(std::array::from_fn(|i| inputs[i].out_mult)),
@@ -105,8 +107,8 @@ impl Pack for AddTableRow {
     }
 }
 
-impl Unpack for PackedAddTableRow {
-    type CpuType = AddTableRow;
+impl Unpack for PackedMulTableRow {
+    type CpuType = MulTableRow;
 
     fn unpack(self) -> [Self::CpuType; N_LANES] {
         let (
@@ -122,6 +124,7 @@ impl Unpack for PackedAddTableRow {
             lhs,
             rhs,
             out,
+            rem,
             lhs_mult,
             rhs_mult,
             out_mult,
@@ -138,12 +141,13 @@ impl Unpack for PackedAddTableRow {
             self.lhs.to_array(),
             self.rhs.to_array(),
             self.out.to_array(),
+            self.rem.to_array(),
             self.lhs_mult.to_array(),
             self.rhs_mult.to_array(),
             self.out_mult.to_array(),
         );
 
-        std::array::from_fn(|i| AddTableRow {
+        std::array::from_fn(|i| MulTableRow {
             node_id: node_id[i],
             lhs_id: lhs_id[i],
             rhs_id: rhs_id[i],
@@ -156,6 +160,7 @@ impl Unpack for PackedAddTableRow {
             lhs: lhs[i],
             rhs: rhs[i],
             out: out[i],
+            rem: rem[i],
             lhs_mult: lhs_mult[i],
             rhs_mult: rhs_mult[i],
             out_mult: out_mult[i],
@@ -163,21 +168,21 @@ impl Unpack for PackedAddTableRow {
     }
 }
 
-impl AddTable {
-    /// Creates a new, empty [`AddTable`].
+impl MulTable {
+    /// Creates a new, empty [`MulTable`].
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Adds a new row to the Add Table.
-    pub fn add_row(&mut self, row: AddTableRow) {
+    /// Adds a new row to the Mul Table.
+    pub fn add_row(&mut self, row: MulTableRow) {
         self.table.push(row);
     }
 }
 
-/// Enum representing the column indices in the Add trace.
+/// Enum representing the column indices in the Mul trace.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum AddColumn {
+pub enum MulColumn {
     NodeId,
     LhsId,
     RhsId,
@@ -190,13 +195,14 @@ pub enum AddColumn {
     Lhs,
     Rhs,
     Out,
+    Rem,
     LhsMult,
     RhsMult,
     OutMult,
 }
 
-impl AddColumn {
-    /// Returns the index of the column in the Add trace.
+impl MulColumn {
+    /// Returns the index of the column in the Mul trace.
     pub const fn index(self) -> usize {
         match self {
             Self::NodeId => 0,
@@ -211,15 +217,16 @@ impl AddColumn {
             Self::Lhs => 9,
             Self::Rhs => 10,
             Self::Out => 11,
-            Self::LhsMult => 12,
-            Self::RhsMult => 13,
-            Self::OutMult => 14,
+            Self::Rem => 12,
+            Self::LhsMult => 13,
+            Self::RhsMult => 14,
+            Self::OutMult => 15,
         }
     }
 }
-impl TraceColumn for AddColumn {
+impl TraceColumn for MulColumn {
     /// Returns the number of columns in the main trace and interaction trace.
     fn count() -> (usize, usize) {
-        (N_TRACE_COLUMNS, 3)
+        (16, 3)
     }
 }

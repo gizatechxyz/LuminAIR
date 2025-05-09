@@ -1,7 +1,7 @@
 #![feature(portable_simd, iter_array_chunks, array_chunks, raw_slice_split)]
 
 use ::serde::{Deserialize, Serialize};
-use components::{add, AddClaim, InteractionClaim};
+use components::{add, mul, AddClaim, InteractionClaim, MulClaim};
 use stwo_prover::core::{
     channel::Channel, pcs::TreeVec, prover::StarkProof, vcs::ops::MerkleHasher,
 };
@@ -25,6 +25,7 @@ pub struct LuminairProof<H: MerkleHasher> {
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct LuminairClaim {
     pub add: Option<AddClaim>,
+    pub mul: Option<MulClaim>,
 }
 
 impl LuminairClaim {
@@ -32,6 +33,9 @@ impl LuminairClaim {
     pub fn mix_into(&self, channel: &mut impl Channel) {
         if let Some(ref add) = self.add {
             add.mix_into(channel);
+        }
+        if let Some(ref mul) = self.mul {
+            mul.mix_into(channel);
         }
     }
 
@@ -43,6 +47,9 @@ impl LuminairClaim {
         if let Some(ref add) = self.add {
             log_sizes.push(add.log_sizes());
         }
+        if let Some(ref mul) = self.mul {
+            log_sizes.push(mul.log_sizes());
+        }
         TreeVec::concat_cols(log_sizes.into_iter())
     }
 }
@@ -50,6 +57,7 @@ impl LuminairClaim {
 #[derive(Default)]
 pub struct LuminairInteractionClaimGenerator {
     pub add: Option<add::witness::InteractionClaimGenerator>,
+    pub mul: Option<mul::witness::InteractionClaimGenerator>,
 }
 
 /// Claim over the sum of interaction columns per system component.
@@ -58,6 +66,7 @@ pub struct LuminairInteractionClaimGenerator {
 #[derive(Serialize, Deserialize, Default, Debug)]
 pub struct LuminairInteractionClaim {
     pub add: Option<InteractionClaim>,
+    pub mul: Option<InteractionClaim>,
 }
 
 impl LuminairInteractionClaim {
@@ -65,6 +74,9 @@ impl LuminairInteractionClaim {
     pub fn mix_into(&self, channel: &mut impl Channel) {
         if let Some(ref add) = self.add {
             add.mix_into(channel);
+        }
+        if let Some(ref mul) = self.mul {
+            mul.mix_into(channel);
         }
     }
 }

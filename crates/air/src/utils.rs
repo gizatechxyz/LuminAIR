@@ -31,10 +31,11 @@ pub fn calculate_log_size(max_size: usize) -> u32 {
 pub fn log_sum_valid(interaction_claim: &LuminairInteractionClaim) -> bool {
     let mut sum = PackedSecureField::zero();
 
-    for claim_opt in [&interaction_claim.add] {
-        if let Some(ref int_cl) = claim_opt {
-            sum += int_cl.claimed_sum.into();
-        }
+    if let Some(ref int_cl) = &interaction_claim.add {
+        sum += int_cl.claimed_sum.into();
+    }
+    if let Some(ref int_cl) = &interaction_claim.mul {
+        sum += int_cl.claimed_sum.into();
     }
 
     sum.is_zero()

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    components::{add::table::AddTable, ClaimType},
+    components::{add::table::AddTable, mul::table::MulTable, ClaimType},
     utils::AtomicMultiplicityColumn,
 };
 
@@ -9,15 +9,16 @@ use crate::{
 /// to a serialized trace format. Used to defer trace evaluation until proving.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum TableTrace {
-    /// Addition operator trace table.
     Add { table: AddTable },
+    Mul { table: MulTable },
 }
 
 impl TableTrace {
-    /// Creates a new [`TableTrace`] from an [`AddTable`]
-    /// for use in the proof generation.
     pub fn from_add(table: AddTable) -> Self {
         Self::Add { table }
+    }
+    pub fn from_mul(table: MulTable) -> Self {
+        Self::Mul { table }
     }
 }
 
@@ -57,6 +58,7 @@ pub struct ExecutionResources {
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct OpCounter {
     pub add: usize,
+    pub mul: usize,
 }
 
 /// Indicates if a node input is an initializer (i.e., from initial input).

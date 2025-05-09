@@ -7,11 +7,17 @@ use crate::{
 };
 use luminair_air::{
     components::{
+        self,
         add::{
+            self,
             table::{AddColumn, AddTable},
             witness::ClaimGenerator,
         },
         lookups::{Lookups, Range},
+        mul::{
+            self,
+            table::{MulColumn, MulTable},
+        },
         LuminairComponents, LuminairInteractionElements, TraceError,
     },
     pie::{
@@ -151,6 +157,7 @@ impl LuminairGraph for Graph {
 
         // Initializes table for each operator
         let mut add_table = AddTable::new();
+        let mut mul_table = MulTable::new();
 
         for (node, src_ids) in self.linearized_graph.as_ref().unwrap() {
             if self.tensors.contains_key(&(*node, 0)) {
@@ -229,6 +236,12 @@ impl LuminairGraph for Graph {
                         node_op, srcs, &mut add_table, &node_info, &mut ()
                     ).unwrap()
                 }
+                _ if <Box<dyn Operator> as HasProcessTrace<MulColumn, MulTable, ()>>::has_process_trace(node_op) => {
+                    op_counter.mul += 1;
+                    <Box<dyn Operator> as HasProcessTrace<MulColumn, MulTable, ()>>::call_process_trace(
+                        node_op, srcs, &mut mul_table, &node_info, &mut ()
+                    ).unwrap()
+                }
                 _ => node_op.process(srcs)
             };
 
@@ -253,6 +266,11 @@ impl LuminairGraph for Graph {
             let log_size = calculate_log_size(add_table.table.len());
             max_log_size = max_log_size.max(log_size);
             table_traces.push(TableTrace::from_add(add_table));
+        }
+        if !mul_table.table.is_empty() {
+            let log_size = calculate_log_size(mul_table.table.len());
+            max_log_size = max_log_size.max(log_size);
+            table_traces.push(TableTrace::from_mul(mul_table));
         }
 
         Ok(LuminairPie {
@@ -310,10 +328,16 @@ impl LuminairGraph for Graph {
         for table in pie.table_traces.clone() {
             match table {
                 TableTrace::Add { table } => {
-                    let claim_gen = ClaimGenerator::new(table);
+                    let claim_gen = add::witness::ClaimGenerator::new(table);
                     let (cl, in_cl_gen) = claim_gen.write_trace(&mut tree_builder)?;
                     main_claim.add = Some(cl.clone());
                     interaction_claim_gen.add = Some(in_cl_gen);
+                }
+                TableTrace::Mul { table } => {
+                    let claim_gen = mul::witness::ClaimGenerator::new(table);
+                    let (cl, in_cl_gen) = claim_gen.write_trace(&mut tree_builder)?;
+                    main_claim.mul = Some(cl.clone());
+                    interaction_claim_gen.mul = Some(in_cl_gen);
                 }
             }
         }
@@ -334,6 +358,10 @@ impl LuminairGraph for Graph {
         if let Some(claim_gen) = interaction_claim_gen.add {
             let claim = claim_gen.write_interaction_trace(&mut tree_builder, node_elements);
             interaction_claim.add = Some(claim)
+        }
+        if let Some(claim_gen) = interaction_claim_gen.mul {
+            let claim = claim_gen.write_interaction_trace(&mut tree_builder, node_elements);
+            interaction_claim.mul = Some(claim)
         }
         // Mix the interaction claim into the Fiat-Shamir channel.
         interaction_claim.mix_into(channel);

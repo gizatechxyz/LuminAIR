@@ -1,3 +1,7 @@
+use crate::{
+    components::{InteractionClaim, MulClaim, NodeElements, TraceError},
+    utils::{pack_values, TreeBuilder},
+};
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use stwo_air_utils::trace::component_trace::ComponentTrace;
 use stwo_air_utils_derive::{IterMut, ParIterMut, Uninitialized};
@@ -10,31 +14,23 @@ use stwo_prover::{
     },
 };
 
-use crate::{
-    components::{
-        add::table::{AddColumn, AddTableRow},
-        AddClaim, InteractionClaim, NodeElements, TraceError,
-    },
-    utils::{pack_values, TreeBuilder},
-};
+use super::table::{MulColumn, MulTable, MulTableRow, PackedMulTableRow};
 
-use super::table::{AddTable, PackedAddTableRow};
-
-pub(crate) const N_TRACE_COLUMNS: usize = 15;
+pub(crate) const N_TRACE_COLUMNS: usize = 16;
 
 pub struct ClaimGenerator {
-    pub inputs: AddTable,
+    pub inputs: MulTable,
 }
 
 impl ClaimGenerator {
-    pub fn new(inputs: AddTable) -> Self {
+    pub fn new(inputs: MulTable) -> Self {
         Self { inputs }
     }
 
     pub fn write_trace(
         mut self,
         tree_builder: &mut impl TreeBuilder<SimdBackend>,
-    ) -> Result<(AddClaim, InteractionClaimGenerator), TraceError> {
+    ) -> Result<(MulClaim, InteractionClaimGenerator), TraceError> {
         let n_rows = self.inputs.table.len();
 
         if n_rows == 0 {
@@ -44,7 +40,7 @@ impl ClaimGenerator {
         let size = std::cmp::max(n_rows.next_power_of_two(), N_LANES);
         let log_size = size.ilog2();
 
-        self.inputs.table.resize(size, AddTableRow::padding());
+        self.inputs.table.resize(size, MulTableRow::padding());
         let packed_inputs = pack_values(&self.inputs.table);
 
         let (trace, lookup_data) = write_trace_simd(packed_inputs);
@@ -52,7 +48,7 @@ impl ClaimGenerator {
         tree_builder.extend_evals(trace.to_evals());
 
         Ok((
-            AddClaim::new(log_size),
+            MulClaim::new(log_size),
             InteractionClaimGenerator {
                 log_size,
                 lookup_data,
@@ -62,7 +58,7 @@ impl ClaimGenerator {
 }
 
 fn write_trace_simd(
-    inputs: Vec<PackedAddTableRow>,
+    inputs: Vec<PackedMulTableRow>,
 ) -> (ComponentTrace<N_TRACE_COLUMNS>, LookupData) {
     let log_n_packed_rows = inputs.len().ilog2();
     let log_size = log_n_packed_rows + LOG_N_LANES;
@@ -81,21 +77,22 @@ fn write_trace_simd(
     )
         .into_par_iter()
         .for_each(|(mut row, lookup_data, input)| {
-            *row[AddColumn::NodeId.index()] = input.node_id;
-            *row[AddColumn::LhsId.index()] = input.lhs_id;
-            *row[AddColumn::RhsId.index()] = input.rhs_id;
-            *row[AddColumn::Idx.index()] = input.idx;
-            *row[AddColumn::IsLastIdx.index()] = input.is_last_idx;
-            *row[AddColumn::NextNodeId.index()] = input.next_node_id;
-            *row[AddColumn::NextLhsId.index()] = input.next_lhs_id;
-            *row[AddColumn::NextRhsId.index()] = input.next_rhs_id;
-            *row[AddColumn::NextIdx.index()] = input.next_idx;
-            *row[AddColumn::Lhs.index()] = input.lhs;
-            *row[AddColumn::Rhs.index()] = input.rhs;
-            *row[AddColumn::Out.index()] = input.out;
-            *row[AddColumn::LhsMult.index()] = input.lhs_mult;
-            *row[AddColumn::RhsMult.index()] = input.rhs_mult;
-            *row[AddColumn::OutMult.index()] = input.out_mult;
+            *row[MulColumn::NodeId.index()] = input.node_id;
+            *row[MulColumn::LhsId.index()] = input.lhs_id;
+            *row[MulColumn::RhsId.index()] = input.rhs_id;
+            *row[MulColumn::Idx.index()] = input.idx;
+            *row[MulColumn::IsLastIdx.index()] = input.is_last_idx;
+            *row[MulColumn::NextNodeId.index()] = input.next_node_id;
+            *row[MulColumn::NextLhsId.index()] = input.next_lhs_id;
+            *row[MulColumn::NextRhsId.index()] = input.next_rhs_id;
+            *row[MulColumn::NextIdx.index()] = input.next_idx;
+            *row[MulColumn::Lhs.index()] = input.lhs;
+            *row[MulColumn::Rhs.index()] = input.rhs;
+            *row[MulColumn::Out.index()] = input.out;
+            *row[MulColumn::Rem.index()] = input.rem;
+            *row[MulColumn::LhsMult.index()] = input.lhs_mult;
+            *row[MulColumn::RhsMult.index()] = input.rhs_mult;
+            *row[MulColumn::OutMult.index()] = input.out_mult;
 
             *lookup_data.lhs = [input.lhs, input.lhs_id];
             *lookup_data.lhs_mult = input.lhs_mult;
