@@ -33,12 +33,12 @@ pub fn log_sum_valid(interaction_claim: &LuminairInteractionClaim) -> bool {
 
     for claim_opt in [
         &interaction_claim.add,
-        &interaction_claim.mul,
-        &interaction_claim.sum_reduce,
-        &interaction_claim.recip,
-        &interaction_claim.max_reduce,
-        &interaction_claim.sin,
-        &interaction_claim.sin_lookup,
+        // &interaction_claim.mul,
+        // &interaction_claim.sum_reduce,
+        // &interaction_claim.recip,
+        // &interaction_claim.max_reduce,
+        // &interaction_claim.sin,
+        // &interaction_claim.sin_lookup,
     ] {
         if let Some(ref int_cl) = claim_opt {
             sum += int_cl.claimed_sum.into();

@@ -4,30 +4,30 @@ use add::{
     component::{AddComponent, AddEval},
     table::AddColumn,
 };
-use lookups::{
-    sin::{
-        component::{SinLookupComponent, SinLookupEval},
-        table::SinLookupColumn,
-    },
-    LookupElements, Lookups,
-};
-use max_reduce::{
-    component::{MaxReduceComponent, MaxReduceEval},
-    table::MaxReduceColumn,
-};
-use mul::{
-    component::{MulComponent, MulEval},
-    table::MulColumn,
-};
-use recip::{
-    component::{RecipComponent, RecipEval},
-    table::RecipColumn,
-};
+// use lookups::{
+//     sin::{
+//         component::{SinLookupComponent, SinLookupEval},
+//         table::SinLookupColumn,
+//     },
+//     LookupElements, Lookups,
+// };
+// use max_reduce::{
+//     component::{MaxReduceComponent, MaxReduceEval},
+//     table::MaxReduceColumn,
+// };
+// use mul::{
+//     component::{MulComponent, MulEval},
+//     table::MulColumn,
+// };
+// use recip::{
+//     component::{RecipComponent, RecipEval},
+//     table::RecipColumn,
+// };
 use serde::{Deserialize, Serialize};
-use sin::{
-    component::{SinComponent, SinEval},
-    table::SinColumn,
-};
+// use sin::{
+//     component::{SinComponent, SinEval},
+//     table::SinColumn,
+// };
 use stwo_prover::{
     constraint_framework::TraceLocationAllocator,
     core::{
@@ -41,22 +41,23 @@ use stwo_prover::{
     },
     relation,
 };
-use sum_reduce::{
-    component::{SumReduceComponent, SumReduceEval},
-    table::SumReduceColumn,
-};
+// use sum_reduce::{
+//     component::{SumReduceComponent, SumReduceEval},
+//     table::SumReduceColumn,
+// };
 
 use thiserror::Error;
 
-use crate::{preprocessed::PreProcessedTrace, LuminairClaim, LuminairInteractionClaim};
+use crate::{
+    preprocessed::PreProcessedTrace, LuminairClaim, LuminairInteractionClaim};
 
 pub mod add;
 pub mod lookups;
-pub mod max_reduce;
-pub mod mul;
-pub mod recip;
-pub mod sin;
-pub mod sum_reduce;
+// pub mod max_reduce;
+// pub mod mul;
+// pub mod recip;
+// pub mod sin;
+// pub mod sum_reduce;
 
 /// Errors related to trace operations.
 #[derive(Debug, Error, Eq, PartialEq)]
@@ -71,18 +72,18 @@ pub type TraceEval = ColumnVec<CircleEvaluation<SimdBackend, BaseField, BitRever
 
 /// Claim for the Add trace.
 pub type AddClaim = Claim<AddColumn>;
-/// Claim for the Mul trace.
-pub type MulClaim = Claim<MulColumn>;
-/// Claim for the SumReduce trace.
-pub type SumReduceClaim = Claim<SumReduceColumn>;
-/// Claim for the Recip trace.
-pub type RecipClaim = Claim<RecipColumn>;
-/// Claim for the MaxReduce trace.
-pub type MaxReduceClaim = Claim<MaxReduceColumn>;
-/// Claim for the Sin trace.
-pub type SinClaim = Claim<SinColumn>;
-/// Claim for the SinLookup trace.
-pub type SinLookupClaim = Claim<SinLookupColumn>;
+// /// Claim for the Mul trace.
+// pub type MulClaim = Claim<MulColumn>;
+// /// Claim for the SumReduce trace.
+// pub type SumReduceClaim = Claim<SumReduceColumn>;
+// /// Claim for the Recip trace.
+// pub type RecipClaim = Claim<RecipColumn>;
+// /// Claim for the MaxReduce trace.
+// pub type MaxReduceClaim = Claim<MaxReduceColumn>;
+// /// Claim for the Sin trace.
+// pub type SinClaim = Claim<SinColumn>;
+// /// Claim for the SinLookup trace.
+// pub type SinLookupClaim = Claim<SinLookupColumn>;
 
 /// Represents columns of a trace.
 pub trait TraceColumn {
@@ -131,12 +132,12 @@ impl<T: TraceColumn> Claim<T> {
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum ClaimType {
     Add(Claim<AddColumn>),
-    Mul(Claim<MulColumn>),
-    SumReduce(Claim<SumReduceColumn>),
-    Recip(Claim<RecipColumn>),
-    MaxReduce(Claim<MaxReduceColumn>),
-    Sin(Claim<SinColumn>),
-    SinLookup(Claim<SinLookupColumn>),
+    // Mul(Claim<MulColumn>),
+    // SumReduce(Claim<SumReduceColumn>),
+    // Recip(Claim<RecipColumn>),
+    // MaxReduce(Claim<MaxReduceColumn>),
+    // Sin(Claim<SinColumn>),
+    // SinLookup(Claim<SinLookupColumn>),
 }
 
 /// The claim of the interaction phase 2 (with the logUp protocol).
@@ -170,7 +171,7 @@ relation!(NodeElements, 2);
 #[derive(Clone, Debug)]
 pub struct LuminairInteractionElements {
     pub node_elements: NodeElements,
-    pub lookup_elements: LookupElements,
+    // pub lookup_elements: LookupElements,
 }
 
 impl LuminairInteractionElements {
@@ -178,11 +179,11 @@ impl LuminairInteractionElements {
     /// all the components of the system.
     pub fn draw(channel: &mut impl Channel) -> Self {
         let node_elements = NodeElements::draw(channel);
-        let lookup_elements = LookupElements::draw(channel);
+        // let lookup_elements = LookupElements::draw(channel);
 
         Self {
             node_elements,
-            lookup_elements,
+            // lookup_elements,
         }
     }
 }
@@ -193,12 +194,12 @@ impl LuminairInteractionElements {
 /// and by the verifier as a `Component`.
 pub struct LuminairComponents {
     add: Option<AddComponent>,
-    mul: Option<MulComponent>,
-    sum_reduce: Option<SumReduceComponent>,
-    recip: Option<RecipComponent>,
-    max_reduce: Option<MaxReduceComponent>,
-    sin: Option<SinComponent>,
-    sin_lookup: Option<SinLookupComponent>,
+    // mul: Option<MulComponent>,
+    // sum_reduce: Option<SumReduceComponent>,
+    // recip: Option<RecipComponent>,
+    // max_reduce: Option<MaxReduceComponent>,
+    // sin: Option<SinComponent>,
+    // sin_lookup: Option<SinLookupComponent>,
 }
 
 impl LuminairComponents {
@@ -208,7 +209,7 @@ impl LuminairComponents {
         interaction_elements: &LuminairInteractionElements,
         interaction_claim: &LuminairInteractionClaim,
         preprocessed_trace: &PreProcessedTrace,
-        lookups: &Lookups,
+        // lookups: &Lookups,
     ) -> Self {
         let preprocessed_column_ids = &preprocessed_trace.ids();
         // Create a mapping from preprocessed column ID to log size
@@ -230,89 +231,89 @@ impl LuminairComponents {
             None
         };
 
-        let mul = if let Some(ref mul_claim) = claim.mul {
-            Some(MulComponent::new(
-                tree_span_provider,
-                MulEval::new(&mul_claim, interaction_elements.node_elements.clone()),
-                interaction_claim.mul.as_ref().unwrap().claimed_sum,
-            ))
-        } else {
-            None
-        };
+        // let mul = if let Some(ref mul_claim) = claim.mul {
+        //     Some(MulComponent::new(
+        //         tree_span_provider,
+        //         MulEval::new(&mul_claim, interaction_elements.node_elements.clone()),
+        //         interaction_claim.mul.as_ref().unwrap().claimed_sum,
+        //     ))
+        // } else {
+        //     None
+        // };
 
-        let sum_reduce = if let Some(ref sum_reduce_claim) = claim.sum_reduce {
-            Some(SumReduceComponent::new(
-                tree_span_provider,
-                SumReduceEval::new(
-                    &sum_reduce_claim,
-                    interaction_elements.node_elements.clone(),
-                ),
-                interaction_claim.sum_reduce.as_ref().unwrap().claimed_sum,
-            ))
-        } else {
-            None
-        };
+        // let sum_reduce = if let Some(ref sum_reduce_claim) = claim.sum_reduce {
+        //     Some(SumReduceComponent::new(
+        //         tree_span_provider,
+        //         SumReduceEval::new(
+        //             &sum_reduce_claim,
+        //             interaction_elements.node_elements.clone(),
+        //         ),
+        //         interaction_claim.sum_reduce.as_ref().unwrap().claimed_sum,
+        //     ))
+        // } else {
+        //     None
+        // };
 
-        let recip = if let Some(ref recip_claim) = claim.recip {
-            Some(RecipComponent::new(
-                tree_span_provider,
-                RecipEval::new(&recip_claim, interaction_elements.node_elements.clone()),
-                interaction_claim.recip.as_ref().unwrap().claimed_sum,
-            ))
-        } else {
-            None
-        };
+        // let recip = if let Some(ref recip_claim) = claim.recip {
+        //     Some(RecipComponent::new(
+        //         tree_span_provider,
+        //         RecipEval::new(&recip_claim, interaction_elements.node_elements.clone()),
+        //         interaction_claim.recip.as_ref().unwrap().claimed_sum,
+        //     ))
+        // } else {
+        //     None
+        // };
 
-        let max_reduce = if let Some(ref max_reduce_claim) = claim.max_reduce {
-            Some(MaxReduceComponent::new(
-                tree_span_provider,
-                MaxReduceEval::new(
-                    &max_reduce_claim,
-                    interaction_elements.node_elements.clone(),
-                ),
-                interaction_claim.max_reduce.as_ref().unwrap().claimed_sum,
-            ))
-        } else {
-            None
-        };
+        // let max_reduce = if let Some(ref max_reduce_claim) = claim.max_reduce {
+        //     Some(MaxReduceComponent::new(
+        //         tree_span_provider,
+        //         MaxReduceEval::new(
+        //             &max_reduce_claim,
+        //             interaction_elements.node_elements.clone(),
+        //         ),
+        //         interaction_claim.max_reduce.as_ref().unwrap().claimed_sum,
+        //     ))
+        // } else {
+        //     None
+        // };
 
-        let sin = if let Some(ref sin_claim) = claim.sin {
-            let sin_log_size = lookups.sin.as_ref().map(|s| s.layout.log_size).unwrap();
-            Some(SinComponent::new(
-                tree_span_provider,
-                SinEval::new(
-                    &sin_claim,
-                    interaction_elements.node_elements.clone(),
-                    interaction_elements.lookup_elements.sin.clone(),
-                    sin_log_size,
-                ),
-                interaction_claim.sin.as_ref().unwrap().claimed_sum,
-            ))
-        } else {
-            None
-        };
+        // let sin = if let Some(ref sin_claim) = claim.sin {
+        //     let sin_log_size = lookups.sin.as_ref().map(|s| s.layout.log_size).unwrap();
+        //     Some(SinComponent::new(
+        //         tree_span_provider,
+        //         SinEval::new(
+        //             &sin_claim,
+        //             interaction_elements.node_elements.clone(),
+        //             interaction_elements.lookup_elements.sin.clone(),
+        //             sin_log_size,
+        //         ),
+        //         interaction_claim.sin.as_ref().unwrap().claimed_sum,
+        //     ))
+        // } else {
+        //     None
+        // };
 
-        let sin_lookup = if let Some(ref sin_lookup_claim) = claim.sin_lookup {
-            Some(SinLookupComponent::new(
-                tree_span_provider,
-                SinLookupEval::new(
-                    &sin_lookup_claim,
-                    interaction_elements.lookup_elements.sin.clone(),
-                ),
-                interaction_claim.sin_lookup.as_ref().unwrap().claimed_sum,
-            ))
-        } else {
-            None
-        };
+        // let sin_lookup = if let Some(ref sin_lookup_claim) = claim.sin_lookup {
+        //     Some(SinLookupComponent::new(
+        //         tree_span_provider,
+        //         SinLookupEval::new(
+        //             &sin_lookup_claim,
+        //             interaction_elements.lookup_elements.sin.clone(),
+        //         ),
+        //         interaction_claim.sin_lookup.as_ref().unwrap().claimed_sum,
+        //     ))
+        // } else {
+        //     None
+        // };
 
         Self {
             add,
-            mul,
-            sum_reduce,
-            recip,
-            max_reduce,
-            sin,
-            sin_lookup,
+            // mul,
+            // sum_reduce,
+            // recip,
+            // max_reduce,
+            // sin,
+            // sin_lookup,
         }
     }
 
@@ -323,24 +324,24 @@ impl LuminairComponents {
         if let Some(ref add_component) = self.add {
             components.push(add_component);
         }
-        if let Some(ref mul_component) = self.mul {
-            components.push(mul_component);
-        }
-        if let Some(ref sum_reduce_component) = self.sum_reduce {
-            components.push(sum_reduce_component);
-        }
-        if let Some(ref recip_component) = self.recip {
-            components.push(recip_component);
-        }
-        if let Some(ref max_reduce_component) = self.max_reduce {
-            components.push(max_reduce_component);
-        }
-        if let Some(ref sin_component) = self.sin {
-            components.push(sin_component);
-        }
-        if let Some(ref sin_lookup_component) = self.sin_lookup {
-            components.push(sin_lookup_component);
-        }
+        // if let Some(ref mul_component) = self.mul {
+        //     components.push(mul_component);
+        // }
+        // if let Some(ref sum_reduce_component) = self.sum_reduce {
+        //     components.push(sum_reduce_component);
+        // }
+        // if let Some(ref recip_component) = self.recip {
+        //     components.push(recip_component);
+        // }
+        // if let Some(ref max_reduce_component) = self.max_reduce {
+        //     components.push(max_reduce_component);
+        // }
+        // if let Some(ref sin_component) = self.sin {
+        //     components.push(sin_component);
+        // }
+        // if let Some(ref sin_lookup_component) = self.sin_lookup {
+        //     components.push(sin_lookup_component);
+        // }
         components
     }
 

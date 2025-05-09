@@ -10,9 +10,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let w = cx.tensor((2, 2)).set(vec![-1.0, -1.0, -1.0, -1.0]);
 
     // ======= Define graph =======
-    let c = a * b;
+    let c = a + b;
     let d = c + w;
-    let mut e = (c * d).retrieve();
+    let mut e = (c + d).retrieve();
 
     // ======= Compile graph =======
     println!("Compiling computation graph...");

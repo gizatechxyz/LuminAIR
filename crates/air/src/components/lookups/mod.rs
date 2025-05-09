@@ -1,11 +1,11 @@
 use numerair::Fixed;
 use serde::{Deserialize, Serialize};
-use sin::{table::SinLookup, SinLookupElements};
+// use sin::{table::SinLookup, SinLookupElements};
 use stwo_prover::core::channel::Channel;
 
 use crate::utils::calculate_log_size;
 
-pub mod sin;
+// pub mod sin;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Range(pub Fixed, pub Fixed);
@@ -19,7 +19,7 @@ fn value_count(ranges: &Vec<Range>) -> u32 {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Lookups {
-    pub sin: Option<SinLookup>,
+    // pub sin: Option<SinLookup>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
@@ -96,13 +96,13 @@ impl Layout {
 
 #[derive(Clone, Debug)]
 pub struct LookupElements {
-    pub sin: SinLookupElements,
+    // pub sin: SinLookupElements,
 }
 
 impl LookupElements {
     pub fn draw(channel: &mut impl Channel) -> Self {
         Self {
-            sin: SinLookupElements::draw(channel),
+            // sin: SinLookupElements::draw(channel),
         }
     }
 }
