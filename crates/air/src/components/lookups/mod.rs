@@ -1,11 +1,8 @@
 use numerair::Fixed;
 use serde::{Deserialize, Serialize};
-// use sin::{table::SinLookup, SinLookupElements};
 use stwo_prover::core::channel::Channel;
 
 use crate::utils::calculate_log_size;
-
-// pub mod sin;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Range(pub Fixed, pub Fixed);
@@ -95,14 +92,10 @@ impl Layout {
 }
 
 #[derive(Clone, Debug)]
-pub struct LookupElements {
-    // pub sin: SinLookupElements,
-}
+pub struct LookupElements {}
 
 impl LookupElements {
-    pub fn draw(channel: &mut impl Channel) -> Self {
-        Self {
-            // sin: SinLookupElements::draw(channel),
-        }
+    pub fn draw(_channel: &mut impl Channel) -> Self {
+        Self {}
     }
 }

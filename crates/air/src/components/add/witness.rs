@@ -12,7 +12,8 @@ use stwo_prover::{
 
 use crate::{
     components::{
-        add::table::AddColumn, AddClaim, InteractionClaim, NodeElements, TraceError, TraceEval,
+        add::table::{AddColumn, AddTableRow},
+        AddClaim, InteractionClaim, NodeElements, TraceError,
     },
     utils::{pack_values, TreeBuilder},
 };
@@ -43,9 +44,7 @@ impl ClaimGenerator {
         let size = std::cmp::max(n_rows.next_power_of_two(), N_LANES);
         let log_size = size.ilog2();
 
-        self.inputs
-            .table
-            .resize(size, *self.inputs.table.first().unwrap());
+        self.inputs.table.resize(size, AddTableRow::default());
         let packed_inputs = pack_values(&self.inputs.table);
 
         let (trace, lookup_data) = write_trace_simd(packed_inputs);
@@ -104,6 +103,10 @@ fn write_trace_simd(
             *lookup_data.rhs_mult = input.rhs_mult;
             *lookup_data.out = [input.out, input.node_id];
             *lookup_data.out_mult = input.out_mult;
+
+            // println!("Lhs MULT: {:?}", input.lhs_mult);
+            // println!("Rhs MULT: {:?}", input.rhs_mult);
+            // println!("Out MULT: {:?}", input.out_mult);
         });
 
     (trace, lookup_data)

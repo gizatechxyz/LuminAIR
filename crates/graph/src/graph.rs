@@ -1,63 +1,39 @@
-use std::sync::atomic::Ordering;
-
 use crate::{
     op::{
         prim::{CopyFromStwo, CopyToStwo, LuminairConstant},
-        HasProcessTrace, 
+        HasProcessTrace,
     },
     settings::CircuitSettings,
-    utils::compute_padded_range_from_srcs,
 };
 use luminair_air::{
     components::{
         add::{
-            self,
-            table::{AddColumn, AddTable}, witness::ClaimGenerator,
+            table::{AddColumn, AddTable},
+            witness::ClaimGenerator,
         },
-        lookups::{
-            self,
-             // sin::table::{SinLookup,  SinLookupTable, SinLookupTableRow}, 
-             Layout, Lookups, Range
-        },
-        // max_reduce::{
-        //     self,
-        //     table::{MaxReduceColumn, MaxReduceTable},
-        // },
-        // mul::{
-        //     self,
-        //     table::{MulColumn, MulTable},
-        // },
-        // recip::{
-        //     self,
-        //     table::{RecipColumn, RecipTable},
-        // },
-        // sin::{
-        //     self,
-        //     table::{SinColumn, SinTable},
-        // },
-        // sum_reduce::{
-        //     self,
-        //     table::{SumReduceColumn, SumReduceTable},
-        // },
-        ClaimType, LuminairComponents, LuminairInteractionElements, TraceError,
-    }, pie::{
-        ExecutionResources, InputInfo,  LuminairPie, NodeInfo, OpCounter,
-        OutputInfo, TableTrace,
-    }, preprocessed::{lookups_to_preprocessed_column,  PreProcessedTrace,
+        lookups::{Lookups, Range},
+        LuminairComponents, LuminairInteractionElements, TraceError,
+    },
+    pie::{
+        ExecutionResources, InputInfo, LuminairPie, NodeInfo, OpCounter, OutputInfo, TableTrace,
+    },
+    preprocessed::{
+        lookups_to_preprocessed_column,
+        PreProcessedTrace,
         // SinLUT
-        }, utils::{calculate_log_size, log_sum_valid}, LuminairClaim, LuminairInteractionClaim, LuminairInteractionClaimGenerator, LuminairProof
+    },
+    utils::{calculate_log_size, log_sum_valid},
+    LuminairClaim, LuminairInteractionClaim, LuminairInteractionClaimGenerator, LuminairProof,
 };
 use luminal::{
     op::*,
     prelude::{petgraph::visit::EdgeRef, *},
 };
-use numerair::Fixed;
 use stwo_prover::{
     constraint_framework::{INTERACTION_TRACE_IDX, ORIGINAL_TRACE_IDX, PREPROCESSED_TRACE_IDX},
     core::{
         backend::simd::SimdBackend,
         channel::Blake2sChannel,
-        fields::m31::BaseField,
         pcs::{CommitmentSchemeProver, CommitmentSchemeVerifier, PcsConfig},
         poly::circle::{CanonicCoset, PolyOps},
         prover::{self, verify, ProvingError, VerificationError},
@@ -68,13 +44,12 @@ use thiserror::Error;
 
 #[derive(Clone, Debug, Error)]
 pub enum LuminairError {
-
     #[error(transparent)]
     TraceError(#[from] TraceError),
 
     #[error("Main trace generation failed.")]
     MainTraceEvalGenError,
-    
+
     #[error("Interaction trace generation failed.")]
     InteractionTraceEvalGenError,
 
@@ -124,7 +99,7 @@ impl LuminairGraph for Graph {
         let mut dim_stack = Vec::new();
 
         // Accumulate ranges per non-linear op
-        let mut sin_ranges: Vec<Range> = Vec::new();
+        let mut _sin_ranges: Vec<Range> = Vec::new();
 
         for (node, src_ids) in self.linearized_graph.as_ref().unwrap() {
             if self.tensors.contains_key(&(*node, 0)) {
@@ -140,10 +115,7 @@ impl LuminairGraph for Graph {
             }
 
             // Add range
-            let op = &*self.graph.node_weight(*node).unwrap();
-            // if <Box<dyn Operator> as HasProcessTrace<SinColumn, SinTable, SinLookup>>::has_process_trace(op) {
-            //     sin_ranges.push(compute_padded_range_from_srcs(&srcs));
-            // }
+            let _op = &*self.graph.node_weight(*node).unwrap();
 
             // Execute
             let tensors = self.graph.node_weight_mut(*node).unwrap().process(srcs);
@@ -159,22 +131,13 @@ impl LuminairGraph for Graph {
 
         self.reset();
 
-        // let sin_lookup = if !sin_ranges.is_empty() {
-        //     let layout = Layout::new(coalesce_ranges(sin_ranges));
-        //     Some(SinLookup::new(&layout))
-        // } else {
-        //     None
-        // };
-
         let settings = CircuitSettings {
-            lookups: Lookups { 
-            //    sin: sin_lookup 
-            },
+            lookups: Lookups {},
         };
         settings
     }
 
-    fn gen_trace(&mut self, settings: &mut CircuitSettings) -> Result<LuminairPie, TraceError> {
+    fn gen_trace(&mut self, _settings: &mut CircuitSettings) -> Result<LuminairPie, TraceError> {
         // Track the number of views pointing to each tensor so we know when to clear
         if self.linearized_graph.is_none() {
             self.toposort();
@@ -188,12 +151,6 @@ impl LuminairGraph for Graph {
 
         // Initializes table for each operator
         let mut add_table = AddTable::new();
-        // let mut mul_table = MulTable::new();
-        // let mut recip_table = RecipTable::new();
-        // let mut sum_reduce_table = SumReduceTable::new();
-        // let mut max_reduce_table = MaxReduceTable::new();
-        // let mut sin_table = SinTable::new();
-        // let mut sin_lookup_table = SinLookupTable::new();
 
         for (node, src_ids) in self.linearized_graph.as_ref().unwrap() {
             if self.tensors.contains_key(&(*node, 0)) {
@@ -272,51 +229,6 @@ impl LuminairGraph for Graph {
                         node_op, srcs, &mut add_table, &node_info, &mut ()
                     ).unwrap()
                 }
-                // _ if <Box<dyn Operator> as HasProcessTrace<MulColumn, MulTable, ()>>::has_process_trace(node_op) => {
-                //     op_counter.mul += 1;
-                //     <Box<dyn Operator> as HasProcessTrace<MulColumn, MulTable, ()>>::call_process_trace(
-                //         node_op, srcs, &mut mul_table, &node_info, &mut ()
-                //     ).unwrap()
-                // }
-                // _ if <Box<dyn Operator> as HasProcessTrace<SumReduceColumn, SumReduceTable, ()>>::has_process_trace(node_op) => {
-                //     op_counter.sum_reduce += 1;
-                //     <Box<dyn Operator> as HasProcessTrace<SumReduceColumn, SumReduceTable, ()>>::call_process_trace(
-                //         node_op, srcs, &mut sum_reduce_table, &node_info, &mut ()
-                //     ).unwrap()
-                // }
-                // _ if <Box<dyn Operator> as HasProcessTrace<RecipColumn, RecipTable, ()>>::has_process_trace(node_op) => {
-                //     op_counter.recip += 1;
-                //     <Box<dyn Operator> as HasProcessTrace<RecipColumn, RecipTable, ()>>::call_process_trace(
-                //         node_op, srcs, &mut recip_table, &node_info, &mut ()
-                //     ).unwrap()
-                // }
-                // _ if <Box<dyn Operator> as HasProcessTrace<MaxReduceColumn, MaxReduceTable, ()>>::has_process_trace(node_op) => {
-                //     op_counter.max_reduce += 1;
-                //     <Box<dyn Operator> as HasProcessTrace<MaxReduceColumn, MaxReduceTable, ()>>::call_process_trace(
-                //         node_op, srcs, &mut max_reduce_table, &node_info, &mut ()
-                //     ).unwrap()
-                // }
-                // _ if <Box<dyn Operator> as HasProcessTrace<SinColumn, SinTable, SinLookup>>::has_process_trace(node_op) => {
-                //     op_counter.sin += 1;
-
-                //     match settings.lookups.sin.as_mut() {
-                //         Some(lookup) => {
-                //             <Box<dyn Operator> as HasProcessTrace<
-                //                 SinColumn,
-                //                 SinTable,
-                //                 SinLookup,
-                //             >>::call_process_trace(
-                //                 node_op,
-                //                 srcs,
-                //                 &mut sin_table,
-                //                 &node_info,
-                //                 lookup,        // already `&mut SinLookup`
-                //             )
-                //             .unwrap()
-                //         }                
-                //         None =>  unreachable!("Sin lookup table must be initialised"),
-                //     }
-                // }
                 _ => node_op.process(srcs)
             };
 
@@ -342,41 +254,6 @@ impl LuminairGraph for Graph {
             max_log_size = max_log_size.max(log_size);
             table_traces.push(TableTrace::from_add(add_table));
         }
-        // if !mul_table.table.is_empty() {
-        //     let log_size = calculate_log_size(mul_table.table.len());
-        //     max_log_size = max_log_size.max(log_size);
-        //     table_traces.push(TableTrace::from_mul(mul_table));
-        // }
-        // if !recip_table.table.is_empty() {
-        //     let log_size = calculate_log_size(recip_table.table.len());
-        //     max_log_size = max_log_size.max(log_size);
-        //     table_traces.push(TableTrace::from_recip(recip_table));
-        // }
-        // if !sum_reduce_table.table.is_empty() {
-        //     let log_size = calculate_log_size(sum_reduce_table.table.len());
-        //     max_log_size = max_log_size.max(log_size);
-        //     table_traces.push(TableTrace::from_sum_reduce(sum_reduce_table));
-        // }
-        // if !max_reduce_table.table.is_empty() {
-        //     let log_size = calculate_log_size(max_reduce_table.table.len());
-        //     max_log_size = max_log_size.max(log_size);
-        //     table_traces.push(TableTrace::from_max_reduce(max_reduce_table));
-        // }
-        // if !sin_table.table.is_empty() {
-        //     let log_size = calculate_log_size(sin_table.table.len());
-        //     max_log_size = max_log_size.max(log_size);
-        //     table_traces.push(TableTrace::from_sin(sin_table));
-            
-        //     if let Some(sin_lookup) = settings.lookups.sin.as_ref() {
-        //         for mult in &sin_lookup.multiplicities.data {
-        //             sin_lookup_table.add_row(SinLookupTableRow {
-        //                 multiplicity: BaseField::from_u32_unchecked(mult.load(Ordering::Relaxed)),
-        //             });
-        //         }
-        //         max_log_size = max_log_size.max(sin_lookup.layout.log_size);
-        //     }
-        //     table_traces.push(TableTrace::from_sin_lookup(sin_lookup_table))
-        // }
 
         Ok(LuminairPie {
             table_traces,
@@ -415,7 +292,7 @@ impl LuminairGraph for Graph {
         tracing::info!("Preprocessed Trace");
         // Convert lookups in circuit settings to preprocessed column.
         let lut_cols = lookups_to_preprocessed_column(&settings.lookups);
-          let preprocessed_trace = PreProcessedTrace::new(lut_cols);        
+        let preprocessed_trace = PreProcessedTrace::new(lut_cols);
         let mut tree_builder = commitment_scheme.tree_builder();
         tree_builder.extend_evals(preprocessed_trace.gen_trace());
         // Commit the preprocessed trace
@@ -434,18 +311,16 @@ impl LuminairGraph for Graph {
             match table {
                 TableTrace::Add { table } => {
                     let claim_gen = ClaimGenerator::new(table);
-                    let ( cl, in_cl_gen) = claim_gen.write_trace(&mut tree_builder)?;
+                    let (cl, in_cl_gen) = claim_gen.write_trace(&mut tree_builder)?;
                     main_claim.add = Some(cl.clone());
                     interaction_claim_gen.add = Some(in_cl_gen);
-
-                },
-            } 
+                }
+            }
         }
         // Mix the claim into the Fiat-Shamir channel.
         main_claim.mix_into(channel);
         // Commit the main trace.
         tree_builder.commit(channel);
-        
 
         // ┌───────────────────────────────────────────────┐
         // │    Interaction Phase 2 - Interaction Trace    │
@@ -561,125 +436,5 @@ impl LuminairGraph for Graph {
 
         verify(&components, channel, commitment_scheme_verifier, proof)
             .map_err(LuminairError::StwoVerifierError)
-    }
-}
-
-fn coalesce_ranges(mut ranges: Vec<Range>) -> Vec<Range> {
-    if ranges.is_empty() {
-        return Vec::new();
-    }
-
-    // Sort by lower bound
-    ranges.sort_unstable_by_key(|r| r.0 .0);
-
-    // Use the first element as the starting point
-    let mut result = Vec::with_capacity(ranges.len());
-    let mut current_range = ranges[0].clone();
-
-    // Merge overlapping or adjacent ranges
-    for range in ranges.into_iter().skip(1) {
-        if range.0 .0 <= current_range.1 .0 + 1 {
-            // Merge ranges if they overlap or are adjacent
-            current_range.1 = Fixed(current_range.1 .0.max(range.1 .0));
-        } else {
-            // No overlap, push the current range and start a new one
-            result.push(current_range);
-            current_range = range;
-        }
-    }
-
-    result.push(current_range);
-    result
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::StwoCompiler;
-
-    // #[test]
-    // fn test_direct_table_trace_processing() {
-    //     let mut cx = Graph::new();
-    //     let a = cx.tensor((10, 10)).set(vec![1.0; 100]);
-    //     let b = cx.tensor((10, 10)).set(vec![2.0; 100]);
-    //     let c = a * b;
-    //     let mut d = (c + a).retrieve();
-    //     let _e = a.sum_reduce(0).retrieve();
-    //     let _f = a.max_reduce(0).retrieve();
-
-    //     cx.compile(<(GenericCompiler, StwoCompiler)>::default(), &mut d);
-
-    //     // Generate circuit settings
-    //     let mut settings = cx.gen_circuit_settings();
-
-    //     // Generate trace with direct table storage
-    //     let trace = cx
-    //         .gen_trace(&mut settings)
-    //         .expect("Trace generation failed");
-
-    //     // Verify that table traces contain both operation types
-    //     let has_add = trace
-    //         .table_traces
-    //         .iter()
-    //         .any(|t| matches!(t, TableTrace::Add { .. }));
-    //     let has_mul = trace
-    //         .table_traces
-    //         .iter()
-    //         .any(|t| matches!(t, TableTrace::Mul { .. }));
-    //     let has_sum_reduce = trace
-    //         .table_traces
-    //         .iter()
-    //         .any(|t| matches!(t, TableTrace::SumReduce { .. }));
-    //     let has_max_reduce = trace
-    //         .table_traces
-    //         .iter()
-    //         .any(|t| matches!(t, TableTrace::MaxReduce { .. }));
-
-    //     assert!(has_add, "Should contain Add table traces");
-    //     assert!(has_mul, "Should contain Mul table traces");
-    //     assert!(has_sum_reduce, "Should contain SumReduce table traces");
-    //     assert!(has_max_reduce, "Should contain MaxReduce table traces");
-
-    //     // Verify the end-to-end proof pipeline
-    //     let proof = cx
-    //         .prove(trace, settings.clone())
-    //         .expect("Proof generation failed");
-    //     assert!(
-    //         cx.verify(proof, settings).is_ok(),
-    //         "Proof verification should succeed"
-    //     );
-    // }
-
-    #[test]
-    fn gen_circuit_settings_merges_luts() {
-        let mut g = Graph::new();
-
-        // tensor with values in [-100, -1]
-        let t1_vals: Vec<f32> = (-100..0).map(|x| x as f32).collect();
-        let t1 = g.tensor((t1_vals.len(),)).set(t1_vals);
-        // tensor with values in [200, 299]
-        let t2_vals: Vec<f32> = (200..300).map(|x| x as f32).collect();
-        let t2 = g.tensor((t2_vals.len(),)).set(t2_vals);
-
-        // two distinct Sin nodes
-        let r1 = t1.sin();
-        let r2 = t2.sin();
-        let mut out = (r1 + r2).retrieve();
-
-        g.compile(<(GenericCompiler, StwoCompiler)>::default(), &mut out);
-
-        // let settings = g.gen_circuit_settings();
-
-        // assert_eq!(
-        //     settings.lut_cols.len(),
-        //     2,
-        //     "Expect exactly one (x, 1/x) column pair for Sin"
-        // );
-
-        // let preprocessed = PreProcessedTrace::new(settings.lut_cols);
-        // let ids = preprocessed.ids();
-
-        // assert_eq!(ids[0].id, "sin_lut_0");
-        // assert_eq!(ids[1].id, "sin_lut_1");
     }
 }
