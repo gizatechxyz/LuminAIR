@@ -1,10 +1,11 @@
+use num_traits::{One, Zero};
 use serde::{Deserialize, Serialize};
 use stwo_prover::core::{
     backend::simd::{
         conversion::{Pack, Unpack},
         m31::{PackedM31, N_LANES},
     },
-    fields::m31::BaseField,
+    fields::m31::M31,
 };
 
 use crate::components::TraceColumn;
@@ -18,23 +19,45 @@ pub struct AddTable {
 }
 
 /// Represents a single row of the [`AddTable`]
-#[derive(Debug, Default, Copy, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Copy, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AddTableRow {
-    pub node_id: BaseField,
-    pub lhs_id: BaseField,
-    pub rhs_id: BaseField,
-    pub idx: BaseField,
-    pub is_last_idx: BaseField,
-    pub next_node_id: BaseField,
-    pub next_lhs_id: BaseField,
-    pub next_rhs_id: BaseField,
-    pub next_idx: BaseField,
-    pub lhs: BaseField,
-    pub rhs: BaseField,
-    pub out: BaseField,
-    pub lhs_mult: BaseField,
-    pub rhs_mult: BaseField,
-    pub out_mult: BaseField,
+    pub node_id: M31,
+    pub lhs_id: M31,
+    pub rhs_id: M31,
+    pub idx: M31,
+    pub is_last_idx: M31,
+    pub next_node_id: M31,
+    pub next_lhs_id: M31,
+    pub next_rhs_id: M31,
+    pub next_idx: M31,
+    pub lhs: M31,
+    pub rhs: M31,
+    pub out: M31,
+    pub lhs_mult: M31,
+    pub rhs_mult: M31,
+    pub out_mult: M31,
+}
+
+impl AddTableRow {
+    pub(crate) fn padding() -> Self {
+        Self {
+            node_id: M31::zero(),
+            lhs_id: M31::zero(),
+            rhs_id: M31::zero(),
+            idx: M31::zero(),
+            is_last_idx: M31::one(),
+            next_node_id: M31::zero(),
+            next_lhs_id: M31::zero(),
+            next_rhs_id: M31::zero(),
+            next_idx: M31::zero(),
+            lhs: M31::zero(),
+            rhs: M31::zero(),
+            out: M31::zero(),
+            lhs_mult: M31::zero(),
+            rhs_mult: M31::zero(),
+            out_mult: M31::zero(),
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone)]
