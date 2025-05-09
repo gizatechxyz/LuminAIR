@@ -96,17 +96,12 @@ fn write_trace_simd(
             *row[AddColumn::RhsMult.index()] = input.rhs_mult;
             *row[AddColumn::OutMult.index()] = input.out_mult;
 
-            *lookup_data.node_elements = [
-                input.node_id,
-                input.lhs,
-                input.lhs_id,
-                input.lhs_mult,
-                input.rhs,
-                input.rhs_id,
-                input.rhs_mult,
-                input.out,
-                input.out_mult,
-            ]
+            *lookup_data.lhs = [input.lhs, input.lhs_id];
+            *lookup_data.lhs_mult = input.lhs_mult;
+            *lookup_data.rhs = [input.rhs, input.rhs_id];
+            *lookup_data.rhs_mult = input.rhs_mult;
+            *lookup_data.out = [input.out, input.node_id];
+            *lookup_data.out_mult = input.out_mult;
         });
 
     (trace, lookup_data)
@@ -114,16 +109,12 @@ fn write_trace_simd(
 
 #[derive(Uninitialized, IterMut, ParIterMut)]
 struct LookupData {
-    //node_id,
-    //lhs,
-    //lhs_id,
-    //lhs_mult,
-    //rhs,
-    //rhs_id,
-    //rhs_mult,
-    //out,
-    //out_mult,
-    node_elements: Vec<[PackedM31; 9]>,
+    lhs: Vec<[PackedM31; 2]>,
+    lhs_mult: Vec<PackedM31>,
+    rhs: Vec<[PackedM31; 2]>,
+    rhs_mult: Vec<PackedM31>,
+    out: Vec<[PackedM31; 2]>,
+    out_mult: Vec<PackedM31>,
 }
 
 pub struct InteractionClaimGenerator {
@@ -140,37 +131,40 @@ impl InteractionClaimGenerator {
         let mut logup_gen = LogupTraceGenerator::new(self.log_size);
 
         let mut col_gen = logup_gen.new_col();
-        (col_gen.par_iter_mut(), &self.lookup_data.node_elements)
+        (
+            col_gen.par_iter_mut(),
+            &self.lookup_data.lhs,
+            &self.lookup_data.lhs_mult,
+        )
             .into_par_iter()
-            .for_each(|(writer, values)| {
-                let denom: PackedQM31 = nodes_elements.combine(&[
-                    values[AddColumn::Lhs.interaction_index()],
-                    values[AddColumn::LhsId.interaction_index()],
-                ]);
-                writer.write_frac(values[AddColumn::LhsMult.interaction_index()].into(), denom);
+            .for_each(|(writer, lhs, lhs_mult)| {
+                let denom: PackedQM31 = nodes_elements.combine(lhs);
+                writer.write_frac((*lhs_mult).into(), denom);
             });
 
         let mut col_gen = logup_gen.new_col();
-        (col_gen.par_iter_mut(), &self.lookup_data.node_elements)
+        (
+            col_gen.par_iter_mut(),
+            &self.lookup_data.rhs,
+            &self.lookup_data.rhs_mult,
+        )
             .into_par_iter()
-            .for_each(|(writer, values)| {
-                let denom: PackedQM31 = nodes_elements.combine(&[
-                    values[AddColumn::Rhs.interaction_index()],
-                    values[AddColumn::RhsId.interaction_index()],
-                ]);
-                writer.write_frac(values[AddColumn::RhsMult.interaction_index()].into(), denom);
+            .for_each(|(writer, rhs, rhs_mult)| {
+                let denom: PackedQM31 = nodes_elements.combine(rhs);
+                writer.write_frac((*rhs_mult).into(), denom);
             });
         col_gen.finalize_col();
 
         let mut col_gen = logup_gen.new_col();
-        (col_gen.par_iter_mut(), &self.lookup_data.node_elements)
+        (
+            col_gen.par_iter_mut(),
+            &self.lookup_data.out,
+            &self.lookup_data.out_mult,
+        )
             .into_par_iter()
-            .for_each(|(writer, values)| {
-                let denom: PackedQM31 = nodes_elements.combine(&[
-                    values[AddColumn::Out.interaction_index()],
-                    values[AddColumn::NodeId.interaction_index()],
-                ]);
-                writer.write_frac(values[AddColumn::OutMult.interaction_index()].into(), denom);
+            .for_each(|(writer, out, out_mult)| {
+                let denom: PackedQM31 = nodes_elements.combine(out);
+                writer.write_frac((*out_mult).into(), denom);
             });
         col_gen.finalize_col();
 
