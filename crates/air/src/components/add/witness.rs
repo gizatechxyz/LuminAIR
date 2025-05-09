@@ -11,7 +11,9 @@ use stwo_prover::{
 };
 
 use crate::{
-    components::{add::table::AddColumn, AddClaim, InteractionClaim, NodeElements, TraceError},
+    components::{
+        add::table::AddColumn, AddClaim, InteractionClaim, NodeElements, TraceError, TraceEval,
+    },
     utils::{pack_values, TreeBuilder},
 };
 
@@ -126,46 +128,38 @@ impl InteractionClaimGenerator {
     pub fn write_interaction_trace(
         self,
         tree_builder: &mut impl TreeBuilder<SimdBackend>,
-        nodes_elements: &NodeElements,
+        node_elements: &NodeElements,
     ) -> InteractionClaim {
         let mut logup_gen = LogupTraceGenerator::new(self.log_size);
 
         let mut col_gen = logup_gen.new_col();
-        (
-            col_gen.par_iter_mut(),
-            &self.lookup_data.lhs,
-            &self.lookup_data.lhs_mult,
-        )
-            .into_par_iter()
-            .for_each(|(writer, lhs, lhs_mult)| {
-                let denom: PackedQM31 = nodes_elements.combine(lhs);
-                writer.write_frac((*lhs_mult).into(), denom);
-            });
+        for row in 0..1 << (self.log_size - LOG_N_LANES) {
+            let values = &self.lookup_data.lhs[row];
+            let multiplicity = &self.lookup_data.lhs_mult[row];
 
-        let mut col_gen = logup_gen.new_col();
-        (
-            col_gen.par_iter_mut(),
-            &self.lookup_data.rhs,
-            &self.lookup_data.rhs_mult,
-        )
-            .into_par_iter()
-            .for_each(|(writer, rhs, rhs_mult)| {
-                let denom: PackedQM31 = nodes_elements.combine(rhs);
-                writer.write_frac((*rhs_mult).into(), denom);
-            });
+            let denom: PackedQM31 = node_elements.combine(values);
+            col_gen.write_frac(row, (*multiplicity).into(), denom);
+        }
         col_gen.finalize_col();
 
         let mut col_gen = logup_gen.new_col();
-        (
-            col_gen.par_iter_mut(),
-            &self.lookup_data.out,
-            &self.lookup_data.out_mult,
-        )
-            .into_par_iter()
-            .for_each(|(writer, out, out_mult)| {
-                let denom: PackedQM31 = nodes_elements.combine(out);
-                writer.write_frac((*out_mult).into(), denom);
-            });
+        for row in 0..1 << (self.log_size - LOG_N_LANES) {
+            let values = &self.lookup_data.rhs[row];
+            let multiplicity = &self.lookup_data.rhs_mult[row];
+
+            let denom: PackedQM31 = node_elements.combine(values);
+            col_gen.write_frac(row, (*multiplicity).into(), denom);
+        }
+        col_gen.finalize_col();
+
+        let mut col_gen = logup_gen.new_col();
+        for row in 0..1 << (self.log_size - LOG_N_LANES) {
+            let values = &self.lookup_data.out[row];
+            let multiplicity = &self.lookup_data.out_mult[row];
+
+            let denom: PackedQM31 = node_elements.combine(values);
+            col_gen.write_frac(row, (*multiplicity).into(), denom);
+        }
         col_gen.finalize_col();
 
         let (trace, claimed_sum) = logup_gen.finalize_last();

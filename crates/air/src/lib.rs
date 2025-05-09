@@ -2,9 +2,10 @@
 
 use ::serde::{Deserialize, Serialize};
 use components::{
-    AddClaim, InteractionClaim, 
-    // MaxReduceClaim, MulClaim, RecipClaim, SinClaim, SinLookupClaim,
-    // SumReduceClaim,
+    add,
+    AddClaim,
+    InteractionClaim, // MaxReduceClaim, MulClaim, RecipClaim, SinClaim, SinLookupClaim,
+                      // SumReduceClaim,
 };
 use stwo_prover::core::{
     channel::Channel, pcs::TreeVec, prover::StarkProof, vcs::ops::MerkleHasher,
@@ -38,11 +39,6 @@ pub struct LuminairClaim {
 }
 
 impl LuminairClaim {
-    /// Initializes a new claim.
-    pub fn new() -> Self {
-        Self::default()
-    }
-
     /// Mixes claim data into a Fiat-Shamir channel for proof binding.
     pub fn mix_into(&self, channel: &mut impl Channel) {
         if let Some(ref add) = self.add {
@@ -97,6 +93,11 @@ impl LuminairClaim {
 
         TreeVec::concat_cols(log_sizes.into_iter())
     }
+}
+
+#[derive(Default)]
+pub struct LuminairInteractionClaimGenerator {
+    pub add: Option<add::witness::InteractionClaimGenerator>,
 }
 
 /// Claim over the sum of interaction columns per system component.

@@ -13,7 +13,7 @@ use crate::{
 
 /// Represents an operator's trace table along with its claim before conversion
 /// to a serialized trace format. Used to defer trace evaluation until proving.
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum TableTrace {
     /// Addition operator trace table.
     Add { table: AddTable },

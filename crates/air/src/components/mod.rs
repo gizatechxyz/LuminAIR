@@ -60,7 +60,7 @@ pub mod lookups;
 // pub mod sum_reduce;
 
 /// Errors related to trace operations.
-#[derive(Debug, Error, Eq, PartialEq)]
+#[derive(Debug, Clone, Error, Eq, PartialEq)]
 pub enum TraceError {
     /// The component trace is empty.
     #[error("The trace is empty.")]

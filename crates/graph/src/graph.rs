@@ -12,7 +12,7 @@ use luminair_air::{
     components::{
         add::{
             self,
-            table::{AddColumn, AddTable},
+            table::{AddColumn, AddTable}, witness::ClaimGenerator,
         },
         lookups::{
             self,
@@ -40,16 +40,12 @@ use luminair_air::{
         //     table::{SumReduceColumn, SumReduceTable},
         // },
         ClaimType, LuminairComponents, LuminairInteractionElements, TraceError,
-    },
-    pie::{
+    }, pie::{
         ExecutionResources, InputInfo,  LuminairPie, NodeInfo, OpCounter,
         OutputInfo, TableTrace,
-    },
-    preprocessed::{lookups_to_preprocessed_column,  PreProcessedTrace,
+    }, preprocessed::{lookups_to_preprocessed_column,  PreProcessedTrace,
         // SinLUT
-        },
-    utils::{calculate_log_size, log_sum_valid},
-    LuminairClaim, LuminairInteractionClaim, LuminairProof,
+        }, utils::{calculate_log_size, log_sum_valid}, LuminairClaim, LuminairInteractionClaim, LuminairInteractionClaimGenerator, LuminairProof
 };
 use luminal::{
     op::*,
@@ -72,6 +68,10 @@ use thiserror::Error;
 
 #[derive(Clone, Debug, Error)]
 pub enum LuminairError {
+
+    #[error(transparent)]
+    TraceError(#[from] TraceError),
+
     #[error("Main trace generation failed.")]
     MainTraceEvalGenError,
     
@@ -426,113 +426,44 @@ impl LuminairGraph for Graph {
         // └───────────────────────────────────────┘
 
         tracing::info!("Main Trace");
-        let mut main_claim = LuminairClaim::new();
-        let mut processed_traces: Vec<(_, ClaimType)> = Vec::with_capacity(pie.table_traces.len());
+        let mut main_claim = LuminairClaim::default();
+        let mut interaction_claim_gen = LuminairInteractionClaimGenerator::default();
+        let mut tree_builder = commitment_scheme.tree_builder();
 
-        {
-            let mut tree_builder = commitment_scheme.tree_builder();
+        for table in pie.table_traces.clone() {
+            match table {
+                TableTrace::Add { table } => {
+                    let claim_gen = ClaimGenerator::new(table);
+                    let ( cl, in_cl_gen) = claim_gen.write_trace(&mut tree_builder)?;
+                    main_claim.add = Some(cl.clone());
+                    interaction_claim_gen.add = Some(in_cl_gen);
 
-            for table_trace in pie.table_traces {
-                let (trace, claim_type) = match table_trace.to_trace() {
-                    Ok(result) => result,
-                    Err(err) => {
-                        tracing::error!("Trace eval generation failed: {:?}", err);
-                        return Err(LuminairError::MainTraceEvalGenError);
-                    }
-                };
-
-                // Add the trace to the commit tree
-                tree_builder.extend_evals(trace.clone());
-
-                // Store trace and claim type for interaction phase
-                processed_traces.push((trace, claim_type.clone()));
-
-                // Update the main claim based on the claim type
-                match claim_type {
-                    ClaimType::Add(claim) => main_claim.add = Some(claim),
-                    // ClaimType::Mul(claim) => main_claim.mul = Some(claim),
-                    // ClaimType::SumReduce(claim) => main_claim.sum_reduce = Some(claim),
-                    // ClaimType::Recip(claim) => main_claim.recip = Some(claim),
-                    // ClaimType::MaxReduce(claim) => main_claim.max_reduce = Some(claim),
-                    // ClaimType::Sin(claim) => main_claim.sin = Some(claim),
-                    // ClaimType::SinLookup(claim) => main_claim.sin_lookup = Some(claim),
-                }
-            }
-
-            // Mix the claim into the Fiat-Shamir channel.
-            main_claim.mix_into(channel);
-            // Commit the main trace.
-            tree_builder.commit(channel);
+                },
+            } 
         }
+        // Mix the claim into the Fiat-Shamir channel.
+        main_claim.mix_into(channel);
+        // Commit the main trace.
+        tree_builder.commit(channel);
+        
 
         // ┌───────────────────────────────────────────────┐
         // │    Interaction Phase 2 - Interaction Trace    │
         // └───────────────────────────────────────────────┘
 
-        // Draw interaction elements
+        tracing::info!("Interaction Trace");
         let interaction_elements = LuminairInteractionElements::draw(channel);
         let mut interaction_claim = LuminairInteractionClaim::default();
+        let mut tree_builder = commitment_scheme.tree_builder();
         let node_elements = &interaction_elements.node_elements;
-        // let lookup_elements = &interaction_elements.lookup_elements;
-
-        {
-            // Generate the interaction trace from the main trace, and compute the logUp sum.
-            let mut tree_builder = commitment_scheme.tree_builder();
-
-            for (trace, claim_type) in processed_traces {
-                let (interaction_trace, claim) = match claim_type {
-                    ClaimType::Add(_) => {
-                        add::table::interaction_trace_evaluation(&trace, node_elements)
-                            .map_err(|_| LuminairError::InteractionTraceEvalGenError)?
-                    }
-                    // ClaimType::Mul(_) => {
-                    //     mul::table::interaction_trace_evaluation(&trace, node_elements)
-                    //         .map_err(|_| LuminairError::InteractionTraceEvalGenError)?
-                    // }
-                    // ClaimType::SumReduce(_) => {
-                    //     sum_reduce::table::interaction_trace_evaluation(&trace, node_elements)
-                    //         .map_err(|_| LuminairError::InteractionTraceEvalGenError)?
-                    // }
-                    // ClaimType::Recip(_) => {
-                    //     recip::table::interaction_trace_evaluation(&trace, node_elements)
-                    //         .map_err(|_| LuminairError::InteractionTraceEvalGenError)?
-                    // }
-                    // ClaimType::MaxReduce(_) => {
-                    //     max_reduce::table::interaction_trace_evaluation(&trace, node_elements)
-                    //         .map_err(|_| LuminairError::InteractionTraceEvalGenError)?
-                    // }
-                    // ClaimType::Sin(_) => {
-                    //     sin::table::interaction_trace_evaluation(&trace, node_elements, &lookup_elements.sin)
-                    //         .map_err(|_| LuminairError::InteractionTraceEvalGenError)?
-                    // }
-                    // ClaimType::SinLookup(_) => {
-                    //     let mut sin_luts = preprocessed_trace.columns_of::<SinLUT>();
-                    //     sin_luts.sort_by_key(|c| c.col_index);
-
-                    //     lookups::sin::table::interaction_trace_evaluation(&trace, &sin_luts, &lookup_elements.sin)                            .map_err(|_| LuminairError::InteractionTraceEvalGenError)?
-                    // }
-                };
-
-                // Add trace to the commit tree
-                tree_builder.extend_evals(interaction_trace);
-
-                // Update the interaction claim
-                match claim_type {
-                    ClaimType::Add(_) => interaction_claim.add = Some(claim),
-                    // ClaimType::Mul(_) => interaction_claim.mul = Some(claim),
-                    // ClaimType::SumReduce(_) => interaction_claim.sum_reduce = Some(claim),
-                    // ClaimType::Recip(_) => interaction_claim.recip = Some(claim),
-                    // ClaimType::MaxReduce(_) => interaction_claim.max_reduce = Some(claim),
-                    // ClaimType::Sin(_) => interaction_claim.sin = Some(claim),
-                    // ClaimType::SinLookup(_) => interaction_claim.sin_lookup = Some(claim),
-                }
-            }
-
-            // Mix the interaction claim into the Fiat-Shamir channel.
-            interaction_claim.mix_into(channel);
-            // Commit the interaction trace.
-            tree_builder.commit(channel);
+        if let Some(claim_gen) = interaction_claim_gen.add {
+            let claim = claim_gen.write_interaction_trace(&mut tree_builder, node_elements);
+            interaction_claim.add = Some(claim)
         }
+        // Mix the interaction claim into the Fiat-Shamir channel.
+        interaction_claim.mix_into(channel);
+        // Commit the interaction trace.
+        tree_builder.commit(channel);
 
         // ┌──────────────────────────┐
         // │     Proof Generation     │

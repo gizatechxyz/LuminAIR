@@ -8,6 +8,7 @@ use stwo_prover::{
                 column::BaseColumn,
                 conversion::{Pack, Unpack},
                 m31::{PackedM31, LOG_N_LANES, N_LANES},
+                qm31::PackedQM31,
             },
             Column,
         },
@@ -23,7 +24,7 @@ use crate::{
 
 /// Represents the trace for the Add component, containing the required registers for its
 /// constraints.
-#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct AddTable {
     /// A vector of [`AddTableRow`] representing the table rows.
     pub table: Vec<AddTableRow>,
@@ -300,6 +301,7 @@ pub fn interaction_trace_evaluation(
     }
 
     let log_size = main_trace_eval[0].domain.log_size();
+
     let mut logup_gen = LogupTraceGenerator::new(log_size);
 
     // Create trace for LHS
@@ -311,8 +313,9 @@ pub fn interaction_trace_evaluation(
         let lhs = lhs_main_col[row];
         let id = lhs_id_col[row];
         let multiplicity = lhs_mult_col[row];
+        let denom: PackedQM31 = node_elements.combine(&[lhs, id]);
 
-        lhs_int_col.write_frac(row, multiplicity.into(), node_elements.combine(&[lhs, id]));
+        lhs_int_col.write_frac(row, multiplicity.into(), denom);
     }
     lhs_int_col.finalize_col();
 
@@ -326,7 +329,9 @@ pub fn interaction_trace_evaluation(
         let id = rhs_id_col[row];
         let multiplicity = rhs_mult_col[row];
 
-        rhs_int_col.write_frac(row, multiplicity.into(), node_elements.combine(&[rhs, id]));
+        let denom: PackedQM31 = node_elements.combine(&[rhs, id]);
+
+        rhs_int_col.write_frac(row, multiplicity.into(), denom);
     }
     rhs_int_col.finalize_col();
 
@@ -340,7 +345,9 @@ pub fn interaction_trace_evaluation(
         let id = node_id_col[row];
         let multiplicity = out_mult_col[row];
 
-        out_int_col.write_frac(row, multiplicity.into(), node_elements.combine(&[out, id]));
+        let denom: PackedQM31 = node_elements.combine(&[out, id]);
+
+        out_int_col.write_frac(row, multiplicity.into(), denom);
     }
     out_int_col.finalize_col();
 
