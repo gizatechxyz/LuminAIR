@@ -1,7 +1,7 @@
 #![feature(portable_simd, iter_array_chunks, array_chunks, raw_slice_split)]
 
 use ::serde::{Deserialize, Serialize};
-use components::{add, mul, AddClaim, InteractionClaim, MulClaim};
+use components::{add, mul, recip, AddClaim, InteractionClaim, MulClaim, RecipClaim};
 use stwo_prover::core::{
     channel::Channel, pcs::TreeVec, prover::StarkProof, vcs::ops::MerkleHasher,
 };
@@ -26,6 +26,7 @@ pub struct LuminairProof<H: MerkleHasher> {
 pub struct LuminairClaim {
     pub add: Option<AddClaim>,
     pub mul: Option<MulClaim>,
+    pub recip: Option<RecipClaim>,
 }
 
 impl LuminairClaim {
@@ -36,6 +37,9 @@ impl LuminairClaim {
         }
         if let Some(ref mul) = self.mul {
             mul.mix_into(channel);
+        }
+        if let Some(ref recip) = self.recip {
+            recip.mix_into(channel);
         }
     }
 
@@ -50,6 +54,9 @@ impl LuminairClaim {
         if let Some(ref mul) = self.mul {
             log_sizes.push(mul.log_sizes());
         }
+        if let Some(ref recip) = self.recip {
+            log_sizes.push(recip.log_sizes());
+        }
         TreeVec::concat_cols(log_sizes.into_iter())
     }
 }
@@ -58,6 +65,7 @@ impl LuminairClaim {
 pub struct LuminairInteractionClaimGenerator {
     pub add: Option<add::witness::InteractionClaimGenerator>,
     pub mul: Option<mul::witness::InteractionClaimGenerator>,
+    pub recip: Option<recip::witness::InteractionClaimGenerator>,
 }
 
 /// Claim over the sum of interaction columns per system component.
@@ -67,6 +75,7 @@ pub struct LuminairInteractionClaimGenerator {
 pub struct LuminairInteractionClaim {
     pub add: Option<InteractionClaim>,
     pub mul: Option<InteractionClaim>,
+    pub recip: Option<InteractionClaim>,
 }
 
 impl LuminairInteractionClaim {
@@ -77,6 +86,9 @@ impl LuminairInteractionClaim {
         }
         if let Some(ref mul) = self.mul {
             mul.mix_into(channel);
+        }
+        if let Some(ref recip) = self.recip {
+            recip.mix_into(channel);
         }
     }
 }
