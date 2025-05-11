@@ -13,7 +13,10 @@ use recip::{
     table::RecipColumn,
 };
 use serde::{Deserialize, Serialize};
-use sin::{component::{SinComponent, SinEval}, table::SinColumn};
+use sin::{
+    component::{SinComponent, SinEval},
+    table::SinColumn,
+};
 use stwo_prover::{
     constraint_framework::TraceLocationAllocator,
     core::{
@@ -28,6 +31,7 @@ use stwo_prover::{
     relation,
 };
 
+use sum_reduce::{component::{SumReduceComponent, SumReduceEval}, table::SumReduceColumn};
 use thiserror::Error;
 
 use crate::{preprocessed::PreProcessedTrace, LuminairClaim, LuminairInteractionClaim};
@@ -37,6 +41,7 @@ pub mod lookups;
 pub mod mul;
 pub mod recip;
 pub mod sin;
+pub mod sum_reduce;
 
 /// Errors related to trace operations.
 #[derive(Debug, Clone, Error, Eq, PartialEq)]
@@ -53,6 +58,7 @@ pub type AddClaim = Claim<AddColumn>;
 pub type MulClaim = Claim<MulColumn>;
 pub type RecipClaim = Claim<RecipColumn>;
 pub type SinClaim = Claim<SinColumn>;
+pub type SumReduceClaim = Claim<SumReduceColumn>;
 
 /// Represents columns of a trace.
 pub trait TraceColumn {
@@ -104,6 +110,7 @@ pub enum ClaimType {
     Mul(Claim<MulColumn>),
     Recip(Claim<RecipColumn>),
     Sin(Claim<SinColumn>),
+    SumReduce(Claim<SumReduceColumn>),
 }
 
 /// The claim of the interaction phase 2 (with the logUp protocol).
@@ -158,6 +165,7 @@ pub struct LuminairComponents {
     mul: Option<MulComponent>,
     recip: Option<RecipComponent>,
     sin: Option<SinComponent>,
+    sum_reduce: Option<SumReduceComponent>,
 }
 
 impl LuminairComponents {
@@ -218,11 +226,25 @@ impl LuminairComponents {
             None
         };
 
+        let sum_reduce = if let Some(ref sum_reduce_claim) = claim.sum_reduce {
+            Some(SumReduceComponent::new(
+                tree_span_provider,
+                SumReduceEval::new(
+                    &sum_reduce_claim,
+                    interaction_elements.node_elements.clone(),
+                ),
+                interaction_claim.sum_reduce.as_ref().unwrap().claimed_sum,
+            ))
+        } else {
+            None
+        };
+
         Self {
             add,
             mul,
             recip,
             sin,
+            sum_reduce,
         }
     }
 
@@ -243,6 +265,10 @@ impl LuminairComponents {
         }
 
         if let Some(ref component) = self.sin {
+            components.push(component);
+        }
+
+        if let Some(ref component) = self.sum_reduce {
             components.push(component);
         }
         components

@@ -2,7 +2,8 @@
 
 use ::serde::{Deserialize, Serialize};
 use components::{
-    add, mul, recip, sin, AddClaim, InteractionClaim, MulClaim, RecipClaim, SinClaim,
+    add, mul, recip, sin, sum_reduce, AddClaim, InteractionClaim, MulClaim, RecipClaim, SinClaim,
+    SumReduceClaim,
 };
 use stwo_prover::core::{
     channel::Channel, pcs::TreeVec, prover::StarkProof, vcs::ops::MerkleHasher,
@@ -30,6 +31,7 @@ pub struct LuminairClaim {
     pub mul: Option<MulClaim>,
     pub recip: Option<RecipClaim>,
     pub sin: Option<SinClaim>,
+    pub sum_reduce: Option<SumReduceClaim>,
 }
 
 impl LuminairClaim {
@@ -46,6 +48,9 @@ impl LuminairClaim {
         }
         if let Some(ref sin) = self.sin {
             sin.mix_into(channel);
+        }
+        if let Some(ref sum_reduce) = self.sum_reduce {
+            sum_reduce.mix_into(channel);
         }
     }
 
@@ -66,6 +71,9 @@ impl LuminairClaim {
         if let Some(ref sin) = self.sin {
             log_sizes.push(sin.log_sizes());
         }
+        if let Some(ref sum_reduce) = self.sum_reduce {
+            log_sizes.push(sum_reduce.log_sizes());
+        }
         TreeVec::concat_cols(log_sizes.into_iter())
     }
 }
@@ -76,6 +84,7 @@ pub struct LuminairInteractionClaimGenerator {
     pub mul: Option<mul::witness::InteractionClaimGenerator>,
     pub recip: Option<recip::witness::InteractionClaimGenerator>,
     pub sin: Option<sin::witness::InteractionClaimGenerator>,
+    pub sum_reduce: Option<sum_reduce::witness::InteractionClaimGenerator>,
 }
 
 /// Claim over the sum of interaction columns per system component.
@@ -87,6 +96,7 @@ pub struct LuminairInteractionClaim {
     pub mul: Option<InteractionClaim>,
     pub recip: Option<InteractionClaim>,
     pub sin: Option<InteractionClaim>,
+    pub sum_reduce: Option<InteractionClaim>,
 }
 
 impl LuminairInteractionClaim {
@@ -103,6 +113,9 @@ impl LuminairInteractionClaim {
         }
         if let Some(ref sin) = self.sin {
             sin.mix_into(channel);
+        }
+        if let Some(ref sum_reduce) = self.sum_reduce {
+            sum_reduce.mix_into(channel);
         }
     }
 }

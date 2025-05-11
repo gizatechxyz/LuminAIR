@@ -43,6 +43,9 @@ pub fn log_sum_valid(interaction_claim: &LuminairInteractionClaim) -> bool {
     if let Some(ref int_cl) = &interaction_claim.sin {
         sum += int_cl.claimed_sum.into();
     }
+    if let Some(ref int_cl) = &interaction_claim.sum_reduce {
+        sum += int_cl.claimed_sum.into();
+    }
 
     sum.is_zero()
 }
