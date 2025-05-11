@@ -1,6 +1,7 @@
 use luminair_air::{
     components::{
         add::table::{AddColumn, AddTable, AddTableRow},
+        max_reduce::table::{MaxReduceColumn, MaxReduceTable, MaxReduceTableRow},
         mul::table::{MulColumn, MulTable, MulTableRow},
         recip::table::{RecipColumn, RecipTable, RecipTableRow},
         sin::table::{SinColumn, SinTable, SinTableRow},
@@ -691,6 +692,160 @@ impl Operator for LuminairSumReduce {
     }
 }
 
+#[derive(Debug, Clone, Default, PartialEq)]
+struct LuminairMaxReduce(pub usize);
+
+impl LuminairMaxReduce {
+    /// Creates a new `LuminairMaxReduce` instance.
+    pub fn new(value: usize) -> Self {
+        Self(value)
+    }
+}
+
+impl LuminairMaxReduce {
+    fn compute(
+        &self,
+        inp: &[(InputTensor, ShapeTracker)],
+        trace_mode: bool,
+    ) -> (
+        Vec<Fixed>,
+        Option<Vec<(usize, Fixed, Fixed, Fixed, Fixed, BaseField, BaseField)>>,
+    ) {
+        let sh = inp[0].1.shape_usize();
+        let front_size = sh.iter().take(self.0).product::<usize>().max(1);
+        let back_size = sh.iter().skip(self.0 + 1).product::<usize>().max(1);
+        let dim_size = sh[self.0];
+
+        let output_size = front_size * back_size;
+        let mut out_data = vec![Fixed::zero(); output_size];
+        let input = get_buffer_from_tensor(&inp[0].0).unwrap();
+        let expr = (inp[0].1.index_expression(), inp[0].1.valid_expression());
+        let mut stack: Vec<i64> = vec![];
+
+        // Only allocate for intermediate values if in trace mode
+        let mut intermediate_values = if trace_mode {
+            Some(Vec::with_capacity(output_size))
+        } else {
+            None
+        };
+
+        for i in 0..front_size {
+            for j in 0..back_size {
+                // Initialize with the first element instead of negative infinity
+                let orig_first_index = i * dim_size * back_size + 0 * back_size + j;
+                let mut max_val = get_index(input, &expr, &mut stack, orig_first_index);
+
+                for k in 0..dim_size {
+                    let orig_index = i * dim_size * back_size + k * back_size + j;
+                    let input_val = get_index(input, &expr, &mut stack, orig_index);
+
+                    // Determine if this value is the new max
+                    let is_max = if input_val.to_f64() > max_val.to_f64() {
+                        BaseField::one()
+                    } else {
+                        BaseField::zero()
+                    };
+
+                    // Update max_val if needed
+                    let next_max_val = if is_max == BaseField::one() {
+                        input_val
+                    } else {
+                        max_val
+                    };
+
+                    // Set out_data only in the last reduction step
+                    let (out_val, is_last_step) = if k == dim_size - 1 {
+                        out_data[i * back_size + j] = next_max_val;
+                        (next_max_val, BaseField::one())
+                    } else {
+                        (Fixed::zero(), BaseField::zero()) // Placeholder for incomplete reductions
+                    };
+
+                    let idx = i * back_size + j; // Index for out_data
+
+                    // Only collect intermediate values if in trace mode
+                    if let Some(values) = &mut intermediate_values {
+                        values.push((
+                            idx,
+                            input_val,
+                            out_val,
+                            max_val,
+                            next_max_val,
+                            is_max,
+                            is_last_step,
+                        ));
+
+                        max_val = next_max_val;
+                    }
+                }
+            }
+        }
+
+        (out_data, intermediate_values)
+    }
+}
+
+impl LuminairOperator<MaxReduceColumn, MaxReduceTable, ()> for LuminairMaxReduce {
+    fn process_trace(
+        &mut self,
+        inp: Vec<(InputTensor, ShapeTracker)>,
+        table: &mut MaxReduceTable,
+        node_info: &NodeInfo,
+        _lookup: &mut (),
+    ) -> Vec<Tensor> {
+        let (out_data, intermediate_values) = self.compute(&inp, true);
+        let intermediate_values = intermediate_values.unwrap();
+
+        let node_id: BaseField = node_info.id.into();
+        let input_id: BaseField = node_info.inputs[0].id.into();
+        let output_size = out_data.len();
+
+        for entry in intermediate_values {
+            let (idx, input_val, out_val, max_val, next_max_val, is_max, is_last_step) = entry;
+
+            let input_mult = if node_info.inputs[0].is_initializer {
+                BaseField::zero()
+            } else {
+                -BaseField::one()
+            };
+            let out_mult = if node_info.output.is_final_output {
+                BaseField::zero()
+            } else {
+                BaseField::one() * BaseField::from_u32_unchecked(node_info.num_consumers)
+            };
+
+            let is_last_idx: u32 = if idx == (output_size - 1) { 1 } else { 0 };
+
+            table.add_row(MaxReduceTableRow {
+                node_id,
+                input_id,
+                idx: idx.into(),
+                is_last_idx: (is_last_idx).into(),
+                next_node_id: node_id,
+                next_input_id: input_id,
+                next_idx: (idx + 1).into(),
+                input: input_val.to_m31(),
+                out: out_val.to_m31(),
+                max_val: max_val.to_m31(),
+                next_max_val: next_max_val.to_m31(),
+                is_max,
+                is_last_step,
+                input_mult,
+                out_mult,
+            });
+        }
+
+        vec![Tensor::new(StwoData(Arc::new(out_data)))]
+    }
+}
+
+impl Operator for LuminairMaxReduce {
+    fn process(&mut self, inp: Vec<(InputTensor, ShapeTracker)>) -> Vec<Tensor> {
+        let (out_data, _) = self.compute(&inp, false);
+        vec![Tensor::new(StwoData(Arc::new(out_data)))]
+    }
+}
+
 // ================== COMPILER ==================
 
 /// Compiles primitive operations into provable forms for LuminAIR.
@@ -813,6 +968,14 @@ impl Compiler for PrimitiveCompiler {
                         0
                     };
                 *op_ref = LuminairSumReduce::new(dim_index).into_operator()
+            } else if is::<luminal::op::MaxReduce>(op) {
+                let dim_index =
+                    if let Some(max_reduce) = op_ref.deref().as_any().downcast_ref::<MaxReduce>() {
+                        max_reduce.0 // Access the usize field
+                    } else {
+                        0
+                    };
+                *op_ref = LuminairMaxReduce::new(dim_index).into_operator()
             }
         }
     }

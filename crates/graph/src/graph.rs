@@ -12,6 +12,10 @@ use luminair_air::{
             table::{AddColumn, AddTable},
         },
         lookups::{Lookups, Range},
+        max_reduce::{
+            self,
+            table::{MaxReduceColumn, MaxReduceTable},
+        },
         mul::{
             self,
             table::{MulColumn, MulTable},
@@ -171,6 +175,7 @@ impl LuminairGraph for Graph {
         let mut recip_table = RecipTable::new();
         let mut sin_table = SinTable::new();
         let mut sum_reduce_table = SumReduceTable::new();
+        let mut max_reduce_table = MaxReduceTable::new();
 
         for (node, src_ids) in self.linearized_graph.as_ref().unwrap() {
             if self.tensors.contains_key(&(*node, 0)) {
@@ -273,6 +278,12 @@ impl LuminairGraph for Graph {
                         node_op, srcs, &mut sum_reduce_table, &node_info, &mut ()
                     ).unwrap()
                 }
+                _ if <Box<dyn Operator> as HasProcessTrace<MaxReduceColumn, MaxReduceTable, ()>>::has_process_trace(node_op) => {
+                    op_counter.mul += 1;
+                    <Box<dyn Operator> as HasProcessTrace<MaxReduceColumn, MaxReduceTable, ()>>::call_process_trace(
+                        node_op, srcs, &mut max_reduce_table, &node_info, &mut ()
+                    ).unwrap()
+                }
                 _ => node_op.process(srcs)
             };
 
@@ -317,6 +328,11 @@ impl LuminairGraph for Graph {
             let log_size = calculate_log_size(sum_reduce_table.table.len());
             max_log_size = max_log_size.max(log_size);
             table_traces.push(TableTrace::from_sum_reduce(sum_reduce_table));
+        }
+        if !max_reduce_table.table.is_empty() {
+            let log_size = calculate_log_size(max_reduce_table.table.len());
+            max_log_size = max_log_size.max(log_size);
+            table_traces.push(TableTrace::from_max_reduce(max_reduce_table));
         }
 
         Ok(LuminairPie {
@@ -403,6 +419,12 @@ impl LuminairGraph for Graph {
                     main_claim.sum_reduce = Some(cl.clone());
                     interaction_claim_gen.sum_reduce = Some(in_cl_gen);
                 }
+                TableTrace::MaxReduce { table } => {
+                    let claim_gen = max_reduce::witness::ClaimGenerator::new(table);
+                    let (cl, in_cl_gen) = claim_gen.write_trace(&mut tree_builder)?;
+                    main_claim.max_reduce = Some(cl.clone());
+                    interaction_claim_gen.max_reduce = Some(in_cl_gen);
+                }
             }
         }
         // Mix the claim into the Fiat-Shamir channel.
@@ -438,6 +460,10 @@ impl LuminairGraph for Graph {
         if let Some(claim_gen) = interaction_claim_gen.sum_reduce {
             let claim = claim_gen.write_interaction_trace(&mut tree_builder, node_elements);
             interaction_claim.sum_reduce = Some(claim)
+        }
+        if let Some(claim_gen) = interaction_claim_gen.max_reduce {
+            let claim = claim_gen.write_interaction_trace(&mut tree_builder, node_elements);
+            interaction_claim.max_reduce = Some(claim)
         }
         // Mix the interaction claim into the Fiat-Shamir channel.
         interaction_claim.mix_into(channel);
