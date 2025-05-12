@@ -1,6 +1,7 @@
 use luminair_air::{
     components::{
         add::table::{AddColumn, AddTable, AddTableRow},
+        lookups::sin::SinLookup,
         max_reduce::table::{MaxReduceColumn, MaxReduceTable, MaxReduceTableRow},
         mul::table::{MulColumn, MulTable, MulTableRow},
         recip::table::{RecipColumn, RecipTable, RecipTableRow},
@@ -256,19 +257,13 @@ impl LuminairSin {
     }
 }
 
-impl
-    LuminairOperator<
-        SinColumn,
-        SinTable,
-        (), //SinLookup
-    > for LuminairSin
-{
+impl LuminairOperator<SinColumn, SinTable, SinLookup> for LuminairSin {
     fn process_trace(
         &mut self,
         inp: Vec<(InputTensor, ShapeTracker)>,
         table: &mut SinTable,
         node_info: &NodeInfo,
-        lookup: &mut (), //SinLookup,
+        lookup: &mut SinLookup,
     ) -> Vec<Tensor> {
         let (out_data, intermediate_values) = self.compute(&inp, true);
         let intermediate_values = intermediate_values.unwrap();

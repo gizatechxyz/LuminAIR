@@ -5,7 +5,8 @@ use crate::components::{
 };
 use num_traits::One;
 use stwo_prover::constraint_framework::{
-    EvalAtRow, FrameworkComponent, FrameworkEval, RelationEntry,
+    preprocessed_columns::PreProcessedColumnId, EvalAtRow, FrameworkComponent, FrameworkEval,
+    RelationEntry,
 };
 
 /// Component for sin operations, using `SimdBackend` with fallback to `CpuBackend` for small traces.
@@ -14,7 +15,7 @@ pub type SinComponent = FrameworkComponent<SinEval>;
 /// Defines the AIR for the sin component.
 pub struct SinEval {
     log_size: u32,
-    // lut_log_size: u32,
+    lut_log_size: u32,
     node_elements: NodeElements,
     // lookup_elements: SinLookupElements,
 }
@@ -25,11 +26,11 @@ impl SinEval {
         claim: &SinClaim,
         node_elements: NodeElements,
         // lookup_elements: SinLookupElements,
-        // lut_log_size: u32,
+        lut_log_size: u32,
     ) -> Self {
         Self {
             log_size: claim.log_size,
-            // lut_log_size,
+            lut_log_size,
             node_elements,
             // lookup_elements,
         }
@@ -46,8 +47,7 @@ impl FrameworkEval for SinEval {
     ///
     /// Returns the ilog2 (upper) bound of the constraint degree for the component.
     fn max_constraint_log_degree_bound(&self) -> u32 {
-        // std::cmp::max(self.log_size, self.lut_log_size) + 1
-        self.log_size + 1
+        std::cmp::max(self.log_size, self.lut_log_size) + 1
     }
 
     /// Evaluates the AIR constraints for the sin operation.
@@ -96,6 +96,13 @@ impl FrameworkEval for SinEval {
 
         // Index increment by 1
         eval.add_constraint(not_last * (next_idx - idx - E::F::one()));
+
+        let sin_lut_0 = eval.get_preprocessed_column(PreProcessedColumnId {
+            id: "sin_lut_0".to_string(),
+        });
+        let sin_lut_1 = eval.get_preprocessed_column(PreProcessedColumnId {
+            id: "sin_lut_1".to_string(),
+        });
 
         // ┌─────────────────────────────┐
         // │   Interaction Constraints   │

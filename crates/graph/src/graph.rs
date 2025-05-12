@@ -4,6 +4,7 @@ use crate::{
         HasProcessTrace,
     },
     settings::CircuitSettings,
+    utils::compute_padded_range_from_srcs,
 };
 use luminair_air::{
     components::{
@@ -11,7 +12,7 @@ use luminair_air::{
             self,
             table::{AddColumn, AddTable},
         },
-        lookups::{Lookups, Range},
+        lookups::{sin::SinLookup, Lookups},
         max_reduce::{
             self,
             table::{MaxReduceColumn, MaxReduceTable},
@@ -39,8 +40,9 @@ use luminair_air::{
     },
     preprocessed::{
         lookups_to_preprocessed_column,
+        LookupLayout,
         PreProcessedTrace,
-        // SinLUT
+        Range, // SinLUT
     },
     utils::{calculate_log_size, log_sum_valid},
     LuminairClaim, LuminairInteractionClaim, LuminairInteractionClaimGenerator, LuminairProof,
@@ -49,6 +51,7 @@ use luminal::{
     op::*,
     prelude::{petgraph::visit::EdgeRef, *},
 };
+use numerair::Fixed;
 use stwo_prover::{
     constraint_framework::{INTERACTION_TRACE_IDX, ORIGINAL_TRACE_IDX, PREPROCESSED_TRACE_IDX},
     core::{
@@ -119,7 +122,7 @@ impl LuminairGraph for Graph {
         let mut dim_stack = Vec::new();
 
         // Accumulate ranges per non-linear op
-        let mut _sin_ranges: Vec<Range> = Vec::new();
+        let mut sin_ranges: Vec<Range> = Vec::new();
 
         for (node, src_ids) in self.linearized_graph.as_ref().unwrap() {
             if self.tensors.contains_key(&(*node, 0)) {
@@ -134,8 +137,11 @@ impl LuminairGraph for Graph {
                 st.resolve_global_dyn_dims_stack(&self.dyn_map, &mut dim_stack);
             }
 
-            // Add range
-            let _op = &*self.graph.node_weight(*node).unwrap();
+            // Range
+            let op = &*self.graph.node_weight(*node).unwrap();
+            if <Box<dyn Operator> as HasProcessTrace<SinColumn, SinTable, SinLookup>>::has_process_trace(op) {
+                sin_ranges.push(compute_padded_range_from_srcs(&srcs));
+            }
 
             // Execute
             let tensors = self.graph.node_weight_mut(*node).unwrap().process(srcs);
@@ -151,13 +157,19 @@ impl LuminairGraph for Graph {
 
         self.reset();
 
-        let settings = CircuitSettings {
-            lookups: Lookups {},
+        let sin_lookup = if !sin_ranges.is_empty() {
+            let layout = LookupLayout::new(coalesce_ranges(sin_ranges));
+            Some(SinLookup::new(&layout))
+        } else {
+            None
         };
-        settings
+
+        CircuitSettings {
+            lookups: Lookups { sin: sin_lookup },
+        }
     }
 
-    fn gen_trace(&mut self, _settings: &mut CircuitSettings) -> Result<LuminairPie, TraceError> {
+    fn gen_trace(&mut self, settings: &mut CircuitSettings) -> Result<LuminairPie, TraceError> {
         // Track the number of views pointing to each tensor so we know when to clear
         if self.linearized_graph.is_none() {
             self.toposort();
@@ -176,6 +188,8 @@ impl LuminairGraph for Graph {
         let mut sin_table = SinTable::new();
         let mut sum_reduce_table = SumReduceTable::new();
         let mut max_reduce_table = MaxReduceTable::new();
+
+        // let mut sin_lookup_table = SinLookupTable::new();
 
         for (node, src_ids) in self.linearized_graph.as_ref().unwrap() {
             if self.tensors.contains_key(&(*node, 0)) {
@@ -266,11 +280,26 @@ impl LuminairGraph for Graph {
                         node_op, srcs, &mut recip_table, &node_info, &mut ()
                     ).unwrap()
                 }
-                _ if <Box<dyn Operator> as HasProcessTrace<SinColumn, SinTable, ()>>::has_process_trace(node_op) => {
+                _ if <Box<dyn Operator> as HasProcessTrace<SinColumn, SinTable, SinLookup>>::has_process_trace(node_op) => {
                     op_counter.mul += 1;
-                    <Box<dyn Operator> as HasProcessTrace<SinColumn, SinTable, ()>>::call_process_trace(
-                        node_op, srcs, &mut sin_table, &node_info, &mut ()
-                    ).unwrap()
+                    match settings.lookups.sin.as_mut() {
+                        Some(lookup) => {
+                            <Box<dyn Operator> as HasProcessTrace<
+                                SinColumn,
+                                SinTable,
+                                SinLookup,
+                            >>::call_process_trace(
+                                node_op,
+                                srcs,
+                                &mut sin_table,
+                                &node_info,
+                                lookup,
+                            )
+                            .unwrap()
+                        }                
+                        None =>  unreachable!("Sin lookup table must be initialised"),
+                    }
+
                 }
                 _ if <Box<dyn Operator> as HasProcessTrace<SumReduceColumn, SumReduceTable, ()>>::has_process_trace(node_op) => {
                     op_counter.mul += 1;
@@ -323,6 +352,10 @@ impl LuminairGraph for Graph {
             let log_size = calculate_log_size(sin_table.table.len());
             max_log_size = max_log_size.max(log_size);
             table_traces.push(TableTrace::from_sin(sin_table));
+
+            if let Some(lookup) = settings.lookups.sin.as_ref() {
+                max_log_size = max_log_size.max(lookup.layout.log_size);
+            }
         }
         if !sum_reduce_table.table.is_empty() {
             let log_size = calculate_log_size(sum_reduce_table.table.len());
@@ -479,7 +512,7 @@ impl LuminairGraph for Graph {
             &interaction_elements,
             &interaction_claim,
             &preprocessed_trace,
-            // &settings.lookups
+            &settings.lookups,
         );
         let components = component_builder.provers();
         let proof = prover::prove::<SimdBackend, _>(&components, channel, commitment_scheme)?;
@@ -560,11 +593,39 @@ impl LuminairGraph for Graph {
             &interaction_elements,
             &interaction_claim,
             &preprocessed_trace,
-            // &settings.lookups
+            &settings.lookups,
         );
         let components = component_builder.components();
 
         verify(&components, channel, commitment_scheme_verifier, proof)
             .map_err(LuminairError::StwoVerifierError)
     }
+}
+
+fn coalesce_ranges(mut ranges: Vec<Range>) -> Vec<Range> {
+    if ranges.is_empty() {
+        return Vec::new();
+    }
+
+    // Sort by lower bound
+    ranges.sort_unstable_by_key(|r| r.0 .0);
+
+    // Use the first element as the starting point
+    let mut result = Vec::with_capacity(ranges.len());
+    let mut current_range = ranges[0].clone();
+
+    // Merge overlapping or adjacent ranges
+    for range in ranges.into_iter().skip(1) {
+        if range.0 .0 <= current_range.1 .0 + 1 {
+            // Merge ranges if they overlap or are adjacent
+            current_range.1 = Fixed(current_range.1 .0.max(range.1 .0));
+        } else {
+            // No overlap, push the current range and start a new one
+            result.push(current_range);
+            current_range = range;
+        }
+    }
+
+    result.push(current_range);
+    result
 }
