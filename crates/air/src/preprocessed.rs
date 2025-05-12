@@ -14,14 +14,10 @@ use stwo_prover::{
     constraint_framework::preprocessed_columns::PreProcessedColumnId,
     core::{
         backend::{
-            simd::{
-                column::BaseColumn,
-                m31::{PackedM31, N_LANES},
-                SimdBackend,
-            },
+            simd::{column::BaseColumn, SimdBackend},
             Column,
         },
-        fields::m31::{BaseField, M31},
+        fields::m31::BaseField,
         poly::{
             circle::{CanonicCoset, CircleEvaluation},
             BitReversedOrder,
@@ -190,35 +186,6 @@ impl SinPreProcessed {
     pub fn evaluation(&self) -> &CircleEvaluation<SimdBackend, BaseField, BitReversedOrder> {
         self.eval.get_or_init(|| self.gen_column())
     }
-
-    /// Given a vector of row index, computes the packed M31 values for that row
-    pub fn packed_at(&self, vec_row: usize, values_from_range: &[i64]) -> PackedM31 {
-        // Calculate starting index for this vector row
-        let start_idx = vec_row * N_LANES;
-
-        // Create array of M31 values
-        let values = std::array::from_fn(|i| {
-            let idx = start_idx + i;
-            if idx < values_from_range.len() {
-                // Get the actual input value
-                let input_val = values_from_range[idx];
-
-                match self.col_index {
-                    0 => Fixed(input_val).to_m31(), // Input column
-                    1 => {
-                        // Compute sine
-                        Fixed::from_f64(Fixed(input_val).to_f64().sin()).to_m31()
-                    }
-                    _ => unreachable!(),
-                }
-            } else {
-                // Padding with zeros
-                M31::from_u32_unchecked(0)
-            }
-        });
-
-        PackedM31::from(values)
-    }
 }
 
 #[typetag::serde]
@@ -284,7 +251,7 @@ mod range_tests {
         // Get all values from ranges
         let mut all_values: Vec<i64> = ranges.iter().flat_map(|r| (r.0 .0..=r.1 .0)).collect();
 
-        // Sort and deduplicate (mimicking what SinLUT does)
+        // Sort and deduplicate (mimicking what SinPreProcessed does)
         all_values.sort_unstable();
         all_values.dedup();
 

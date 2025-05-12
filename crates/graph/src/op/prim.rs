@@ -302,11 +302,11 @@ impl LuminairOperator<SinColumn, SinTable, SinLookup> for LuminairSin {
 
             // Update multiplicities of the lookup.
             // Allows you to track the occurrence of a specific Sin operation.
-            // let mult_address = lookup
-            //     .layout
-            //     .find_index(input_val.0)
-            //     .expect("Value should fit in range.");
-            // lookup.multiplicities.increase_at(mult_address);
+            let mult_address = lookup
+                .layout
+                .find_index(input_val.0)
+                .expect("Value should fit in range.");
+            lookup.multiplicities.increase_at(mult_address);
         }
 
         vec![Tensor::new(StwoData(Arc::new(out_data)))]

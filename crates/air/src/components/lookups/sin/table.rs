@@ -1,0 +1,96 @@
+use num_traits::Zero;
+use serde::{Deserialize, Serialize};
+use stwo_prover::core::{
+    backend::simd::{
+        conversion::{Pack, Unpack},
+        m31::{PackedM31, N_LANES},
+    },
+    fields::m31::M31,
+};
+
+use crate::components::TraceColumn;
+
+use super::witness::N_TRACE_COLUMNS;
+
+/// Represents the trace for the SinLookup component, containing the required registers for its
+/// constraints.
+#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SinLookupTable {
+    /// A vector of [`SinLookupTableRow`] representing the table rows.
+    pub table: Vec<SinLookupTableRow>,
+}
+
+/// Represents a single row of the [`SinLookupTable`]
+#[derive(Debug, Copy, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SinLookupTableRow {
+    pub multiplicity: M31,
+}
+
+impl SinLookupTableRow {
+    pub(crate) fn padding() -> Self {
+        Self {
+            multiplicity: M31::zero(),
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct PackedSinLookupTableRow {
+    pub multiplicity: PackedM31,
+}
+
+impl Pack for SinLookupTableRow {
+    type SimdType = PackedSinLookupTableRow;
+
+    fn pack(inputs: [Self; N_LANES]) -> Self::SimdType {
+        PackedSinLookupTableRow {
+            multiplicity: PackedM31::from_array(std::array::from_fn(|i| inputs[i].multiplicity)),
+        }
+    }
+}
+
+impl Unpack for PackedSinLookupTableRow {
+    type CpuType = SinLookupTableRow;
+
+    fn unpack(self) -> [Self::CpuType; N_LANES] {
+        let multiplicities = self.multiplicity.to_array();
+
+        std::array::from_fn(|i| SinLookupTableRow {
+            multiplicity: multiplicities[i],
+        })
+    }
+}
+
+impl SinLookupTable {
+    /// Creates a new, empty [`SinLookupTable`]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Adds a new row to the Sin Lookup table.
+    pub fn add_row(&mut self, row: SinLookupTableRow) {
+        self.table.push(row);
+    }
+}
+
+/// Enum representing the column indices in the Sin Lookup trace.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum SinLookupColumn {
+    Multiplicity,
+}
+
+impl SinLookupColumn {
+    /// Returns the index of the column in the SinLookup trace.
+    pub const fn index(self) -> usize {
+        match self {
+            Self::Multiplicity => 0,
+        }
+    }
+}
+
+impl TraceColumn for SinLookupColumn {
+    /// Returns the number of columns in the main trace and interaction trace.
+    fn count() -> (usize, usize) {
+        (N_TRACE_COLUMNS, 1)
+    }
+}

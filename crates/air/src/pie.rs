@@ -2,9 +2,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     components::{
-        add::table::AddTable, max_reduce::table::MaxReduceTable, mul::table::MulTable,
-        recip::table::RecipTable, sin::table::SinTable, sum_reduce::table::SumReduceTable,
-        ClaimType,
+        add::table::AddTable, lookups::sin::table::SinLookupTable,
+        max_reduce::table::MaxReduceTable, mul::table::MulTable, recip::table::RecipTable,
+        sin::table::SinTable, sum_reduce::table::SumReduceTable, ClaimType,
     },
     utils::AtomicMultiplicityColumn,
 };
@@ -17,6 +17,7 @@ pub enum TableTrace {
     Mul { table: MulTable },
     Recip { table: RecipTable },
     Sin { table: SinTable },
+    SinLookup { table: SinLookupTable },
     SumReduce { table: SumReduceTable },
     MaxReduce { table: MaxReduceTable },
 }
@@ -33,6 +34,9 @@ impl TableTrace {
     }
     pub fn from_sin(table: SinTable) -> Self {
         Self::Sin { table }
+    }
+    pub fn from_sin_lookup(table: SinLookupTable) -> Self {
+        Self::SinLookup { table }
     }
     pub fn from_sum_reduce(table: SumReduceTable) -> Self {
         Self::SumReduce { table }

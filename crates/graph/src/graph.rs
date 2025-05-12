@@ -12,7 +12,7 @@ use luminair_air::{
             self,
             table::{AddColumn, AddTable},
         },
-        lookups::{sin::SinLookup, Lookups},
+        lookups::{self, sin::{table::SinLookupTable, SinLookup}, Lookups},
         max_reduce::{
             self,
             table::{MaxReduceColumn, MaxReduceTable},
@@ -42,7 +42,7 @@ use luminair_air::{
         lookups_to_preprocessed_column,
         LookupLayout,
         PreProcessedTrace,
-        Range, // SinLUT
+        Range, SinPreProcessed, // SinLUT
     },
     utils::{calculate_log_size, log_sum_valid},
     LuminairClaim, LuminairInteractionClaim, LuminairInteractionClaimGenerator, LuminairProof,
@@ -55,12 +55,7 @@ use numerair::Fixed;
 use stwo_prover::{
     constraint_framework::{INTERACTION_TRACE_IDX, ORIGINAL_TRACE_IDX, PREPROCESSED_TRACE_IDX},
     core::{
-        backend::simd::SimdBackend,
-        channel::Blake2sChannel,
-        pcs::{CommitmentSchemeProver, CommitmentSchemeVerifier, PcsConfig},
-        poly::circle::{CanonicCoset, PolyOps},
-        prover::{self, verify, ProvingError, VerificationError},
-        vcs::blake2_merkle::{Blake2sMerkleChannel, Blake2sMerkleHasher},
+        backend::simd::SimdBackend, channel::Blake2sChannel,pcs::{CommitmentSchemeProver, CommitmentSchemeVerifier, PcsConfig}, poly::circle::{CanonicCoset, PolyOps}, prover::{self, verify, ProvingError, VerificationError}, vcs::blake2_merkle::{Blake2sMerkleChannel, Blake2sMerkleHasher}
     },
 };
 use thiserror::Error;
@@ -186,10 +181,9 @@ impl LuminairGraph for Graph {
         let mut mul_table = MulTable::new();
         let mut recip_table = RecipTable::new();
         let mut sin_table = SinTable::new();
+        let mut sin_lookup_table = SinLookupTable::new();
         let mut sum_reduce_table = SumReduceTable::new();
         let mut max_reduce_table = MaxReduceTable::new();
-
-        // let mut sin_lookup_table = SinLookupTable::new();
 
         for (node, src_ids) in self.linearized_graph.as_ref().unwrap() {
             if self.tensors.contains_key(&(*node, 0)) {
@@ -354,8 +348,10 @@ impl LuminairGraph for Graph {
             table_traces.push(TableTrace::from_sin(sin_table));
 
             if let Some(lookup) = settings.lookups.sin.as_ref() {
+               lookup.add_multiplicities_to_table(&mut sin_lookup_table);
                 max_log_size = max_log_size.max(lookup.layout.log_size);
-            }
+                table_traces.push(TableTrace::from_sin_lookup(sin_lookup_table))
+            } // TODO (@raphaelDkhn): though error if LUT not present.
         }
         if !sum_reduce_table.table.is_empty() {
             let log_size = calculate_log_size(sum_reduce_table.table.len());
@@ -446,6 +442,12 @@ impl LuminairGraph for Graph {
                     main_claim.sin = Some(cl.clone());
                     interaction_claim_gen.sin = Some(in_cl_gen);
                 }
+                TableTrace::SinLookup { table } => {
+                    let claim_gen = lookups::sin::witness::ClaimGenerator::new(table);
+                    let (cl, in_cl_gen) = claim_gen.write_trace(&mut tree_builder)?;
+                    main_claim.sin_lookup = Some(cl.clone());
+                    interaction_claim_gen.sin_lookup = Some(in_cl_gen);
+                }
                 TableTrace::SumReduce { table } => {
                     let claim_gen = sum_reduce::witness::ClaimGenerator::new(table);
                     let (cl, in_cl_gen) = claim_gen.write_trace(&mut tree_builder)?;
@@ -474,6 +476,7 @@ impl LuminairGraph for Graph {
         let mut interaction_claim = LuminairInteractionClaim::default();
         let mut tree_builder = commitment_scheme.tree_builder();
         let node_elements = &interaction_elements.node_elements;
+        let lookup_elements = &interaction_elements.lookup_elements;
         if let Some(claim_gen) = interaction_claim_gen.add {
             let claim = claim_gen.write_interaction_trace(&mut tree_builder, node_elements);
             interaction_claim.add = Some(claim)
@@ -489,6 +492,13 @@ impl LuminairGraph for Graph {
         if let Some(claim_gen) = interaction_claim_gen.sin {
             let claim = claim_gen.write_interaction_trace(&mut tree_builder, node_elements);
             interaction_claim.sin = Some(claim)
+        }
+        if let Some(claim_gen) = interaction_claim_gen.sin_lookup {
+            let mut sin_luts = preprocessed_trace.columns_of::<SinPreProcessed>();
+            sin_luts.sort_by_key(|c| c.col_index);
+
+            let claim = claim_gen.write_interaction_trace(&mut tree_builder, &lookup_elements.sin, &sin_luts);
+            interaction_claim.sin_lookup = Some(claim)
         }
         if let Some(claim_gen) = interaction_claim_gen.sum_reduce {
             let claim = claim_gen.write_interaction_trace(&mut tree_builder, node_elements);

@@ -1,12 +1,12 @@
 use crate::components::{
     //lookups::sin::SinLookupElements,
+    lookups::sin::SinLookupElements,
     NodeElements,
     SinClaim,
 };
 use num_traits::One;
 use stwo_prover::constraint_framework::{
-    preprocessed_columns::PreProcessedColumnId, EvalAtRow, FrameworkComponent, FrameworkEval,
-    RelationEntry,
+    EvalAtRow, FrameworkComponent, FrameworkEval, RelationEntry,
 };
 
 /// Component for sin operations, using `SimdBackend` with fallback to `CpuBackend` for small traces.
@@ -17,7 +17,7 @@ pub struct SinEval {
     log_size: u32,
     lut_log_size: u32,
     node_elements: NodeElements,
-    // lookup_elements: SinLookupElements,
+    lookup_elements: SinLookupElements,
 }
 
 impl SinEval {
@@ -25,14 +25,14 @@ impl SinEval {
     pub fn new(
         claim: &SinClaim,
         node_elements: NodeElements,
-        // lookup_elements: SinLookupElements,
+        lookup_elements: SinLookupElements,
         lut_log_size: u32,
     ) -> Self {
         Self {
             log_size: claim.log_size,
             lut_log_size,
             node_elements,
-            // lookup_elements,
+            lookup_elements,
         }
     }
 }
@@ -70,7 +70,7 @@ impl FrameworkEval for SinEval {
         // Multiplicities for interaction constraints
         let input_mult = eval.next_trace_mask();
         let out_mult = eval.next_trace_mask();
-        // let lookup_mult = eval.next_trace_mask();
+        let lookup_mult = eval.next_trace_mask();
 
         // ┌─────────────────────────────┐
         // │   Consistency Constraints   │
@@ -97,13 +97,6 @@ impl FrameworkEval for SinEval {
         // Index increment by 1
         eval.add_constraint(not_last * (next_idx - idx - E::F::one()));
 
-        let sin_lut_0 = eval.get_preprocessed_column(PreProcessedColumnId {
-            id: "sin_lut_0".to_string(),
-        });
-        let sin_lut_1 = eval.get_preprocessed_column(PreProcessedColumnId {
-            id: "sin_lut_1".to_string(),
-        });
-
         // ┌─────────────────────────────┐
         // │   Interaction Constraints   │
         // └─────────────────────────────┘
@@ -120,11 +113,11 @@ impl FrameworkEval for SinEval {
             &[out_val.clone(), node_id],
         ));
 
-        // eval.add_to_relation(RelationEntry::new(
-        //     &self.lookup_elements,
-        //     lookup_mult.into(),
-        //     &[input_val, out_val],
-        // ));
+        eval.add_to_relation(RelationEntry::new(
+            &self.lookup_elements,
+            lookup_mult.into(),
+            &[input_val, out_val],
+        ));
 
         eval.finalize_logup();
 

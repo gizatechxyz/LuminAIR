@@ -1,9 +1,19 @@
-use std::collections::BTreeSet;
+use std::{collections::BTreeSet, sync::atomic::Ordering};
 
 use numerair::Fixed;
 use serde::{Deserialize, Serialize};
+use stwo_prover::{core::fields::m31::BaseField, relation};
+use table::{SinLookupTable, SinLookupTableRow};
 
 use crate::{preprocessed::LookupLayout, utils::AtomicMultiplicityColumn};
+
+pub mod component;
+pub mod table;
+pub mod witness;
+
+// Defines the relation for the LUT elements.
+// It allows to constrain LUTs.
+relation!(SinLookupElements, 2);
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct SinLookup {
@@ -20,6 +30,14 @@ impl SinLookup {
             layout: layout.clone(),
             data,
             multiplicities,
+        }
+    }
+
+    pub fn add_multiplicities_to_table(&self, table: &mut SinLookupTable) {
+        for mult in &self.multiplicities.data {
+            table.add_row(SinLookupTableRow {
+                multiplicity: BaseField::from_u32_unchecked(mult.load(Ordering::Relaxed)),
+            });
         }
     }
 }
