@@ -58,45 +58,56 @@ pub mod recip;
 pub mod sin;
 pub mod sum_reduce;
 
-/// Errors related to trace operations.
+/// Errors that can occur during AIR trace generation or processing.
 #[derive(Debug, Clone, Error, Eq, PartialEq)]
 pub enum TraceError {
-    /// The component trace is empty.
+    /// Indicates that a component trace was unexpectedly empty.
     #[error("The trace is empty.")]
     EmptyTrace,
 }
 
-/// Alias for trace evaluation columns used in Stwo.
+/// Type alias for a vector of circle evaluations representing trace columns.
+/// Used commonly as the format for trace data passed to the STWO prover/verifier.
 pub type TraceEval = ColumnVec<CircleEvaluation<SimdBackend, BaseField, BitReversedOrder>>;
 
+/// Type alias for the claim associated with the Add component's trace.
 pub type AddClaim = Claim<AddColumn>;
+/// Type alias for the claim associated with the Mul component's trace.
 pub type MulClaim = Claim<MulColumn>;
+/// Type alias for the claim associated with the Recip component's trace.
 pub type RecipClaim = Claim<RecipColumn>;
+/// Type alias for the claim associated with the Sin component's trace.
 pub type SinClaim = Claim<SinColumn>;
+/// Type alias for the claim associated with the SinLookup component's trace.
 pub type SinLookupClaim = Claim<SinLookupColumn>;
+/// Type alias for the claim associated with the SumReduce component's trace.
 pub type SumReduceClaim = Claim<SumReduceColumn>;
+/// Type alias for the claim associated with the MaxReduce component's trace.
 pub type MaxReduceClaim = Claim<MaxReduceColumn>;
 
-/// Represents columns of a trace.
+/// Trait implemented by trace column definitions (e.g., `AddColumn`).
+/// Provides metadata about the number of columns used by the component.
 pub trait TraceColumn {
-    /// Returns the number of columns associated with the specific trace type.
+    /// Returns the number of columns for the main trace and interaction trace, respectively.
     ///
-    /// Main trace columns: first element of the tuple
-    /// Interaction trace columns: second element of the tuple
+    /// This information is used to allocate space in the overall trace commitment tree.
     fn count() -> (usize, usize);
 }
 
-/// Represents a claim.
+/// Generic structure representing a claim associated with a specific component's trace.
+///
+/// Stores the log2 size of the trace segment and uses `PhantomData` to link to the
+/// specific `TraceColumn` type (`T`), allowing access to column count metadata.
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Claim<T: TraceColumn> {
-    /// Logarithmic size (base 2) of the trace.
+    /// Logarithmic size (base 2) of this component's trace segment.
     pub log_size: u32,
-    /// Phantom data to associate with the trace column type.
+    /// Marker associating this claim with a specific `TraceColumn` type (e.g., `AddColumn`).
     _marker: std::marker::PhantomData<T>,
 }
 
 impl<T: TraceColumn> Claim<T> {
-    /// Creates a new claim with the given log size and node information.
+    /// Creates a new claim for a component trace of the given `log_size`.
     pub const fn new(log_size: u32) -> Self {
         Self {
             log_size,
@@ -104,7 +115,8 @@ impl<T: TraceColumn> Claim<T> {
         }
     }
 
-    /// Computes log sizes for main, and interaction traces.
+    /// Calculates the log sizes needed for this component in the commitment tree.
+    /// Returns a `TreeVec` containing empty (preprocessed), main trace, and interaction trace log sizes.
     pub fn log_sizes(&self) -> TreeVec<Vec<u32>> {
         let (main_trace_cols, interaction_trace_cols) = T::count();
         let trace_log_sizes = vec![self.log_size; main_trace_cols];
@@ -113,62 +125,69 @@ impl<T: TraceColumn> Claim<T> {
         TreeVec::new(vec![vec![], trace_log_sizes, interaction_trace_log_sizes])
     }
 
-    /// Mix the log size of the table and the node structure to the Fiat-Shamir [`Channel`].
+    /// Mixes the essential claim data (currently just `log_size`) into the Fiat-Shamir channel.
     pub fn mix_into(&self, channel: &mut impl Channel) {
         // Mix log_size
         channel.mix_u64(self.log_size.into());
     }
 }
 
-/// Enum representing different types of claims.
+/// Enum wrapping specific claim types for different AIR components.
+/// Allows holding claims of various component types in a single structure (e.g., `LuminairClaim`).
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum ClaimType {
+    /// Claim for an Add component trace.
     Add(Claim<AddColumn>),
+    /// Claim for a Mul component trace.
     Mul(Claim<MulColumn>),
+    /// Claim for a Recip component trace.
     Recip(Claim<RecipColumn>),
+    /// Claim for a Sin component trace.
     Sin(Claim<SinColumn>),
+    /// Claim for a SinLookup component trace.
     SinLookup(Claim<SinLookupColumn>),
+    /// Claim for a SumReduce component trace.
     SumReduce(Claim<SumReduceColumn>),
+    /// Claim for a MaxReduce component trace.
     MaxReduce(Claim<MaxReduceColumn>),
 }
 
-/// The claim of the interaction phase 2 (with the logUp protocol).
+/// Represents the claim resulting from the interaction phase (e.g., LogUp protocol).
 ///
-/// The claimed sum is the total sum, which is the computed sum of the logUp extension column,
-/// including the padding rows.
-/// It allows proving that the main trace of a component is either a permutation, or a sublist of
-/// another.
+/// Stores the accumulated sum (`claimed_sum`) calculated from the interaction columns.
+/// This sum is crucial for verifying relationships like lookups or permutations between trace segments.
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct InteractionClaim {
-    /// The computed sum of the logUp extension column, including padding rows (which are actually
-    /// set to a multiplicity of 0).
+    /// The final accumulated value from the interaction protocol.
+    /// Must balance out across related components for the proof to be valid.
     pub claimed_sum: SecureField,
 }
 
 impl InteractionClaim {
-    /// Mix the sum from the logUp protocol into the Fiat-Shamir [`Channel`],
-    /// to bound the proof to the trace.
+    /// Mixes the `claimed_sum` into the Fiat-Shamir channel.
+    /// This binds the result of the interaction phase to the overall proof transcript.
     pub fn mix_into(&self, channel: &mut impl Channel) {
         channel.mix_felts(&[self.claimed_sum]);
     }
 }
 
-// Defines the relation for the node elements.
-// It allows to constrain relationship between nodes.
+// Interaction elements related to graph node structure/connections.
+// Drawn from the channel and used in interaction phase constraints.
 relation!(NodeElements, 2);
 
-/// All the interaction elements required by the components during the interaction phase 2.
+/// Container for all interaction elements drawn from the Fiat-Shamir channel.
 ///
-/// The elements are drawn from a Fiat-Shamir [`Channel`], currently using the BLAKE2 hash.
+/// These random elements are used in constructing interaction trace columns and constraints.
 #[derive(Clone, Debug)]
 pub struct LuminairInteractionElements {
+    /// Interaction elements related to node connections/structure.
     pub node_elements: NodeElements,
+    /// Interaction elements specific to lookup arguments.
     pub lookup_elements: LookupElements,
 }
 
 impl LuminairInteractionElements {
-    /// Draw all the interaction elements needed for
-    /// all the components of the system.
+    /// Draws all necessary interaction elements (`NodeElements`, `LookupElements`) from the channel.
     pub fn draw(channel: &mut impl Channel) -> Self {
         let node_elements = NodeElements::draw(channel);
         let lookup_elements = LookupElements::draw(channel);
@@ -180,22 +199,34 @@ impl LuminairInteractionElements {
     }
 }
 
-/// All the components that consitute LuminAIR.
+/// Aggregates all active AIR components for the LuminAIR system.
 ///
-/// Components are used by the prover as a `ComponentProver`,
-/// and by the verifier as a `Component`.
+/// This structure holds instances of the specific STWO component implementations
+/// (e.g., `AddComponent`, `MulComponent`) based on the claims generated during the trace phase.
+/// It provides methods to access these components as needed by the STWO prover and verifier.
 pub struct LuminairComponents {
+    /// Optional Add component instance.
     add: Option<AddComponent>,
+    /// Optional Mul component instance.
     mul: Option<MulComponent>,
+    /// Optional Recip component instance.
     recip: Option<RecipComponent>,
+    /// Optional Sin component instance.
     sin: Option<SinComponent>,
+    /// Optional SinLookup component instance.
     sin_lookup: Option<SinLookupComponent>,
+    /// Optional SumReduce component instance.
     sum_reduce: Option<SumReduceComponent>,
+    /// Optional MaxReduce component instance.
     max_reduce: Option<MaxReduceComponent>,
 }
 
 impl LuminairComponents {
-    /// Initializes components from claims and interaction elements.
+    /// Creates a `LuminairComponents` instance from collected claims and interaction elements.
+    ///
+    /// Initializes only the components that have corresponding claims present in `claim`.
+    /// Uses a `TraceLocationAllocator` to assign segments within the overall trace commitment tree.
+    /// Requires preprocessed trace info and lookup configurations for component setup.
     pub fn new(
         claim: &LuminairClaim,
         interaction_elements: &LuminairInteractionElements,
@@ -309,7 +340,8 @@ impl LuminairComponents {
         }
     }
 
-    /// Returns the `ComponentProver` of each components, used by the prover.
+    /// Returns a vector of references to the active components, cast as `ComponentProver`.
+    /// This is used to provide the prover with the necessary constraint logic and trace generation helpers.
     pub fn provers(&self) -> Vec<&dyn ComponentProver<SimdBackend>> {
         let mut components: Vec<&dyn ComponentProver<SimdBackend>> = vec![];
 
@@ -343,7 +375,8 @@ impl LuminairComponents {
         components
     }
 
-    /// Returns the `Component` of each components used by the verifier.
+    /// Returns a vector of references to the active components, cast as `Component`.
+    /// This is used to provide the verifier with the necessary constraint logic.
     pub fn components(&self) -> Vec<&dyn Component> {
         self.provers()
             .into_iter()

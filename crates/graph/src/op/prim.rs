@@ -28,11 +28,12 @@ use super::{IntoOperator, LuminairOperator};
 
 // ================== COPY ==================
 
-/// Copy a tensor to Stwo
+/// Operator to convert tensor data from standard `Vec<f32>` to `StwoData` (fixed-point).
+/// No-op if the input tensor is already `StwoData`.
 #[derive(Clone, Debug)]
 pub struct CopyToStwo {}
 impl CopyToStwo {
-    /// Creates a new `CopyToStwo` instance.
+    /// Creates a new `CopyToStwo` operator instance.
     pub fn new() -> Self {
         Self {}
     }
@@ -51,11 +52,12 @@ impl Operator for CopyToStwo {
     }
 }
 
-/// Copy a tensor from Stwo
+/// Operator to convert tensor data from `StwoData` (fixed-point) back to `Vec<f32>`.
+/// No-op if the input tensor is already `Vec<f32>`.
 #[derive(Clone, Debug)]
 pub struct CopyFromStwo {}
 impl CopyFromStwo {
-    /// Creates a new `CopyFromStwo` instance.
+    /// Creates a new `CopyFromStwo` operator instance.
     pub fn new() -> Self {
         Self {}
     }
@@ -76,14 +78,17 @@ impl Operator for CopyFromStwo {
 
 // ================== CONSTANT ================
 
-/// Implements a constant operator for LuminAIR.
+/// Represents a constant value within the LuminAIR graph, stored as `StwoData`.
+///
+/// Currently supports only float constants; dynamic expressions are not yet implemented.
 #[derive(Debug, Clone, PartialEq)]
 pub struct LuminairConstant {
+    /// The constant value.
     pub value: ConstantValue,
 }
 
 impl LuminairConstant {
-    /// Creates a new LuminairConstant with the given value.
+    /// Creates a new `LuminairConstant` operator holding the specified value.
     pub fn new(value: ConstantValue) -> Self {
         Self { value }
     }
@@ -108,12 +113,15 @@ impl Operator for LuminairConstant {
 
 // ================== UNARY ==================
 
-/// Implements element-wise recip for LuminAIR.
+/// LuminAIR operator for element-wise reciprocal (`1 / x`).
+///
+/// Implements both the standard `Operator` trait for graph execution and the
+/// `LuminairOperator` trait to generate trace entries for `RecipTraceTable`.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub(crate) struct LuminairRecip {}
 
 impl LuminairRecip {
-    /// Creates a new `LuminairRecip` instance.
+    /// Creates a new `LuminairRecip` operator instance.
     pub fn new() -> Self {
         Self {}
     }
@@ -211,12 +219,17 @@ impl Operator for LuminairRecip {
     }
 }
 
-/// Implements element-wise sin for LuminAIR.
+/// LuminAIR operator for element-wise sine (`sin(x)`).
+///
+/// Implements both the standard `Operator` trait for graph execution and the
+/// `LuminairOperator` trait to generate trace entries for `SinTraceTable`.
+/// This operator interacts with the `SinLookup` component during trace generation
+/// to record input value occurrences for the lookup argument.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub(crate) struct LuminairSin {}
 
 impl LuminairSin {
-    /// Creates a new `LuminairSin` instance.
+    /// Creates a new `LuminairSin` operator instance.
     pub fn new() -> Self {
         Self {}
     }
@@ -323,12 +336,15 @@ impl Operator for LuminairSin {
 
 // ================== BINARY ==================
 
-/// Implements element-wise addition for LuminAIR.
+/// LuminAIR operator for element-wise addition (`a + b`).
+///
+/// Implements both the standard `Operator` trait for graph execution and the
+/// `LuminairOperator` trait to generate trace entries for `AddTraceTable`.
 #[derive(Debug, Clone, Default, PartialEq)]
 struct LuminairAdd {}
 
 impl LuminairAdd {
-    /// Creates a new `LuminairAdd` instance.
+    /// Creates a new `LuminairAdd` operator instance.
     pub fn new() -> Self {
         Self {}
     }
@@ -438,12 +454,15 @@ impl Operator for LuminairAdd {
     }
 }
 
-/// Implements element-wise multiplication for LuminAIR.
+/// LuminAIR operator for element-wise multiplication (`a * b`).
+///
+/// Implements both the standard `Operator` trait for graph execution and the
+/// `LuminairOperator` trait to generate trace entries for `MulTraceTable`.
 #[derive(Debug, Clone, Default, PartialEq)]
 struct LuminairMul {}
 
 impl LuminairMul {
-    /// Creates a new `LuminairMul` instance.
+    /// Creates a new `LuminairMul` operator instance.
     pub fn new() -> Self {
         Self {}
     }
@@ -559,12 +578,16 @@ impl Operator for LuminairMul {
 
 // ================== REDUCE ==================
 
-/// Implements SumReduce for LuminAIR.
+/// LuminAIR operator for sum reduction along a specified dimension.
+///
+/// Implements both the standard `Operator` trait for graph execution and the
+/// `LuminairOperator` trait to generate trace entries for `SumReduceTraceTable`,
+/// capturing the accumulation process step-by-step.
 #[derive(Debug, Clone, Default, PartialEq)]
 struct LuminairSumReduce(pub usize);
 
 impl LuminairSumReduce {
-    /// Creates a new `LuminairSumReduce` instance.
+    /// Creates a new `LuminairSumReduce` operator instance for the given reduction dimension.
     pub fn new(value: usize) -> Self {
         Self(value)
     }
@@ -688,11 +711,16 @@ impl Operator for LuminairSumReduce {
     }
 }
 
+/// LuminAIR operator for max reduction along a specified dimension.
+///
+/// Implements both the standard `Operator` trait for graph execution and the
+/// `LuminairOperator` trait to generate trace entries for `MaxReduceTraceTable`,
+/// capturing the comparison and update process step-by-step.
 #[derive(Debug, Clone, Default, PartialEq)]
 struct LuminairMaxReduce(pub usize);
 
 impl LuminairMaxReduce {
-    /// Creates a new `LuminairMaxReduce` instance.
+    /// Creates a new `LuminairMaxReduce` operator instance for the given reduction dimension.
     pub fn new(value: usize) -> Self {
         Self(value)
     }
@@ -844,17 +872,22 @@ impl Operator for LuminairMaxReduce {
 
 // ================== COMPILER ==================
 
-/// Compiles primitive operations into provable forms for LuminAIR.
+/// A Luminal `Compiler` pass that adapts a standard computation graph for LuminAIR.
 ///
-/// Replaces standard Luminal operators with LuminAIR-specific implementations
-/// that support trace generation.
+/// This compiler performs two main tasks:
+/// 1. **Inserts Copy Operators:** Adds `CopyToStwo` and `CopyFromStwo` nodes at the boundaries
+///    between standard data formats (like `Vec<f32>` used by `Function` nodes or for output)
+///    and the `StwoData` format used internally by LuminAIR operators.
+/// 2. **Replaces Primitive Operators:** Substitutes standard Luminal operators (e.g., `luminal::op::Add`)
+///    with their LuminAIR counterparts (e.g., `LuminairAdd`) that implement trace generation.
 #[derive(Default)]
 pub struct PrimitiveCompiler();
 
 impl Compiler for PrimitiveCompiler {
     type Output = ();
 
-    /// Compiles a graph by replacing Luminal operators with LuminAIR equivalents.
+    /// Executes the compilation pass on the graph.
+    /// Modifies the graph in-place to insert copy operators and replace primitives.
     fn compile<T: ToIdsMut>(&self, graph: &mut Graph, mut ids: T) -> Self::Output {
         // Go through the graph and insert copy ops.
         // Copy Function nodes (data input/output)

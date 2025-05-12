@@ -11,35 +11,58 @@ use crate::components::TraceColumn;
 
 use super::witness::N_TRACE_COLUMNS;
 
-/// Represents the table for the component, containing the required registers for its
-/// constraints.
+/// Represents the raw trace data collected for Max-Reduce operations.
+///
+/// Stores rows capturing the step-by-step comparison and update process for finding
+/// the maximum value, along with inputs, outputs, and metadata.
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct MaxReduceTraceTable {
-    /// A vector of [`MaxReduceTraceTableRow`] representing the table rows.
+    /// Vector containing all rows of the MaxReduce trace.
     pub table: Vec<MaxReduceTraceTableRow>,
 }
 
-/// Represents a single row of the [`MaxReduceTraceTable`]
+/// Represents a single row in the `MaxReduceTraceTable`.
+///
+/// Contains values for MaxReduce AIR constraints: current/next state IDs,
+/// current input value, current/next running maximum (`max_val`, `next_max_val`),
+/// a flag `is_max` indicating if `input` became `next_max_val`,
+/// flags for last step/idx, the final output, and LogUp multiplicities.
 #[derive(Debug, Default, Copy, Clone, serde::Serialize, serde::Deserialize)]
 pub struct MaxReduceTraceTableRow {
+    /// ID of the current MaxReduce node.
     pub node_id: M31,
+    /// ID of the node providing the input tensor.
     pub input_id: M31,
+    /// Index of the output element being computed.
     pub idx: M31,
+    /// Flag: is this the last output element for this node (1 if true, 0 otherwise).
     pub is_last_idx: M31,
+    /// ID of the *next* MaxReduce node processed in the trace.
     pub next_node_id: M31,
+    /// ID of the *next* input provider node.
     pub next_input_id: M31,
+    /// Index of the *next* output element.
     pub next_idx: M31,
+    /// Current input value being processed in the reduction.
     pub input: M31,
+    /// Final output value (max for `idx`). Valid only if `is_last_step` is 1.
     pub out: M31,
+    /// Running maximum value *before* considering the current `input`.
     pub max_val: M31,
+    /// Running maximum value *after* considering the current `input`.
     pub next_max_val: M31,
+    /// Flag: is this the last input element being processed for the current `out` (1 if true, 0 otherwise).
     pub is_last_step: M31,
+    /// Flag: is the current `input` value the new maximum (1 if true, 0 otherwise).
     pub is_max: M31,
+    /// Multiplicity contribution for the LogUp argument (input tensor values).
     pub input_mult: M31,
+    /// Multiplicity contribution for the LogUp argument (output tensor values).
     pub out_mult: M31,
 }
 
 impl MaxReduceTraceTableRow {
+    /// Creates a default padding row for the MaxReduce trace.
     pub(crate) fn padding() -> Self {
         Self {
             node_id: M31::zero(),
@@ -61,22 +84,38 @@ impl MaxReduceTraceTableRow {
     }
 }
 
+/// SIMD-packed representation of a `MaxReduceTraceTableRow`.
 #[derive(Debug, Copy, Clone)]
 pub struct PackedMaxReduceTraceTableRow {
+    /// Packed `node_id` values.
     pub node_id: PackedM31,
+    /// Packed `input_id` values.
     pub input_id: PackedM31,
+    /// Packed `idx` (output element index) values.
     pub idx: PackedM31,
+    /// Packed `is_last_idx` flags.
     pub is_last_idx: PackedM31,
+    /// Packed `next_node_id` values.
     pub next_node_id: PackedM31,
+    /// Packed `next_input_id` values.
     pub next_input_id: PackedM31,
+    /// Packed `next_idx` values.
     pub next_idx: PackedM31,
+    /// Packed current `input` values for reduction.
     pub input: PackedM31,
+    /// Packed `out` (final max) values.
     pub out: PackedM31,
+    /// Packed `max_val` (running max before input) values.
     pub max_val: PackedM31,
+    /// Packed `next_max_val` (running max after input) values.
     pub next_max_val: PackedM31,
+    /// Packed `is_last_step` flags (for reduction step).
     pub is_last_step: PackedM31,
+    /// Packed `is_max` flags (if current input is the new max).
     pub is_max: PackedM31,
+    /// Packed `input_mult` values.
     pub input_mult: PackedM31,
+    /// Packed `out_mult` values.
     pub out_mult: PackedM31,
 }
 
@@ -163,38 +202,24 @@ impl Unpack for PackedMaxReduceTraceTableRow {
 }
 
 impl MaxReduceTraceTable {
-    /// Creates a new, empty [`MaxReduceTraceTable`].
+    /// Creates a new, empty `MaxReduceTraceTable`.
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Adds a new row to the TraceTable.
+    /// Appends a single row to the trace table.
     pub fn add_row(&mut self, row: MaxReduceTraceTableRow) {
         self.table.push(row);
     }
 }
 
-/// Enum representing the column indices in the MaxReduce trace.
+/// Enum defining the columns of the MaxReduce AIR component's trace.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum MaxReduceColumn {
-    NodeId,
-    InputId,
-    Idx,
-    IsLastIdx,
-    NextNodeId,
-    NextInputId,
-    NextIdx,
-    Input,
-    Out,
-    MaxVal,
-    NextMaxVal,
-    IsLastStep,
-    IsMax,
-    InputMult,
-    OutMult,
+    NodeId, InputId, Idx, IsLastIdx, NextNodeId, NextInputId, NextIdx, Input, Out, MaxVal, NextMaxVal, IsLastStep, IsMax, InputMult, OutMult
 }
 impl MaxReduceColumn {
-    /// Returns the index of the column in the MaxReduce trace.
+    /// Returns the 0-based index for this column within the MaxReduce trace segment.
     pub const fn index(self) -> usize {
         match self {
             Self::NodeId => 0,
@@ -215,8 +240,12 @@ impl MaxReduceColumn {
         }
     }
 }
+
+/// Implements the `TraceColumn` trait for `MaxReduceColumn`.
 impl TraceColumn for MaxReduceColumn {
-    /// Returns the number of columns in the main trace and interaction trace.
+    /// Specifies the number of columns used by the MaxReduce component.
+    /// Returns `(N_TRACE_COLUMNS, 2)`, indicating main trace columns
+    /// and 2 interaction trace columns (for input and output LogUp).
     fn count() -> (usize, usize) {
         (N_TRACE_COLUMNS, 2)
     }

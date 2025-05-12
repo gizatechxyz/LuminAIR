@@ -12,21 +12,27 @@ use crate::components::TraceColumn;
 
 use super::witness::N_TRACE_COLUMNS;
 
-/// Represents the trace for the SinLookup component, containing the required registers for its
-/// constraints.
+/// Represents the raw trace data for the Sine Lookup Table (LUT) component.
+///
+/// This table primarily stores the multiplicity (count of accesses) for each entry
+/// in the preprocessed Sine LUT. It's populated from `SinLookup::multiplicities`.
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SinLookupTraceTable {
-    /// A vector of [`SinLookupTraceTableRow`] representing the table rows.
+    /// Vector of rows, where each row corresponds to an entry in the Sine LUT.
     pub table: Vec<SinLookupTraceTableRow>,
 }
 
-/// Represents a single row of the [`SinLookupTraceTable`]
+/// Represents a single row in the `SinLookupTraceTable`.
+/// Corresponds to one entry in the preprocessed Sine LUT.
 #[derive(Debug, Copy, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SinLookupTraceTableRow {
+    /// The number of times this specific LUT entry (a pair of `(input, output)` values)
+    /// was accessed by Sin operations in the main computation trace.
     pub multiplicity: M31,
 }
 
 impl SinLookupTraceTableRow {
+    /// Creates a default padding row for the SinLookup trace (multiplicity 0).
     pub(crate) fn padding() -> Self {
         Self {
             multiplicity: M31::zero(),
@@ -34,8 +40,10 @@ impl SinLookupTraceTableRow {
     }
 }
 
+/// SIMD-packed representation of a `SinLookupTraceTableRow`.
 #[derive(Debug, Copy, Clone)]
 pub struct PackedSinLookupTraceTableRow {
+    /// Packed multiplicity values.
     pub multiplicity: PackedM31,
 }
 
@@ -62,25 +70,26 @@ impl Unpack for PackedSinLookupTraceTableRow {
 }
 
 impl SinLookupTraceTable {
-    /// Creates a new, empty [`SinLookupTraceTable`]
+    /// Creates a new, empty `SinLookupTraceTable`.
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Adds a new row to the Sin Lookup table.
+    /// Appends a single row (multiplicity count) to the trace table.
     pub fn add_row(&mut self, row: SinLookupTraceTableRow) {
         self.table.push(row);
     }
 }
 
-/// Enum representing the column indices in the Sin Lookup trace.
+/// Enum defining the columns of the SinLookup AIR component's trace.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SinLookupColumn {
+    /// Column storing the multiplicity of access for each LUT entry.
     Multiplicity,
 }
 
 impl SinLookupColumn {
-    /// Returns the index of the column in the SinLookup trace.
+    /// Returns the 0-based index for this column within the SinLookup trace segment.
     pub const fn index(self) -> usize {
         match self {
             Self::Multiplicity => 0,
@@ -88,8 +97,12 @@ impl SinLookupColumn {
     }
 }
 
+/// Implements the `TraceColumn` trait for `SinLookupColumn`.
 impl TraceColumn for SinLookupColumn {
-    /// Returns the number of columns in the main trace and interaction trace.
+    /// Specifies the number of columns used by the SinLookup component.
+    /// Returns `(N_TRACE_COLUMNS, 1)`, indicating main trace columns for multiplicities
+    /// and 1 interaction trace column for the LogUp argument that connects these
+    /// multiplicities to the preprocessed LUT values.
     fn count() -> (usize, usize) {
         (N_TRACE_COLUMNS, 1)
     }

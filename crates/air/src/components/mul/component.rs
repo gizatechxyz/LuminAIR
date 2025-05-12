@@ -5,17 +5,22 @@ use stwo_prover::constraint_framework::{
     EvalAtRow, FrameworkComponent, FrameworkEval, RelationEntry,
 };
 
-/// Component for element-wise multiplication operations, using `SimdBackend` with fallback to `CpuBackend` for small traces.
+/// The STWO AIR component for element-wise multiplication operations.
+/// Wraps the `MulEval` logic within the STWO `FrameworkComponent`.
 pub type MulComponent = FrameworkComponent<MulEval>;
 
-/// Defines the AIR for the multiplication component.
+/// Defines the AIR constraints evaluation logic for the Mul component.
+/// Implements `FrameworkEval` to define trace layout, degrees, and constraints.
 pub struct MulEval {
+    /// Log2 size of the component's trace segment.
     log_size: u32,
+    /// Interaction elements for node relations (used in LogUp).
     node_elements: NodeElements,
 }
 
 impl MulEval {
-    /// Creates a new `MulEval` instance from a claim and node elements.
+    /// Creates a new `MulEval` instance.
+    /// Takes the component's claim (for `log_size`) and interaction elements.
     pub fn new(claim: &MulClaim, node_elements: NodeElements) -> Self {
         Self {
             log_size: claim.log_size,
@@ -24,20 +29,27 @@ impl MulEval {
     }
 }
 
+/// Implements the core constraint evaluation logic for the Mul component.
 impl FrameworkEval for MulEval {
-    /// Returns the logarithmic size of the main trace.
+    /// Returns the log2 size of this component's trace segment.
     fn log_size(&self) -> u32 {
         self.log_size
     }
 
-    /// The degree of the constraints is bounded by the size of the trace.
-    ///
-    /// Returns the ilog2 (upper) bound of the constraint degree for the component.
+    /// Returns the maximum expected log2 degree bound for the component's constraints.
     fn max_constraint_log_degree_bound(&self) -> u32 {
         self.log_size + 1
     }
 
-    /// Evaluates the AIR constraints for the multiplication operation.
+    /// Evaluates the Mul AIR constraints on a given evaluation point (`eval`).
+    ///
+    /// Defines constraints for:
+    /// - **Consistency:** Checks the fixed-point multiplication relation (`lhs * rhs = out * SCALE + rem`)
+    ///   using `eval_fixed_mul`, and boolean flags.
+    /// - **Transition:** Ensures correct state transitions between consecutive rows (same node/input IDs,
+    ///   index increments by 1) when `is_last_idx` is false.
+    /// - **Interaction (LogUp):** Links LHS, RHS, and OUT values to the global LogUp argument.
+    /// Receives an evaluator `E` and adds constraint evaluations to it.
     fn evaluate<E: EvalAtRow>(&self, mut eval: E) -> E {
         // IDs
         let node_id = eval.next_trace_mask(); // ID of the node in the computational graph.

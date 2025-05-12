@@ -70,6 +70,7 @@ use stwo_prover::{
 };
 use thiserror::Error;
 
+/// Errors that can occur during LuminAIR graph processing, proof generation, or verification.
 #[derive(Clone, Debug, Error)]
 pub enum LuminairError {
     #[error(transparent)]
@@ -117,7 +118,13 @@ pub trait LuminairGraph {
     ) -> Result<(), LuminairError>;
 }
 
+/// Implementation of `LuminairGraph` for the `luminal::Graph` struct.
 impl LuminairGraph for Graph {
+    /// Generates circuit settings, primarily by inferring lookup table requirements.
+    ///
+    /// Runs a pass over the graph to identify the range of values used
+    /// by lookup-based operations (like `sin`).
+    /// This information is crucial for constructing the preprocessed trace later.
     fn gen_circuit_settings(&mut self) -> CircuitSettings {
         // Track the number of views pointing to each tensor so we know when to clear
         if self.linearized_graph.is_none() {
@@ -174,6 +181,14 @@ impl LuminairGraph for Graph {
         }
     }
 
+    /// Generates the execution trace (witness) for the computation graph.
+    ///
+    /// Executes the graph operation by operation, collecting the inputs, outputs,
+    /// and intermediate values for each supported AIR operation (e.g., add, mul, sin).
+    /// It populates specific trace tables for each operation type and gathers
+    /// metadata about the graph structure and execution flow.
+    ///
+    /// Returns a `LuminairPie` containing all the trace tables and execution resources.
     fn gen_trace(&mut self, settings: &mut CircuitSettings) -> Result<LuminairPie, TraceError> {
         // Track the number of views pointing to each tensor so we know when to clear
         if self.linearized_graph.is_none() {
@@ -431,6 +446,16 @@ impl LuminairGraph for Graph {
         })
     }
 
+    /// Generates a STWO proof for the computation graph execution.
+    ///
+    /// Takes the `LuminairPie` (containing execution traces) and `CircuitSettings`.
+    /// It orchestrates the STWO proving protocol:
+    /// 1. Sets up the prover, channel, and commitment scheme.
+    /// 2. Commits to the preprocessed trace.
+    /// 3. Commits to the main execution trace components (add, mul, sin, etc.).
+    /// 4. Commits to the interaction trace.
+    /// 5. Executes the Stwo prover.
+    /// Returns a `LuminairProof` containing the claims and the STARK proof.
     fn prove(
         &mut self,
         pie: LuminairPie,
@@ -600,6 +625,16 @@ impl LuminairGraph for Graph {
         })
     }
 
+    /// Verifies a STWO proof.
+    ///
+    /// Takes a `LuminairProof` and `CircuitSettings` as input.
+    /// It orchestrates the STWO verification protocol:
+    /// 1. Sets up the verifier, channel, and commitment scheme.
+    /// 2. Reads commitments for preprocessed, main, and interaction traces from the proof.
+    /// 3. Derives interaction elements using Fiat-Shamir.
+    /// 4. Constructs the AIR components (constraints) based on the claims and interaction elements.
+    /// 5. Verifies the STARK proof.
+    /// Returns `Ok(())` if the proof is valid, otherwise returns a `LuminairError`.
     fn verify(
         &self,
         LuminairProof {
@@ -678,6 +713,10 @@ impl LuminairGraph for Graph {
     }
 }
 
+/// Merges overlapping or adjacent ranges into a minimal set of disjoint ranges.
+///
+/// Used to consolidate the input ranges identified for lookup operations during
+/// the `gen_circuit_settings` phase, optimizing the lookup table structure.
 fn coalesce_ranges(mut ranges: Vec<Range>) -> Vec<Range> {
     if ranges.is_empty() {
         return Vec::new();

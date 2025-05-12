@@ -16,17 +16,30 @@ use stwo_prover::{
 
 use super::table::{MulColumn, MulTraceTable, MulTraceTableRow, PackedMulTraceTableRow};
 
+/// Number of main trace columns for the Mul component.
 pub(crate) const N_TRACE_COLUMNS: usize = 16;
 
+/// Generates the main trace columns and initial data for interaction claims for the Mul component.
+///
+/// Takes the raw `MulTraceTable`, processes it into the main STARK trace columns
+/// (including the fixed-point remainder `rem`), and prepares `LookupData` for LogUp.
 pub struct ClaimGenerator {
+    /// The raw trace data for Mul operations.
     pub inputs: MulTraceTable,
 }
 
 impl ClaimGenerator {
+    /// Creates a new `ClaimGenerator` with the given `MulTraceTable`.
     pub fn new(inputs: MulTraceTable) -> Self {
         Self { inputs }
     }
 
+    /// Writes the main trace columns to the `tree_builder` and returns data for interaction phase.
+    ///
+    /// Similar to the Add component's `write_trace`, this pads the table, packs rows,
+    /// calls `write_trace_simd` to generate main trace columns and `LookupData`,
+    /// adds the main trace to the `tree_builder`, and returns the `MulClaim` and `InteractionClaimGenerator`.
+    /// Returns `TraceError::EmptyTrace` if the input table is empty.
     pub fn write_trace(
         mut self,
         tree_builder: &mut impl TreeBuilder<SimdBackend>,
@@ -57,6 +70,13 @@ impl ClaimGenerator {
     }
 }
 
+/// Populates the main trace columns and `LookupData` from SIMD-packed Mul trace rows.
+///
+/// Processes `PackedMulTraceTableRow` data in parallel:
+/// - Maps fields (including `rem`) to the corresponding main trace columns.
+/// - Extracts `[value, id]` pairs and multiplicities into `LookupData` for the LogUp argument
+///   (LHS, RHS, OUT).
+/// Returns the `ComponentTrace` (main trace columns) and `LookupData`.
 fn write_trace_simd(
     inputs: Vec<PackedMulTraceTableRow>,
 ) -> (ComponentTrace<N_TRACE_COLUMNS>, LookupData) {
@@ -105,22 +125,49 @@ fn write_trace_simd(
     (trace, lookup_data)
 }
 
+/// Intermediate data structure holding values and multiplicities for the Mul LogUp argument.
+///
+/// Structure and purpose are identical to the `LookupData` in the Add component,
+/// storing value-ID pairs and multiplicities for LHS, RHS, and OUT terms.
+/// Derives helper iterators for parallel processing.
 #[derive(Uninitialized, IterMut, ParIterMut)]
 struct LookupData {
+    /// LHS value-ID pairs: `[lhs_value, lhs_node_id]`.
     lhs: Vec<[PackedM31; 2]>,
+    /// Multiplicities for LHS values.
     lhs_mult: Vec<PackedM31>,
+    /// RHS value-ID pairs: `[rhs_value, rhs_node_id]`.
     rhs: Vec<[PackedM31; 2]>,
+    /// Multiplicities for RHS values.
     rhs_mult: Vec<PackedM31>,
+    /// Output value-ID pairs: `[out_value, mul_node_id]`.
     out: Vec<[PackedM31; 2]>,
+    /// Multiplicities for output values.
     out_mult: Vec<PackedM31>,
 }
 
+/// Generates the interaction trace columns for the Mul component's LogUp argument.
+///
+/// Structure and purpose are identical to the `InteractionClaimGenerator` in the Add component.
+/// It takes `LookupData` and `NodeElements` to build the three LogUp interaction columns
+/// (LHS, RHS, OUT) and adds them to the `tree_builder`.
 pub struct InteractionClaimGenerator {
+    /// Log2 size of the trace.
     log_size: u32,
+    /// Data (value-ID pairs and multiplicities) needed for LogUp.
     lookup_data: LookupData,
 }
 
 impl InteractionClaimGenerator {
+    /// Writes the LogUp interaction trace columns to the `tree_builder`.
+    ///
+    /// The logic is identical to the Add component's implementation:
+    /// - Creates a `LogupTraceGenerator`.
+    /// - Generates three columns (LHS, RHS, OUT), writing `multiplicity / denom` fractions,
+    ///   where `denom` is derived from `[value, id]` and `NodeElements`.
+    /// - Finalizes the generator, obtaining interaction trace columns and the `claimed_sum`.
+    /// - Adds interaction columns to the `tree_builder`.
+    /// - Returns the `InteractionClaim` containing the `claimed_sum`.
     pub fn write_interaction_trace(
         self,
         tree_builder: &mut impl TreeBuilder<SimdBackend>,

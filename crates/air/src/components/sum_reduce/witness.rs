@@ -19,17 +19,29 @@ use super::table::{
     PackedSumReduceTraceTableRow, SumReduceColumn, SumReduceTraceTable, SumReduceTraceTableRow,
 };
 
+/// Number of main trace columns for the SumReduce component.
 pub(crate) const N_TRACE_COLUMNS: usize = 14;
 
+/// Generates the main trace columns and initial data for interaction claims for the SumReduce component.
+///
+/// Takes the raw `SumReduceTraceTable`, processes it into main STARK trace columns
+/// (including accumulator states, input/output values), and prepares `LookupData` for LogUp.
 pub struct ClaimGenerator {
+    /// The raw trace data for SumReduce operations.
     pub inputs: SumReduceTraceTable,
 }
 
 impl ClaimGenerator {
+    /// Creates a new `ClaimGenerator` with the given `SumReduceTraceTable`.
     pub fn new(inputs: SumReduceTraceTable) -> Self {
         Self { inputs }
     }
 
+    /// Writes the main trace columns to the `tree_builder` and returns data for interaction phase.
+    ///
+    /// Follows standard pattern: pads, packs, calls `write_trace_simd`,
+    /// adds main trace to `tree_builder`, returns `SumReduceClaim` and `InteractionClaimGenerator`.
+    /// Returns `TraceError::EmptyTrace` if the input table is empty.
     pub fn write_trace(
         mut self,
         tree_builder: &mut impl TreeBuilder<SimdBackend>,
@@ -62,6 +74,12 @@ impl ClaimGenerator {
     }
 }
 
+/// Populates main trace columns and `LookupData` from SIMD-packed SumReduce trace rows.
+///
+/// Processes `PackedSumReduceTraceTableRow` data in parallel:
+/// - Maps fields (node/input IDs, current/next accumulator, input/out values, flags) to main trace columns.
+/// - Extracts `[value, id]` pairs and multiplicities for input and output LogUps into `LookupData`.
+/// Returns the `ComponentTrace` (main trace columns) and `LookupData`.
 fn write_trace_simd(
     inputs: Vec<PackedSumReduceTraceTableRow>,
 ) -> (ComponentTrace<N_TRACE_COLUMNS>, LookupData) {
@@ -106,20 +124,34 @@ fn write_trace_simd(
     (trace, lookup_data)
 }
 
+/// Intermediate data structure holding values and multiplicities for the SumReduce LogUp argument.
+/// Stores value-ID pairs and multiplicities for input and output terms.
 #[derive(Uninitialized, IterMut, ParIterMut)]
 struct LookupData {
+    /// Input value-ID pairs: `[input_value, input_node_id]`.
     input: Vec<[PackedM31; 2]>,
+    /// Multiplicities for input values.
     input_mult: Vec<PackedM31>,
+    /// Output value-ID pairs: `[out_value, sum_reduce_node_id]`.
     out: Vec<[PackedM31; 2]>,
+    /// Multiplicities for output values.
     out_mult: Vec<PackedM31>,
 }
 
+/// Generates interaction trace columns for the SumReduce component's LogUp argument.
+/// Builds two LogUp columns (input, output) and adds them to the `tree_builder`.
 pub struct InteractionClaimGenerator {
+    /// Log2 size of the trace.
     log_size: u32,
+    /// Data (value-ID pairs and multiplicities) needed for LogUp.
     lookup_data: LookupData,
 }
 
 impl InteractionClaimGenerator {
+    /// Writes the LogUp interaction trace columns to the `tree_builder`.
+    ///
+    /// Similar to Recip: generates two columns (Input, Output), writing `multiplicity / denom` fractions.
+    /// Finalizes generator, adds columns to `tree_builder`, returns `InteractionClaim`.
     pub fn write_interaction_trace(
         self,
         tree_builder: &mut impl TreeBuilder<SimdBackend>,
