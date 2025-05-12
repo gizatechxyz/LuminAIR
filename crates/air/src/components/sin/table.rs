@@ -185,6 +185,6 @@ impl SinColumn {
 impl TraceColumn for SinColumn {
     /// Returns the number of columns in the main trace and interaction trace.
     fn count() -> (usize, usize) {
-        (N_TRACE_COLUMNS, 2)
+        (N_TRACE_COLUMNS, 3)
     }
 }

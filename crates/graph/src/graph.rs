@@ -490,7 +490,7 @@ impl LuminairGraph for Graph {
             interaction_claim.recip = Some(claim)
         }
         if let Some(claim_gen) = interaction_claim_gen.sin {
-            let claim = claim_gen.write_interaction_trace(&mut tree_builder, node_elements);
+            let claim = claim_gen.write_interaction_trace(&mut tree_builder, node_elements, &lookup_elements.sin);
             interaction_claim.sin = Some(claim)
         }
         if let Some(claim_gen) = interaction_claim_gen.sin_lookup {

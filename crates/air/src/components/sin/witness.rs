@@ -1,7 +1,10 @@
 use crate::{
-    components::{InteractionClaim, NodeElements, SinClaim, TraceError},
+    components::{
+        lookups::sin::SinLookupElements, InteractionClaim, NodeElements, SinClaim, TraceError,
+    },
     utils::{pack_values, TreeBuilder},
 };
+use num_traits::One;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use stwo_air_utils::trace::component_trace::ComponentTrace;
 use stwo_air_utils_derive::{IterMut, ParIterMut, Uninitialized};
@@ -116,6 +119,7 @@ impl InteractionClaimGenerator {
         self,
         tree_builder: &mut impl TreeBuilder<SimdBackend>,
         node_elements: &NodeElements,
+        lookup_elements: &SinLookupElements,
     ) -> InteractionClaim {
         let mut logup_gen = LogupTraceGenerator::new(self.log_size);
 
@@ -136,6 +140,16 @@ impl InteractionClaimGenerator {
 
             let denom: PackedQM31 = node_elements.combine(values);
             col_gen.write_frac(row, (*multiplicity).into(), denom);
+        }
+        col_gen.finalize_col();
+
+        let mut col_gen = logup_gen.new_col();
+        for row in 0..1 << (self.log_size - LOG_N_LANES) {
+            let input = self.lookup_data.input[row][0];
+            let output = self.lookup_data.out[row][0];
+
+            let denom: PackedQM31 = lookup_elements.combine(&[input, output]);
+            col_gen.write_frac(row, PackedQM31::one(), denom);
         }
         col_gen.finalize_col();
 
