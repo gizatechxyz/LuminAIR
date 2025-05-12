@@ -34,6 +34,7 @@ pub struct SinTableRow {
     pub out: M31,
     pub input_mult: M31,
     pub out_mult: M31,
+    pub lookup_mult: M31,
 }
 
 impl SinTableRow {
@@ -50,6 +51,7 @@ impl SinTableRow {
             out: M31::zero(),
             input_mult: M31::zero(),
             out_mult: M31::zero(),
+            lookup_mult: M31::zero(),
         }
     }
 }
@@ -67,6 +69,7 @@ pub struct PackedSinTableRow {
     pub out: PackedM31,
     pub input_mult: PackedM31,
     pub out_mult: PackedM31,
+    pub lookup_mult: PackedM31,
 }
 
 impl Pack for SinTableRow {
@@ -85,6 +88,7 @@ impl Pack for SinTableRow {
             out: PackedM31::from_array(std::array::from_fn(|i| inputs[i].out)),
             input_mult: PackedM31::from_array(std::array::from_fn(|i| inputs[i].input_mult)),
             out_mult: PackedM31::from_array(std::array::from_fn(|i| inputs[i].out_mult)),
+            lookup_mult: PackedM31::from_array(std::array::from_fn(|i| inputs[i].lookup_mult)),
         }
     }
 }
@@ -105,6 +109,7 @@ impl Unpack for PackedSinTableRow {
             out,
             input_mult,
             out_mult,
+            lookup_mult,
         ) = (
             self.node_id.to_array(),
             self.input_id.to_array(),
@@ -117,6 +122,7 @@ impl Unpack for PackedSinTableRow {
             self.out.to_array(),
             self.input_mult.to_array(),
             self.out_mult.to_array(),
+            self.lookup_mult.to_array(),
         );
 
         std::array::from_fn(|i| SinTableRow {
@@ -131,6 +137,7 @@ impl Unpack for PackedSinTableRow {
             out: out[i],
             input_mult: input_mult[i],
             out_mult: out_mult[i],
+            lookup_mult: lookup_mult[i],
         })
     }
 }
@@ -161,6 +168,7 @@ pub enum SinColumn {
     Out,
     InputMult,
     OutMult,
+    LookupMult,
 }
 
 impl SinColumn {
@@ -178,6 +186,7 @@ impl SinColumn {
             Self::Out => 8,
             Self::InputMult => 9,
             Self::OutMult => 10,
+            Self::LookupMult => 11,
         }
     }
 }

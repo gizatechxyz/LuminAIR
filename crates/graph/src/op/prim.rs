@@ -17,7 +17,7 @@ use luminal::{
 use num_traits::{identities::Zero, One};
 use numerair::{Fixed, SCALE_FACTOR};
 use std::{ops::Deref, sync::Arc};
-use stwo_prover::core::fields::m31::BaseField;
+use stwo_prover::core::fields::m31::{BaseField, M31};
 
 use crate::{
     data::StwoData,
@@ -298,6 +298,7 @@ impl LuminairOperator<SinColumn, SinTable, SinLookup> for LuminairSin {
                 out: out_val.to_m31(),
                 input_mult,
                 out_mult,
+                lookup_mult: M31::one(),
             });
 
             // Update multiplicities of the lookup.

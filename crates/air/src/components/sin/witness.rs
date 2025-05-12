@@ -19,7 +19,7 @@ use stwo_prover::{
 
 use super::table::{PackedSinTableRow, SinColumn, SinTable, SinTableRow};
 
-pub(crate) const N_TRACE_COLUMNS: usize = 11;
+pub(crate) const N_TRACE_COLUMNS: usize = 12;
 
 pub struct ClaimGenerator {
     pub inputs: SinTable,
@@ -91,11 +91,13 @@ fn write_trace_simd(
             *row[SinColumn::Out.index()] = input.out;
             *row[SinColumn::InputMult.index()] = input.input_mult;
             *row[SinColumn::OutMult.index()] = input.out_mult;
+            *row[SinColumn::LookupMult.index()] = input.lookup_mult;
 
             *lookup_data.input = [input.input, input.input_id];
             *lookup_data.input_mult = input.input_mult;
             *lookup_data.out = [input.out, input.node_id];
             *lookup_data.out_mult = input.out_mult;
+            *lookup_data.lookup_mult = input.lookup_mult;
         });
 
     (trace, lookup_data)
@@ -107,6 +109,7 @@ struct LookupData {
     input_mult: Vec<PackedM31>,
     out: Vec<[PackedM31; 2]>,
     out_mult: Vec<PackedM31>,
+    lookup_mult: Vec<PackedM31>,
 }
 
 pub struct InteractionClaimGenerator {
@@ -147,9 +150,10 @@ impl InteractionClaimGenerator {
         for row in 0..1 << (self.log_size - LOG_N_LANES) {
             let input = self.lookup_data.input[row][0];
             let output = self.lookup_data.out[row][0];
+            let multiplicity = self.lookup_data.lookup_mult[row];
 
             let denom: PackedQM31 = lookup_elements.combine(&[input, output]);
-            col_gen.write_frac(row, PackedQM31::one(), denom);
+            col_gen.write_frac(row, multiplicity.into(), denom);
         }
         col_gen.finalize_col();
 
