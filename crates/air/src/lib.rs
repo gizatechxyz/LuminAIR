@@ -2,7 +2,8 @@
 
 use ::serde::{Deserialize, Serialize};
 use components::{
-    add, lookups, max_reduce, mul, recip, sin, sum_reduce, AddClaim, InteractionClaim, MaxReduceClaim, MulClaim, RecipClaim, SinClaim, SinLookupClaim, SumReduceClaim
+    add, lookups, max_reduce, mul, recip, sin, sum_reduce, AddClaim, InteractionClaim,
+    MaxReduceClaim, MulClaim, RecipClaim, SinClaim, SinLookupClaim, SumReduceClaim,
 };
 use stwo_prover::core::{
     channel::Channel, pcs::TreeVec, prover::StarkProof, vcs::ops::MerkleHasher,

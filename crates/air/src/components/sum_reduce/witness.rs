@@ -1,16 +1,23 @@
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use stwo_air_utils::trace::component_trace::ComponentTrace;
 use stwo_air_utils_derive::{IterMut, ParIterMut, Uninitialized};
-use stwo_prover::{constraint_framework::{logup::LogupTraceGenerator, Relation}, core::backend::simd::{
-    m31::{PackedM31, LOG_N_LANES, N_LANES}, qm31::PackedQM31, SimdBackend
-}};
+use stwo_prover::{
+    constraint_framework::{logup::LogupTraceGenerator, Relation},
+    core::backend::simd::{
+        m31::{PackedM31, LOG_N_LANES, N_LANES},
+        qm31::PackedQM31,
+        SimdBackend,
+    },
+};
 
 use crate::{
     components::{InteractionClaim, NodeElements, SumReduceClaim, TraceError},
     utils::{pack_values, TreeBuilder},
 };
 
-use super::table::{PackedSumReduceTraceTableRow, SumReduceColumn, SumReduceTraceTable, SumReduceTraceTableRow};
+use super::table::{
+    PackedSumReduceTraceTableRow, SumReduceColumn, SumReduceTraceTable, SumReduceTraceTableRow,
+};
 
 pub(crate) const N_TRACE_COLUMNS: usize = 14;
 
@@ -36,7 +43,9 @@ impl ClaimGenerator {
         let size = std::cmp::max(n_rows.next_power_of_two(), N_LANES);
         let log_size = size.ilog2();
 
-        self.inputs.table.resize(size, SumReduceTraceTableRow::padding());
+        self.inputs
+            .table
+            .resize(size, SumReduceTraceTableRow::padding());
         let packed_inputs = pack_values(&self.inputs.table);
 
         let (trace, lookup_data) = write_trace_simd(packed_inputs);

@@ -18,7 +18,9 @@ use crate::{
 };
 
 use super::{
-    table::{PackedSinLookupTraceTableRow, SinLookupColumn, SinLookupTraceTable, SinLookupTraceTableRow},
+    table::{
+        PackedSinLookupTraceTableRow, SinLookupColumn, SinLookupTraceTable, SinLookupTraceTableRow,
+    },
     SinLookupElements,
 };
 
@@ -46,7 +48,9 @@ impl ClaimGenerator {
         let size = std::cmp::max(n_rows.next_power_of_two(), N_LANES);
         let log_size = size.ilog2();
 
-        self.inputs.table.resize(size, SinLookupTraceTableRow::padding());
+        self.inputs
+            .table
+            .resize(size, SinLookupTraceTableRow::padding());
         let packed_inputs = pack_values(&self.inputs.table);
 
         let (trace, lookup_data) = write_trace_simd(packed_inputs);

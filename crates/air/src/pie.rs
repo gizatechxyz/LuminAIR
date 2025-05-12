@@ -3,8 +3,9 @@ use serde::{Deserialize, Serialize};
 use crate::{
     components::{
         add::table::AddTraceTable, lookups::sin::table::SinLookupTraceTable,
-        max_reduce::table::MaxReduceTraceTable, mul::table::MulTraceTable, recip::table::RecipTraceTable,
-        sin::table::SinTraceTable, sum_reduce::table::SumReduceTraceTable, ClaimType,
+        max_reduce::table::MaxReduceTraceTable, mul::table::MulTraceTable,
+        recip::table::RecipTraceTable, sin::table::SinTraceTable,
+        sum_reduce::table::SumReduceTraceTable, ClaimType,
     },
     utils::AtomicMultiplicityColumn,
 };

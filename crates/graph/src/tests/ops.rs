@@ -116,4 +116,3 @@ fn test_max_reduce() {
     assert_close(&c.data(), &c_cpu.data());
     assert_close(&d.data(), &d_cpu.data());
 }
-

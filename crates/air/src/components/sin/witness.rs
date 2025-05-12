@@ -4,7 +4,6 @@ use crate::{
     },
     utils::{pack_values, TreeBuilder},
 };
-use num_traits::One;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use stwo_air_utils::trace::component_trace::ComponentTrace;
 use stwo_air_utils_derive::{IterMut, ParIterMut, Uninitialized};
