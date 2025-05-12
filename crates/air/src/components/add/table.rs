@@ -1,138 +1,177 @@
-use num_traits::One;
+use num_traits::{One, Zero};
 use serde::{Deserialize, Serialize};
-use stwo_prover::{
-    constraint_framework::{logup::LogupTraceGenerator, Relation},
-    core::{
-        backend::{
-            simd::{column::BaseColumn, m31::LOG_N_LANES},
-            Column,
-        },
-        fields::m31::BaseField,
-        poly::circle::{CanonicCoset, CircleEvaluation},
+use stwo_prover::core::{
+    backend::simd::{
+        conversion::{Pack, Unpack},
+        m31::{PackedM31, N_LANES},
     },
+    fields::m31::M31,
 };
 
-use crate::{
-    components::{AddClaim, InteractionClaim, NodeElements, TraceColumn, TraceError, TraceEval},
-    utils::calculate_log_size,
-};
+use crate::components::TraceColumn;
+
+use super::witness::N_TRACE_COLUMNS;
 
 /// Represents the trace for the Add component, containing the required registers for its
 /// constraints.
-#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
-pub struct AddTable {
-    /// A vector of [`AddTableRow`] representing the table rows.
-    pub table: Vec<AddTableRow>,
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+pub struct AddTraceTable {
+    /// A vector of [`AddTraceTableRow`] representing the table rows.
+    pub table: Vec<AddTraceTableRow>,
 }
 
-/// Represents a single row of the [`AddTable`]
-#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
-pub struct AddTableRow {
-    pub node_id: BaseField,
-    pub lhs_id: BaseField,
-    pub rhs_id: BaseField,
-    pub idx: BaseField,
-    pub is_last_idx: BaseField,
-    pub next_node_id: BaseField,
-    pub next_lhs_id: BaseField,
-    pub next_rhs_id: BaseField,
-    pub next_idx: BaseField,
-    pub lhs: BaseField,
-    pub rhs: BaseField,
-    pub out: BaseField,
-    pub lhs_mult: BaseField,
-    pub rhs_mult: BaseField,
-    pub out_mult: BaseField,
+/// Represents a single row of the [`AddTraceTable`]
+#[derive(Debug, Copy, Clone, serde::Serialize, serde::Deserialize)]
+pub struct AddTraceTableRow {
+    pub node_id: M31,
+    pub lhs_id: M31,
+    pub rhs_id: M31,
+    pub idx: M31,
+    pub is_last_idx: M31,
+    pub next_node_id: M31,
+    pub next_lhs_id: M31,
+    pub next_rhs_id: M31,
+    pub next_idx: M31,
+    pub lhs: M31,
+    pub rhs: M31,
+    pub out: M31,
+    pub lhs_mult: M31,
+    pub rhs_mult: M31,
+    pub out_mult: M31,
 }
 
-impl AddTable {
-    /// Creates a new, empty [`AddTable`].
+impl AddTraceTableRow {
+    pub(crate) fn padding() -> Self {
+        Self {
+            node_id: M31::zero(),
+            lhs_id: M31::zero(),
+            rhs_id: M31::zero(),
+            idx: M31::zero(),
+            is_last_idx: M31::one(),
+            next_node_id: M31::zero(),
+            next_lhs_id: M31::zero(),
+            next_rhs_id: M31::zero(),
+            next_idx: M31::zero(),
+            lhs: M31::zero(),
+            rhs: M31::zero(),
+            out: M31::zero(),
+            lhs_mult: M31::zero(),
+            rhs_mult: M31::zero(),
+            out_mult: M31::zero(),
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct PackedAddTraceTableRow {
+    pub node_id: PackedM31,
+    pub lhs_id: PackedM31,
+    pub rhs_id: PackedM31,
+    pub idx: PackedM31,
+    pub is_last_idx: PackedM31,
+    pub next_node_id: PackedM31,
+    pub next_lhs_id: PackedM31,
+    pub next_rhs_id: PackedM31,
+    pub next_idx: PackedM31,
+    pub lhs: PackedM31,
+    pub rhs: PackedM31,
+    pub out: PackedM31,
+    pub lhs_mult: PackedM31,
+    pub rhs_mult: PackedM31,
+    pub out_mult: PackedM31,
+}
+
+impl Pack for AddTraceTableRow {
+    type SimdType = PackedAddTraceTableRow;
+
+    fn pack(inputs: [Self; N_LANES]) -> Self::SimdType {
+        PackedAddTraceTableRow {
+            node_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].node_id)),
+            lhs_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].lhs_id)),
+            rhs_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].rhs_id)),
+            idx: PackedM31::from_array(std::array::from_fn(|i| inputs[i].idx)),
+            is_last_idx: PackedM31::from_array(std::array::from_fn(|i| inputs[i].is_last_idx)),
+            next_node_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].next_node_id)),
+            next_lhs_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].next_lhs_id)),
+            next_rhs_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].next_rhs_id)),
+            next_idx: PackedM31::from_array(std::array::from_fn(|i| inputs[i].next_idx)),
+            lhs: PackedM31::from_array(std::array::from_fn(|i| inputs[i].lhs)),
+            rhs: PackedM31::from_array(std::array::from_fn(|i| inputs[i].rhs)),
+            out: PackedM31::from_array(std::array::from_fn(|i| inputs[i].out)),
+            lhs_mult: PackedM31::from_array(std::array::from_fn(|i| inputs[i].lhs_mult)),
+            rhs_mult: PackedM31::from_array(std::array::from_fn(|i| inputs[i].rhs_mult)),
+            out_mult: PackedM31::from_array(std::array::from_fn(|i| inputs[i].out_mult)),
+        }
+    }
+}
+
+impl Unpack for PackedAddTraceTableRow {
+    type CpuType = AddTraceTableRow;
+
+    fn unpack(self) -> [Self::CpuType; N_LANES] {
+        let (
+            node_id,
+            lhs_id,
+            rhs_id,
+            idx,
+            is_last_idx,
+            next_node_id,
+            next_lhs_id,
+            next_rhs_id,
+            next_idx,
+            lhs,
+            rhs,
+            out,
+            lhs_mult,
+            rhs_mult,
+            out_mult,
+        ) = (
+            self.node_id.to_array(),
+            self.lhs_id.to_array(),
+            self.rhs_id.to_array(),
+            self.idx.to_array(),
+            self.is_last_idx.to_array(),
+            self.next_node_id.to_array(),
+            self.next_lhs_id.to_array(),
+            self.next_rhs_id.to_array(),
+            self.next_idx.to_array(),
+            self.lhs.to_array(),
+            self.rhs.to_array(),
+            self.out.to_array(),
+            self.lhs_mult.to_array(),
+            self.rhs_mult.to_array(),
+            self.out_mult.to_array(),
+        );
+
+        std::array::from_fn(|i| AddTraceTableRow {
+            node_id: node_id[i],
+            lhs_id: lhs_id[i],
+            rhs_id: rhs_id[i],
+            idx: idx[i],
+            is_last_idx: is_last_idx[i],
+            next_node_id: next_node_id[i],
+            next_lhs_id: next_lhs_id[i],
+            next_rhs_id: next_rhs_id[i],
+            next_idx: next_idx[i],
+            lhs: lhs[i],
+            rhs: rhs[i],
+            out: out[i],
+            lhs_mult: lhs_mult[i],
+            rhs_mult: rhs_mult[i],
+            out_mult: out_mult[i],
+        })
+    }
+}
+
+impl AddTraceTable {
+    /// Creates a new, empty [`AddTraceTable`].
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Adds a new row to the Add Table.
-    pub fn add_row(&mut self, row: AddTableRow) {
+    /// Adds a new row to the Add TraceTable.
+    pub fn add_row(&mut self, row: AddTraceTableRow) {
         self.table.push(row);
-    }
-
-    /// Transforms the [`AddTable`] into [`TraceEval`] to be committed
-    /// when generating a STARK proof.
-    pub fn trace_evaluation(&self) -> Result<(TraceEval, AddClaim), TraceError> {
-        let n_rows = self.table.len();
-        if n_rows == 0 {
-            return Err(TraceError::EmptyTrace);
-        }
-        // Calculate log size
-        let log_size = calculate_log_size(n_rows);
-
-        // Calculate trace size
-        let trace_size = 1 << log_size;
-
-        // Create columns
-        let mut node_id = BaseColumn::zeros(trace_size);
-        let mut lhs_id = BaseColumn::zeros(trace_size);
-        let mut rhs_id = BaseColumn::zeros(trace_size);
-        let mut idx = BaseColumn::zeros(trace_size);
-        let mut is_last_idx = BaseColumn::zeros(trace_size);
-        let mut next_node_id = BaseColumn::zeros(trace_size);
-        let mut next_lhs_id = BaseColumn::zeros(trace_size);
-        let mut next_rhs_id = BaseColumn::zeros(trace_size);
-        let mut next_idx = BaseColumn::zeros(trace_size);
-        let mut lhs = BaseColumn::zeros(trace_size);
-        let mut rhs = BaseColumn::zeros(trace_size);
-        let mut out = BaseColumn::zeros(trace_size);
-        let mut lhs_mult = BaseColumn::zeros(trace_size);
-        let mut rhs_mult = BaseColumn::zeros(trace_size);
-        let mut out_mult = BaseColumn::zeros(trace_size);
-
-        // Fill columns
-        for (vec_row, row) in self.table.iter().enumerate() {
-            node_id.set(vec_row, row.node_id);
-            lhs_id.set(vec_row, row.lhs_id);
-            rhs_id.set(vec_row, row.rhs_id);
-            idx.set(vec_row, row.idx);
-            is_last_idx.set(vec_row, row.is_last_idx);
-            next_node_id.set(vec_row, row.next_node_id);
-            next_lhs_id.set(vec_row, row.next_lhs_id);
-            next_rhs_id.set(vec_row, row.next_rhs_id);
-            next_idx.set(vec_row, row.next_idx);
-            lhs.set(vec_row, row.lhs);
-            rhs.set(vec_row, row.rhs);
-            out.set(vec_row, row.out);
-            lhs_mult.set(vec_row, row.lhs_mult);
-            rhs_mult.set(vec_row, row.rhs_mult);
-            out_mult.set(vec_row, row.out_mult);
-        }
-
-        for i in self.table.len()..trace_size {
-            is_last_idx.set(i, BaseField::one());
-        }
-
-        // Create domain
-        let domain = CanonicCoset::new(log_size).circle_domain();
-
-        // Create trace
-        let mut trace = Vec::with_capacity(AddColumn::count().0);
-        trace.push(CircleEvaluation::new(domain, node_id));
-        trace.push(CircleEvaluation::new(domain, lhs_id));
-        trace.push(CircleEvaluation::new(domain, rhs_id));
-        trace.push(CircleEvaluation::new(domain, idx));
-        trace.push(CircleEvaluation::new(domain, is_last_idx));
-        trace.push(CircleEvaluation::new(domain, next_node_id));
-        trace.push(CircleEvaluation::new(domain, next_lhs_id));
-        trace.push(CircleEvaluation::new(domain, next_rhs_id));
-        trace.push(CircleEvaluation::new(domain, next_idx));
-        trace.push(CircleEvaluation::new(domain, lhs));
-        trace.push(CircleEvaluation::new(domain, rhs));
-        trace.push(CircleEvaluation::new(domain, out));
-        trace.push(CircleEvaluation::new(domain, lhs_mult));
-        trace.push(CircleEvaluation::new(domain, rhs_mult));
-        trace.push(CircleEvaluation::new(domain, out_mult));
-
-        assert_eq!(trace.len(), AddColumn::count().0);
-
-        Ok((trace, AddClaim::new(log_size)))
     }
 }
 
@@ -181,65 +220,6 @@ impl AddColumn {
 impl TraceColumn for AddColumn {
     /// Returns the number of columns in the main trace and interaction trace.
     fn count() -> (usize, usize) {
-        (15, 3)
+        (N_TRACE_COLUMNS, 3)
     }
-}
-
-/// Generates the interaction trace for the Add component using the main trace and node elements.
-pub fn interaction_trace_evaluation(
-    main_trace_eval: &TraceEval,
-    node_elements: &NodeElements,
-) -> Result<(TraceEval, InteractionClaim), TraceError> {
-    if main_trace_eval.is_empty() {
-        return Err(TraceError::EmptyTrace);
-    }
-
-    let log_size = main_trace_eval[0].domain.log_size();
-    let mut logup_gen = LogupTraceGenerator::new(log_size);
-
-    // Create trace for LHS
-    let lhs_main_col = &main_trace_eval[AddColumn::Lhs.index()].data;
-    let lhs_id_col = &main_trace_eval[AddColumn::LhsId.index()].data;
-    let lhs_mult_col = &main_trace_eval[AddColumn::LhsMult.index()].data;
-    let mut lhs_int_col = logup_gen.new_col();
-    for row in 0..1 << (log_size - LOG_N_LANES) {
-        let lhs = lhs_main_col[row];
-        let id = lhs_id_col[row];
-        let multiplicity = lhs_mult_col[row];
-
-        lhs_int_col.write_frac(row, multiplicity.into(), node_elements.combine(&[lhs, id]));
-    }
-    lhs_int_col.finalize_col();
-
-    // Create trace for RHS
-    let rhs_main_col = &main_trace_eval[AddColumn::Rhs.index()].data;
-    let rhs_id_col = &main_trace_eval[AddColumn::RhsId.index()].data;
-    let rhs_mult_col = &main_trace_eval[AddColumn::RhsMult.index()].data;
-    let mut rhs_int_col = logup_gen.new_col();
-    for row in 0..1 << (log_size - LOG_N_LANES) {
-        let rhs = rhs_main_col[row];
-        let id = rhs_id_col[row];
-        let multiplicity = rhs_mult_col[row];
-
-        rhs_int_col.write_frac(row, multiplicity.into(), node_elements.combine(&[rhs, id]));
-    }
-    rhs_int_col.finalize_col();
-
-    // Create trace for OUTPUT
-    let out_main_col = &main_trace_eval[AddColumn::Out.index()].data;
-    let node_id_col = &main_trace_eval[AddColumn::NodeId.index()].data;
-    let out_mult_col = &main_trace_eval[AddColumn::OutMult.index()].data;
-    let mut out_int_col = logup_gen.new_col();
-    for row in 0..1 << (log_size - LOG_N_LANES) {
-        let out = out_main_col[row];
-        let id = node_id_col[row];
-        let multiplicity = out_mult_col[row];
-
-        out_int_col.write_frac(row, multiplicity.into(), node_elements.combine(&[out, id]));
-    }
-    out_int_col.finalize_col();
-
-    let (trace, claimed_sum) = logup_gen.finalize_last();
-
-    Ok((trace, InteractionClaim { claimed_sum }))
 }

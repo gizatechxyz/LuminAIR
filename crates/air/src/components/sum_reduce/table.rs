@@ -1,139 +1,174 @@
-use crate::{
-    components::{
-        InteractionClaim, NodeElements, SumReduceClaim, TraceColumn, TraceError, TraceEval,
-    },
-    utils::calculate_log_size,
-};
-use num_traits::One;
+use num_traits::{One, Zero};
 use serde::{Deserialize, Serialize};
-use stwo_prover::{
-    constraint_framework::{logup::LogupTraceGenerator, Relation},
-    core::{
-        backend::{
-            simd::{column::BaseColumn, m31::LOG_N_LANES},
-            Column,
-        },
-        fields::m31::BaseField,
-        poly::circle::{CanonicCoset, CircleEvaluation},
+use stwo_prover::core::{
+    backend::simd::{
+        conversion::{Pack, Unpack},
+        m31::{PackedM31, N_LANES},
     },
+    fields::m31::M31,
 };
 
-/// Represents the trace for the SumReduce component, containing the required registers for its
+use crate::components::TraceColumn;
+
+use super::witness::N_TRACE_COLUMNS;
+
+/// Represents the table for the component, containing the required registers for its
 /// constraints.
-#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
-pub struct SumReduceTable {
-    /// A vector of [`SumReduceTableRow`] representing the table rows.
-    pub table: Vec<SumReduceTableRow>,
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+pub struct SumReduceTraceTable {
+    /// A vector of [`SumReduceTraceTableRow`] representing the table rows.
+    pub table: Vec<SumReduceTraceTableRow>,
 }
 
-/// Represents a single row of the [`SumReduceTable`]
-#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
-pub struct SumReduceTableRow {
-    pub node_id: BaseField,
-    pub input_id: BaseField,
-    pub idx: BaseField,
-    pub is_last_idx: BaseField,
-    pub next_node_id: BaseField,
-    pub next_input_id: BaseField,
-    pub next_idx: BaseField,
-    pub input: BaseField,
-    pub out: BaseField,
-    pub acc: BaseField,
-    pub next_acc: BaseField,
-    pub is_last_step: BaseField,
-    pub input_mult: BaseField,
-    pub out_mult: BaseField,
+/// Represents a single row of the [`SumReduceTraceTable`]
+#[derive(Debug, Default, Copy, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SumReduceTraceTableRow {
+    pub node_id: M31,
+    pub input_id: M31,
+    pub idx: M31,
+    pub is_last_idx: M31,
+    pub next_node_id: M31,
+    pub next_input_id: M31,
+    pub next_idx: M31,
+    pub input: M31,
+    pub out: M31,
+    pub acc: M31,
+    pub next_acc: M31,
+    pub is_last_step: M31,
+    pub input_mult: M31,
+    pub out_mult: M31,
 }
 
-impl SumReduceTable {
-    /// Creates a new, empty [`SumReduceTable`].
+impl SumReduceTraceTableRow {
+    pub(crate) fn padding() -> Self {
+        Self {
+            node_id: M31::zero(),
+            input_id: M31::zero(),
+            idx: M31::zero(),
+            is_last_idx: M31::one(),
+            next_node_id: M31::zero(),
+            next_input_id: M31::zero(),
+            next_idx: M31::zero(),
+            input: M31::zero(),
+            out: M31::zero(),
+            acc: M31::zero(),
+            next_acc: M31::zero(),
+            is_last_step: M31::zero(),
+            input_mult: M31::zero(),
+            out_mult: M31::zero(),
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct PackedSumReduceTraceTableRow {
+    pub node_id: PackedM31,
+    pub input_id: PackedM31,
+    pub idx: PackedM31,
+    pub is_last_idx: PackedM31,
+    pub next_node_id: PackedM31,
+    pub next_input_id: PackedM31,
+    pub next_idx: PackedM31,
+    pub input: PackedM31,
+    pub out: PackedM31,
+    pub acc: PackedM31,
+    pub next_acc: PackedM31,
+    pub is_last_step: PackedM31,
+    pub input_mult: PackedM31,
+    pub out_mult: PackedM31,
+}
+
+impl Pack for SumReduceTraceTableRow {
+    type SimdType = PackedSumReduceTraceTableRow;
+
+    fn pack(inputs: [Self; N_LANES]) -> Self::SimdType {
+        PackedSumReduceTraceTableRow {
+            node_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].node_id)),
+            input_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].input_id)),
+            idx: PackedM31::from_array(std::array::from_fn(|i| inputs[i].idx)),
+            is_last_idx: PackedM31::from_array(std::array::from_fn(|i| inputs[i].is_last_idx)),
+            next_node_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].next_node_id)),
+            next_input_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].next_input_id)),
+            next_idx: PackedM31::from_array(std::array::from_fn(|i| inputs[i].next_idx)),
+            input: PackedM31::from_array(std::array::from_fn(|i| inputs[i].input)),
+            out: PackedM31::from_array(std::array::from_fn(|i| inputs[i].out)),
+            acc: PackedM31::from_array(std::array::from_fn(|i| inputs[i].acc)),
+            next_acc: PackedM31::from_array(std::array::from_fn(|i| inputs[i].next_acc)),
+            is_last_step: PackedM31::from_array(std::array::from_fn(|i| inputs[i].is_last_step)),
+            input_mult: PackedM31::from_array(std::array::from_fn(|i| inputs[i].input_mult)),
+            out_mult: PackedM31::from_array(std::array::from_fn(|i| inputs[i].out_mult)),
+        }
+    }
+}
+
+impl Unpack for PackedSumReduceTraceTableRow {
+    type CpuType = SumReduceTraceTableRow;
+
+    fn unpack(self) -> [Self::CpuType; N_LANES] {
+        let (
+            node_id,
+            input_id,
+            idx,
+            is_last_idx,
+            next_node_id,
+            next_input_id,
+            next_idx,
+            input,
+            out,
+            acc,
+            next_acc,
+            is_last_step,
+            input_mult,
+            out_mult,
+        ) = (
+            self.node_id.to_array(),
+            self.input_id.to_array(),
+            self.idx.to_array(),
+            self.is_last_idx.to_array(),
+            self.next_node_id.to_array(),
+            self.next_input_id.to_array(),
+            self.next_idx.to_array(),
+            self.input.to_array(),
+            self.out.to_array(),
+            self.acc.to_array(),
+            self.next_acc.to_array(),
+            self.is_last_step.to_array(),
+            self.input_mult.to_array(),
+            self.out_mult.to_array(),
+        );
+
+        std::array::from_fn(|i| SumReduceTraceTableRow {
+            node_id: node_id[i],
+            input_id: input_id[i],
+            idx: idx[i],
+            is_last_idx: is_last_idx[i],
+            next_node_id: next_node_id[i],
+            next_input_id: next_input_id[i],
+            next_idx: next_idx[i],
+            input: input[i],
+            out: out[i],
+            acc: acc[i],
+            next_acc: next_acc[i],
+            is_last_step: is_last_step[i],
+            input_mult: input_mult[i],
+            out_mult: out_mult[i],
+        })
+    }
+}
+
+impl SumReduceTraceTable {
+    /// Creates a new, empty [`SumReduceTraceTable`].
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Adds a new row to the SumReduce Table.
-    pub fn add_row(&mut self, row: SumReduceTableRow) {
+    /// Adds a new row to the TraceTable.
+    pub fn add_row(&mut self, row: SumReduceTraceTableRow) {
         self.table.push(row);
-    }
-
-    /// Transforms the [`SumReduceTable`] into [`TraceEval`] to be committed
-    /// when generating a STARK proof.
-    pub fn trace_evaluation(&self) -> Result<(TraceEval, SumReduceClaim), TraceError> {
-        let n_rows = self.table.len();
-        if n_rows == 0 {
-            return Err(TraceError::EmptyTrace);
-        }
-        // Calculate log size
-        let log_size = calculate_log_size(n_rows);
-
-        // Calculate trace size
-        let trace_size = 1 << log_size;
-
-        // Create columns
-        let mut node_id = BaseColumn::zeros(trace_size);
-        let mut input_id = BaseColumn::zeros(trace_size);
-        let mut idx = BaseColumn::zeros(trace_size);
-        let mut is_last_idx = BaseColumn::zeros(trace_size);
-        let mut next_node_id = BaseColumn::zeros(trace_size);
-        let mut next_input_id = BaseColumn::zeros(trace_size);
-        let mut next_idx = BaseColumn::zeros(trace_size);
-        let mut input = BaseColumn::zeros(trace_size);
-        let mut out = BaseColumn::zeros(trace_size);
-        let mut acc = BaseColumn::zeros(trace_size);
-        let mut next_acc = BaseColumn::zeros(trace_size);
-        let mut is_last_step = BaseColumn::zeros(trace_size);
-        let mut input_mult = BaseColumn::zeros(trace_size);
-        let mut out_mult = BaseColumn::zeros(trace_size);
-
-        // Fill columns
-        for (vec_row, row) in self.table.iter().enumerate() {
-            node_id.set(vec_row, row.node_id);
-            input_id.set(vec_row, row.input_id);
-            idx.set(vec_row, row.idx);
-            is_last_idx.set(vec_row, row.is_last_idx);
-            next_node_id.set(vec_row, row.next_node_id);
-            next_input_id.set(vec_row, row.next_input_id);
-            next_idx.set(vec_row, row.next_idx);
-            input.set(vec_row, row.input);
-            out.set(vec_row, row.out);
-            acc.set(vec_row, row.acc);
-            next_acc.set(vec_row, row.next_acc);
-            is_last_step.set(vec_row, row.is_last_step);
-            input_mult.set(vec_row, row.input_mult);
-            out_mult.set(vec_row, row.out_mult);
-        }
-
-        for i in self.table.len()..trace_size {
-            is_last_idx.set(i, BaseField::one());
-        }
-
-        // Create domain
-        let domain = CanonicCoset::new(log_size).circle_domain();
-
-        // Create trace
-        let mut trace = Vec::with_capacity(SumReduceColumn::count().0);
-        trace.push(CircleEvaluation::new(domain, node_id));
-        trace.push(CircleEvaluation::new(domain, input_id));
-        trace.push(CircleEvaluation::new(domain, idx));
-        trace.push(CircleEvaluation::new(domain, is_last_idx));
-        trace.push(CircleEvaluation::new(domain, next_node_id));
-        trace.push(CircleEvaluation::new(domain, next_input_id));
-        trace.push(CircleEvaluation::new(domain, next_idx));
-        trace.push(CircleEvaluation::new(domain, input));
-        trace.push(CircleEvaluation::new(domain, out));
-        trace.push(CircleEvaluation::new(domain, acc));
-        trace.push(CircleEvaluation::new(domain, next_acc));
-        trace.push(CircleEvaluation::new(domain, is_last_step));
-        trace.push(CircleEvaluation::new(domain, input_mult));
-        trace.push(CircleEvaluation::new(domain, out_mult));
-
-        assert_eq!(trace.len(), SumReduceColumn::count().0);
-
-        Ok((trace, SumReduceClaim::new(log_size)))
     }
 }
 
-/// Enum representing the column indices in the SumReduce trace.
+/// Enum representing the column indices in the SumReduce table.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SumReduceColumn {
     NodeId,
@@ -176,55 +211,6 @@ impl SumReduceColumn {
 impl TraceColumn for SumReduceColumn {
     /// Returns the number of columns in the main trace and interaction trace.
     fn count() -> (usize, usize) {
-        (14, 2)
+        (N_TRACE_COLUMNS, 2)
     }
-}
-
-/// Generates the interaction trace for the SumReduce component using the main trace and node elements.
-pub fn interaction_trace_evaluation(
-    main_trace_eval: &TraceEval,
-    node_elements: &NodeElements,
-) -> Result<(TraceEval, InteractionClaim), TraceError> {
-    if main_trace_eval.is_empty() {
-        return Err(TraceError::EmptyTrace);
-    }
-
-    let log_size = main_trace_eval[0].domain.log_size();
-    let mut logup_gen = LogupTraceGenerator::new(log_size);
-
-    // Create trace for Input
-    let input_main_col = &main_trace_eval[SumReduceColumn::Input.index()].data;
-    let input_id_col = &main_trace_eval[SumReduceColumn::InputId.index()].data;
-    let input_mult_col = &main_trace_eval[SumReduceColumn::InputMult.index()].data;
-    let mut input_int_col = logup_gen.new_col();
-    for row in 0..1 << (log_size - LOG_N_LANES) {
-        let input = input_main_col[row];
-        let id = input_id_col[row];
-        let multiplicity = input_mult_col[row];
-
-        input_int_col.write_frac(
-            row,
-            multiplicity.into(),
-            node_elements.combine(&[input, id]),
-        );
-    }
-    input_int_col.finalize_col();
-
-    // Create trace for OUTPUT
-    let out_main_col = &main_trace_eval[SumReduceColumn::Out.index()].data;
-    let node_id_col = &main_trace_eval[SumReduceColumn::NodeId.index()].data;
-    let out_mult_col = &main_trace_eval[SumReduceColumn::OutMult.index()].data;
-    let mut out_int_col = logup_gen.new_col();
-    for row in 0..1 << (log_size - LOG_N_LANES) {
-        let out = out_main_col[row];
-        let id = node_id_col[row];
-        let multiplicity = out_mult_col[row];
-
-        out_int_col.write_frac(row, multiplicity.into(), node_elements.combine(&[out, id]));
-    }
-    out_int_col.finalize_col();
-
-    let (trace, claimed_sum) = logup_gen.finalize_last();
-
-    Ok((trace, InteractionClaim { claimed_sum }))
 }

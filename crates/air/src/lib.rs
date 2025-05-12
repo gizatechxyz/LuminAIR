@@ -1,9 +1,9 @@
-#![feature(portable_simd)]
+#![feature(portable_simd, iter_array_chunks, array_chunks, raw_slice_split)]
 
 use ::serde::{Deserialize, Serialize};
 use components::{
-    AddClaim, InteractionClaim, MaxReduceClaim, MulClaim, RecipClaim, SinClaim, SinLookupClaim,
-    SumReduceClaim,
+    add, lookups, max_reduce, mul, recip, sin, sum_reduce, AddClaim, InteractionClaim,
+    MaxReduceClaim, MulClaim, RecipClaim, SinClaim, SinLookupClaim, SumReduceClaim,
 };
 use stwo_prover::core::{
     channel::Channel, pcs::TreeVec, prover::StarkProof, vcs::ops::MerkleHasher,
@@ -29,41 +29,36 @@ pub struct LuminairProof<H: MerkleHasher> {
 pub struct LuminairClaim {
     pub add: Option<AddClaim>,
     pub mul: Option<MulClaim>,
-    pub sum_reduce: Option<SumReduceClaim>,
     pub recip: Option<RecipClaim>,
-    pub max_reduce: Option<MaxReduceClaim>,
     pub sin: Option<SinClaim>,
     pub sin_lookup: Option<SinLookupClaim>,
+    pub sum_reduce: Option<SumReduceClaim>,
+    pub max_reduce: Option<MaxReduceClaim>,
 }
 
 impl LuminairClaim {
-    /// Initializes a new claim.
-    pub fn new() -> Self {
-        Self::default()
-    }
-
     /// Mixes claim data into a Fiat-Shamir channel for proof binding.
     pub fn mix_into(&self, channel: &mut impl Channel) {
-        if let Some(ref add) = self.add {
-            add.mix_into(channel);
+        if let Some(ref claim) = self.add {
+            claim.mix_into(channel);
         }
-        if let Some(ref mul) = self.mul {
-            mul.mix_into(channel);
+        if let Some(ref claim) = self.mul {
+            claim.mix_into(channel);
         }
-        if let Some(ref sum_reduce) = self.sum_reduce {
-            sum_reduce.mix_into(channel);
+        if let Some(ref claim) = self.recip {
+            claim.mix_into(channel);
         }
-        if let Some(ref recip) = self.recip {
-            recip.mix_into(channel);
+        if let Some(ref claim) = self.sin {
+            claim.mix_into(channel);
         }
-        if let Some(ref max_reduce) = self.max_reduce {
-            max_reduce.mix_into(channel);
+        if let Some(ref claim) = self.sin_lookup {
+            claim.mix_into(channel);
         }
-        if let Some(ref sin) = self.sin {
-            sin.mix_into(channel);
+        if let Some(ref claim) = self.sum_reduce {
+            claim.mix_into(channel);
         }
-        if let Some(ref sin_lookup) = self.sin_lookup {
-            sin_lookup.mix_into(channel);
+        if let Some(ref claim) = self.max_reduce {
+            claim.mix_into(channel);
         }
     }
 
@@ -72,30 +67,40 @@ impl LuminairClaim {
     pub fn log_sizes(&self) -> TreeVec<Vec<u32>> {
         let mut log_sizes = vec![];
 
-        if let Some(ref add) = self.add {
-            log_sizes.push(add.log_sizes());
+        if let Some(ref claim) = self.add {
+            log_sizes.push(claim.log_sizes());
         }
-        if let Some(ref mul) = self.mul {
-            log_sizes.push(mul.log_sizes());
+        if let Some(ref claim) = self.mul {
+            log_sizes.push(claim.log_sizes());
         }
-        if let Some(ref sum_reduce) = self.sum_reduce {
-            log_sizes.push(sum_reduce.log_sizes());
+        if let Some(ref claim) = self.recip {
+            log_sizes.push(claim.log_sizes());
         }
-        if let Some(ref recip) = self.recip {
-            log_sizes.push(recip.log_sizes());
+        if let Some(ref claim) = self.sin {
+            log_sizes.push(claim.log_sizes());
         }
-        if let Some(ref max_reduce) = self.max_reduce {
-            log_sizes.push(max_reduce.log_sizes());
+        if let Some(ref claim) = self.sin_lookup {
+            log_sizes.push(claim.log_sizes());
         }
-        if let Some(ref sin) = self.sin {
-            log_sizes.push(sin.log_sizes());
+        if let Some(ref claim) = self.sum_reduce {
+            log_sizes.push(claim.log_sizes());
         }
-        if let Some(ref sin_lookup) = self.sin_lookup {
-            log_sizes.push(sin_lookup.log_sizes());
+        if let Some(ref claim) = self.max_reduce {
+            log_sizes.push(claim.log_sizes());
         }
-
         TreeVec::concat_cols(log_sizes.into_iter())
     }
+}
+
+#[derive(Default)]
+pub struct LuminairInteractionClaimGenerator {
+    pub add: Option<add::witness::InteractionClaimGenerator>,
+    pub mul: Option<mul::witness::InteractionClaimGenerator>,
+    pub recip: Option<recip::witness::InteractionClaimGenerator>,
+    pub sin: Option<sin::witness::InteractionClaimGenerator>,
+    pub sin_lookup: Option<lookups::sin::witness::InteractionClaimGenerator>,
+    pub sum_reduce: Option<sum_reduce::witness::InteractionClaimGenerator>,
+    pub max_reduce: Option<max_reduce::witness::InteractionClaimGenerator>,
 }
 
 /// Claim over the sum of interaction columns per system component.
@@ -105,36 +110,36 @@ impl LuminairClaim {
 pub struct LuminairInteractionClaim {
     pub add: Option<InteractionClaim>,
     pub mul: Option<InteractionClaim>,
-    pub sum_reduce: Option<InteractionClaim>,
     pub recip: Option<InteractionClaim>,
-    pub max_reduce: Option<InteractionClaim>,
     pub sin: Option<InteractionClaim>,
     pub sin_lookup: Option<InteractionClaim>,
+    pub sum_reduce: Option<InteractionClaim>,
+    pub max_reduce: Option<InteractionClaim>,
 }
 
 impl LuminairInteractionClaim {
     /// Mixes interaction claim data into a Fiat-Shamir channel.
     pub fn mix_into(&self, channel: &mut impl Channel) {
-        if let Some(ref add) = self.add {
-            add.mix_into(channel);
+        if let Some(ref claim) = self.add {
+            claim.mix_into(channel);
         }
-        if let Some(ref mul) = self.mul {
-            mul.mix_into(channel);
+        if let Some(ref claim) = self.mul {
+            claim.mix_into(channel);
         }
-        if let Some(ref sum_reduce) = self.sum_reduce {
-            sum_reduce.mix_into(channel);
+        if let Some(ref claim) = self.recip {
+            claim.mix_into(channel);
         }
-        if let Some(ref recip) = self.recip {
-            recip.mix_into(channel);
+        if let Some(ref claim) = self.sin {
+            claim.mix_into(channel);
         }
-        if let Some(ref max_reduce) = self.max_reduce {
-            max_reduce.mix_into(channel);
+        if let Some(ref claim) = self.sin_lookup {
+            claim.mix_into(channel);
         }
-        if let Some(ref sin) = self.sin {
-            sin.mix_into(channel);
+        if let Some(ref claim) = self.sum_reduce {
+            claim.mix_into(channel);
         }
-        if let Some(ref sin_lookup) = self.sin_lookup {
-            sin_lookup.mix_into(channel);
+        if let Some(ref claim) = self.max_reduce {
+            claim.mix_into(channel);
         }
     }
 }

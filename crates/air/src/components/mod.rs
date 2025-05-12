@@ -41,11 +41,11 @@ use stwo_prover::{
     },
     relation,
 };
+
 use sum_reduce::{
     component::{SumReduceComponent, SumReduceEval},
     table::SumReduceColumn,
 };
-
 use thiserror::Error;
 
 use crate::{preprocessed::PreProcessedTrace, LuminairClaim, LuminairInteractionClaim};
@@ -59,7 +59,7 @@ pub mod sin;
 pub mod sum_reduce;
 
 /// Errors related to trace operations.
-#[derive(Debug, Error, Eq, PartialEq)]
+#[derive(Debug, Clone, Error, Eq, PartialEq)]
 pub enum TraceError {
     /// The component trace is empty.
     #[error("The trace is empty.")]
@@ -69,20 +69,13 @@ pub enum TraceError {
 /// Alias for trace evaluation columns used in Stwo.
 pub type TraceEval = ColumnVec<CircleEvaluation<SimdBackend, BaseField, BitReversedOrder>>;
 
-/// Claim for the Add trace.
 pub type AddClaim = Claim<AddColumn>;
-/// Claim for the Mul trace.
 pub type MulClaim = Claim<MulColumn>;
-/// Claim for the SumReduce trace.
-pub type SumReduceClaim = Claim<SumReduceColumn>;
-/// Claim for the Recip trace.
 pub type RecipClaim = Claim<RecipColumn>;
-/// Claim for the MaxReduce trace.
-pub type MaxReduceClaim = Claim<MaxReduceColumn>;
-/// Claim for the Sin trace.
 pub type SinClaim = Claim<SinColumn>;
-/// Claim for the SinLookup trace.
 pub type SinLookupClaim = Claim<SinLookupColumn>;
+pub type SumReduceClaim = Claim<SumReduceColumn>;
+pub type MaxReduceClaim = Claim<MaxReduceColumn>;
 
 /// Represents columns of a trace.
 pub trait TraceColumn {
@@ -132,11 +125,11 @@ impl<T: TraceColumn> Claim<T> {
 pub enum ClaimType {
     Add(Claim<AddColumn>),
     Mul(Claim<MulColumn>),
-    SumReduce(Claim<SumReduceColumn>),
     Recip(Claim<RecipColumn>),
-    MaxReduce(Claim<MaxReduceColumn>),
     Sin(Claim<SinColumn>),
     SinLookup(Claim<SinLookupColumn>),
+    SumReduce(Claim<SumReduceColumn>),
+    MaxReduce(Claim<MaxReduceColumn>),
 }
 
 /// The claim of the interaction phase 2 (with the logUp protocol).
@@ -194,11 +187,11 @@ impl LuminairInteractionElements {
 pub struct LuminairComponents {
     add: Option<AddComponent>,
     mul: Option<MulComponent>,
-    sum_reduce: Option<SumReduceComponent>,
     recip: Option<RecipComponent>,
-    max_reduce: Option<MaxReduceComponent>,
     sin: Option<SinComponent>,
     sin_lookup: Option<SinLookupComponent>,
+    sum_reduce: Option<SumReduceComponent>,
+    max_reduce: Option<MaxReduceComponent>,
 }
 
 impl LuminairComponents {
@@ -240,19 +233,6 @@ impl LuminairComponents {
             None
         };
 
-        let sum_reduce = if let Some(ref sum_reduce_claim) = claim.sum_reduce {
-            Some(SumReduceComponent::new(
-                tree_span_provider,
-                SumReduceEval::new(
-                    &sum_reduce_claim,
-                    interaction_elements.node_elements.clone(),
-                ),
-                interaction_claim.sum_reduce.as_ref().unwrap().claimed_sum,
-            ))
-        } else {
-            None
-        };
-
         let recip = if let Some(ref recip_claim) = claim.recip {
             Some(RecipComponent::new(
                 tree_span_provider,
@@ -263,28 +243,15 @@ impl LuminairComponents {
             None
         };
 
-        let max_reduce = if let Some(ref max_reduce_claim) = claim.max_reduce {
-            Some(MaxReduceComponent::new(
-                tree_span_provider,
-                MaxReduceEval::new(
-                    &max_reduce_claim,
-                    interaction_elements.node_elements.clone(),
-                ),
-                interaction_claim.max_reduce.as_ref().unwrap().claimed_sum,
-            ))
-        } else {
-            None
-        };
-
         let sin = if let Some(ref sin_claim) = claim.sin {
-            let sin_log_size = lookups.sin.as_ref().map(|s| s.layout.log_size).unwrap();
+            let lut_log_size = lookups.sin.as_ref().map(|s| s.layout.log_size).unwrap();
             Some(SinComponent::new(
                 tree_span_provider,
                 SinEval::new(
                     &sin_claim,
                     interaction_elements.node_elements.clone(),
                     interaction_elements.lookup_elements.sin.clone(),
-                    sin_log_size,
+                    lut_log_size,
                 ),
                 interaction_claim.sin.as_ref().unwrap().claimed_sum,
             ))
@@ -305,14 +272,40 @@ impl LuminairComponents {
             None
         };
 
+        let sum_reduce = if let Some(ref sum_reduce_claim) = claim.sum_reduce {
+            Some(SumReduceComponent::new(
+                tree_span_provider,
+                SumReduceEval::new(
+                    &sum_reduce_claim,
+                    interaction_elements.node_elements.clone(),
+                ),
+                interaction_claim.sum_reduce.as_ref().unwrap().claimed_sum,
+            ))
+        } else {
+            None
+        };
+
+        let max_reduce = if let Some(ref max_reduce_claim) = claim.max_reduce {
+            Some(MaxReduceComponent::new(
+                tree_span_provider,
+                MaxReduceEval::new(
+                    &max_reduce_claim,
+                    interaction_elements.node_elements.clone(),
+                ),
+                interaction_claim.max_reduce.as_ref().unwrap().claimed_sum,
+            ))
+        } else {
+            None
+        };
+
         Self {
             add,
             mul,
-            sum_reduce,
             recip,
-            max_reduce,
             sin,
             sin_lookup,
+            sum_reduce,
+            max_reduce,
         }
     }
 
@@ -320,26 +313,32 @@ impl LuminairComponents {
     pub fn provers(&self) -> Vec<&dyn ComponentProver<SimdBackend>> {
         let mut components: Vec<&dyn ComponentProver<SimdBackend>> = vec![];
 
-        if let Some(ref add_component) = self.add {
-            components.push(add_component);
+        if let Some(ref component) = self.add {
+            components.push(component);
         }
-        if let Some(ref mul_component) = self.mul {
-            components.push(mul_component);
+
+        if let Some(ref component) = self.mul {
+            components.push(component);
         }
-        if let Some(ref sum_reduce_component) = self.sum_reduce {
-            components.push(sum_reduce_component);
+
+        if let Some(ref component) = self.recip {
+            components.push(component);
         }
-        if let Some(ref recip_component) = self.recip {
-            components.push(recip_component);
+
+        if let Some(ref component) = self.sin {
+            components.push(component);
         }
-        if let Some(ref max_reduce_component) = self.max_reduce {
-            components.push(max_reduce_component);
+
+        if let Some(ref component) = self.sin_lookup {
+            components.push(component);
         }
-        if let Some(ref sin_component) = self.sin {
-            components.push(sin_component);
+
+        if let Some(ref component) = self.sum_reduce {
+            components.push(component);
         }
-        if let Some(ref sin_lookup_component) = self.sin_lookup {
-            components.push(sin_lookup_component);
+
+        if let Some(ref component) = self.max_reduce {
+            components.push(component);
         }
         components
     }

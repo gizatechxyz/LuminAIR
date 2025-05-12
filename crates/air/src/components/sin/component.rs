@@ -1,4 +1,9 @@
-use crate::components::{lookups::sin::SinLookupElements, NodeElements, SinClaim};
+use crate::components::{
+    //lookups::sin::SinLookupElements,
+    lookups::sin::SinLookupElements,
+    NodeElements,
+    SinClaim,
+};
 use num_traits::One;
 use stwo_prover::constraint_framework::{
     EvalAtRow, FrameworkComponent, FrameworkEval, RelationEntry,

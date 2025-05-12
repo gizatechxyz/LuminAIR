@@ -1,7 +1,7 @@
 use std::any::{Any, TypeId};
 
 use crate::data::StwoData;
-use luminair_air::components::lookups::Range;
+use luminair_air::preprocessed::Range;
 use luminal::prelude::*;
 use num_traits::Zero;
 use numerair::Fixed;

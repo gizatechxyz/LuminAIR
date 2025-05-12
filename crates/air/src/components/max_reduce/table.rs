@@ -1,144 +1,181 @@
-use crate::{
-    components::{
-        InteractionClaim, MaxReduceClaim, NodeElements, TraceColumn, TraceError, TraceEval,
+use num_traits::{One, Zero};
+use stwo_prover::core::{
+    backend::simd::{
+        conversion::{Pack, Unpack},
+        m31::{PackedM31, N_LANES},
     },
-    utils::calculate_log_size,
-};
-use num_traits::One;
-use serde::{Deserialize, Serialize};
-use stwo_prover::{
-    constraint_framework::{logup::LogupTraceGenerator, Relation},
-    core::{
-        backend::{
-            simd::{column::BaseColumn, m31::LOG_N_LANES},
-            Column,
-        },
-        fields::m31::BaseField,
-        poly::circle::{CanonicCoset, CircleEvaluation},
-    },
+    fields::m31::M31,
 };
 
-/// Represents the trace for the MaxReduce component, containing the required registers for its
+use crate::components::TraceColumn;
+
+use super::witness::N_TRACE_COLUMNS;
+
+/// Represents the table for the component, containing the required registers for its
 /// constraints.
-#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
-pub struct MaxReduceTable {
-    /// A vector of [`MaxReduceTableRow`] representing the table rows.
-    pub table: Vec<MaxReduceTableRow>,
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+pub struct MaxReduceTraceTable {
+    /// A vector of [`MaxReduceTraceTableRow`] representing the table rows.
+    pub table: Vec<MaxReduceTraceTableRow>,
 }
 
-/// Represents a single row of the [`MaxReduceTable`]
-#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
-pub struct MaxReduceTableRow {
-    pub node_id: BaseField,
-    pub input_id: BaseField,
-    pub idx: BaseField,
-    pub is_last_idx: BaseField,
-    pub next_node_id: BaseField,
-    pub next_input_id: BaseField,
-    pub next_idx: BaseField,
-    pub input: BaseField,
-    pub out: BaseField,
-    pub max_val: BaseField,
-    pub next_max_val: BaseField,
-    pub is_last_step: BaseField,
-    pub is_max: BaseField,
-    pub input_mult: BaseField,
-    pub out_mult: BaseField,
+/// Represents a single row of the [`MaxReduceTraceTable`]
+#[derive(Debug, Default, Copy, Clone, serde::Serialize, serde::Deserialize)]
+pub struct MaxReduceTraceTableRow {
+    pub node_id: M31,
+    pub input_id: M31,
+    pub idx: M31,
+    pub is_last_idx: M31,
+    pub next_node_id: M31,
+    pub next_input_id: M31,
+    pub next_idx: M31,
+    pub input: M31,
+    pub out: M31,
+    pub max_val: M31,
+    pub next_max_val: M31,
+    pub is_last_step: M31,
+    pub is_max: M31,
+    pub input_mult: M31,
+    pub out_mult: M31,
 }
 
-impl MaxReduceTable {
-    /// Creates a new, empty [`MaxReduceTable`].
+impl MaxReduceTraceTableRow {
+    pub(crate) fn padding() -> Self {
+        Self {
+            node_id: M31::zero(),
+            input_id: M31::zero(),
+            idx: M31::zero(),
+            is_last_idx: M31::one(),
+            next_node_id: M31::zero(),
+            next_input_id: M31::zero(),
+            next_idx: M31::zero(),
+            input: M31::zero(),
+            out: M31::zero(),
+            max_val: M31::zero(),
+            next_max_val: M31::zero(),
+            is_last_step: M31::zero(),
+            is_max: M31::zero(),
+            input_mult: M31::zero(),
+            out_mult: M31::zero(),
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct PackedMaxReduceTraceTableRow {
+    pub node_id: PackedM31,
+    pub input_id: PackedM31,
+    pub idx: PackedM31,
+    pub is_last_idx: PackedM31,
+    pub next_node_id: PackedM31,
+    pub next_input_id: PackedM31,
+    pub next_idx: PackedM31,
+    pub input: PackedM31,
+    pub out: PackedM31,
+    pub max_val: PackedM31,
+    pub next_max_val: PackedM31,
+    pub is_last_step: PackedM31,
+    pub is_max: PackedM31,
+    pub input_mult: PackedM31,
+    pub out_mult: PackedM31,
+}
+
+impl Pack for MaxReduceTraceTableRow {
+    type SimdType = PackedMaxReduceTraceTableRow;
+
+    fn pack(inputs: [Self; N_LANES]) -> Self::SimdType {
+        PackedMaxReduceTraceTableRow {
+            node_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].node_id)),
+            input_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].input_id)),
+            idx: PackedM31::from_array(std::array::from_fn(|i| inputs[i].idx)),
+            is_last_idx: PackedM31::from_array(std::array::from_fn(|i| inputs[i].is_last_idx)),
+            next_node_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].next_node_id)),
+            next_input_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].next_input_id)),
+            next_idx: PackedM31::from_array(std::array::from_fn(|i| inputs[i].next_idx)),
+            input: PackedM31::from_array(std::array::from_fn(|i| inputs[i].input)),
+            out: PackedM31::from_array(std::array::from_fn(|i| inputs[i].out)),
+            max_val: PackedM31::from_array(std::array::from_fn(|i| inputs[i].max_val)),
+            next_max_val: PackedM31::from_array(std::array::from_fn(|i| inputs[i].next_max_val)),
+            is_last_step: PackedM31::from_array(std::array::from_fn(|i| inputs[i].is_last_step)),
+            is_max: PackedM31::from_array(std::array::from_fn(|i| inputs[i].is_max)),
+            input_mult: PackedM31::from_array(std::array::from_fn(|i| inputs[i].input_mult)),
+            out_mult: PackedM31::from_array(std::array::from_fn(|i| inputs[i].out_mult)),
+        }
+    }
+}
+
+impl Unpack for PackedMaxReduceTraceTableRow {
+    type CpuType = MaxReduceTraceTableRow;
+
+    fn unpack(self) -> [Self::CpuType; N_LANES] {
+        let (
+            node_id,
+            input_id,
+            idx,
+            is_last_idx,
+            next_node_id,
+            next_input_id,
+            next_idx,
+            input,
+            out,
+            max_val,
+            next_max_val,
+            is_last_step,
+            is_max,
+            input_mult,
+            out_mult,
+        ) = (
+            self.node_id.to_array(),
+            self.input_id.to_array(),
+            self.idx.to_array(),
+            self.is_last_idx.to_array(),
+            self.next_node_id.to_array(),
+            self.next_input_id.to_array(),
+            self.next_idx.to_array(),
+            self.input.to_array(),
+            self.out.to_array(),
+            self.max_val.to_array(),
+            self.next_max_val.to_array(),
+            self.is_last_step.to_array(),
+            self.is_max.to_array(),
+            self.input_mult.to_array(),
+            self.out_mult.to_array(),
+        );
+
+        std::array::from_fn(|i| MaxReduceTraceTableRow {
+            node_id: node_id[i],
+            input_id: input_id[i],
+            idx: idx[i],
+            is_last_idx: is_last_idx[i],
+            next_node_id: next_node_id[i],
+            next_input_id: next_input_id[i],
+            next_idx: next_idx[i],
+            input: input[i],
+            out: out[i],
+            max_val: max_val[i],
+            next_max_val: next_max_val[i],
+            is_last_step: is_last_step[i],
+            is_max: is_max[i],
+            input_mult: input_mult[i],
+            out_mult: out_mult[i],
+        })
+    }
+}
+
+impl MaxReduceTraceTable {
+    /// Creates a new, empty [`MaxReduceTraceTable`].
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Adds a new row to the MaxReduce Table.
-    pub fn add_row(&mut self, row: MaxReduceTableRow) {
+    /// Adds a new row to the TraceTable.
+    pub fn add_row(&mut self, row: MaxReduceTraceTableRow) {
         self.table.push(row);
-    }
-
-    /// Transforms the [`MaxReduceTable`] into [`TraceEval`] to be committed
-    /// when generating a STARK proof.
-    pub fn trace_evaluation(&self) -> Result<(TraceEval, MaxReduceClaim), TraceError> {
-        let n_rows = self.table.len();
-        if n_rows == 0 {
-            return Err(TraceError::EmptyTrace);
-        }
-        // Calculate log size
-        let log_size = calculate_log_size(n_rows);
-
-        // Calculate trace size
-        let trace_size = 1 << log_size;
-
-        // Create columns
-        let mut node_id = BaseColumn::zeros(trace_size);
-        let mut input_id = BaseColumn::zeros(trace_size);
-        let mut idx = BaseColumn::zeros(trace_size);
-        let mut is_last_idx = BaseColumn::zeros(trace_size);
-        let mut next_node_id = BaseColumn::zeros(trace_size);
-        let mut next_input_id = BaseColumn::zeros(trace_size);
-        let mut next_idx = BaseColumn::zeros(trace_size);
-        let mut input = BaseColumn::zeros(trace_size);
-        let mut out = BaseColumn::zeros(trace_size);
-        let mut max_val = BaseColumn::zeros(trace_size);
-        let mut next_max_val = BaseColumn::zeros(trace_size);
-        let mut is_last_step = BaseColumn::zeros(trace_size);
-        let mut is_max = BaseColumn::zeros(trace_size);
-        let mut input_mult = BaseColumn::zeros(trace_size);
-        let mut out_mult = BaseColumn::zeros(trace_size);
-
-        // Fill columns
-        for (vec_row, row) in self.table.iter().enumerate() {
-            node_id.set(vec_row, row.node_id);
-            input_id.set(vec_row, row.input_id);
-            idx.set(vec_row, row.idx);
-            is_last_idx.set(vec_row, row.is_last_idx);
-            next_node_id.set(vec_row, row.next_node_id);
-            next_input_id.set(vec_row, row.next_input_id);
-            next_idx.set(vec_row, row.next_idx);
-            input.set(vec_row, row.input);
-            out.set(vec_row, row.out);
-            max_val.set(vec_row, row.max_val);
-            next_max_val.set(vec_row, row.next_max_val);
-            is_last_step.set(vec_row, row.is_last_step);
-            is_max.set(vec_row, row.is_max);
-            input_mult.set(vec_row, row.input_mult);
-            out_mult.set(vec_row, row.out_mult);
-        }
-
-        for i in self.table.len()..trace_size {
-            is_last_idx.set(i, BaseField::one());
-        }
-
-        // Create domain
-        let domain = CanonicCoset::new(log_size).circle_domain();
-
-        // Create trace
-        let mut trace = Vec::with_capacity(MaxReduceColumn::count().0);
-        trace.push(CircleEvaluation::new(domain, node_id));
-        trace.push(CircleEvaluation::new(domain, input_id));
-        trace.push(CircleEvaluation::new(domain, idx));
-        trace.push(CircleEvaluation::new(domain, is_last_idx));
-        trace.push(CircleEvaluation::new(domain, next_node_id));
-        trace.push(CircleEvaluation::new(domain, next_input_id));
-        trace.push(CircleEvaluation::new(domain, next_idx));
-        trace.push(CircleEvaluation::new(domain, input));
-        trace.push(CircleEvaluation::new(domain, out));
-        trace.push(CircleEvaluation::new(domain, max_val));
-        trace.push(CircleEvaluation::new(domain, next_max_val));
-        trace.push(CircleEvaluation::new(domain, is_last_step));
-        trace.push(CircleEvaluation::new(domain, is_max));
-        trace.push(CircleEvaluation::new(domain, input_mult));
-        trace.push(CircleEvaluation::new(domain, out_mult));
-
-        assert_eq!(trace.len(), MaxReduceColumn::count().0);
-
-        Ok((trace, MaxReduceClaim::new(log_size)))
     }
 }
 
 /// Enum representing the column indices in the MaxReduce trace.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum MaxReduceColumn {
     NodeId,
     InputId,
@@ -156,7 +193,6 @@ pub enum MaxReduceColumn {
     InputMult,
     OutMult,
 }
-
 impl MaxReduceColumn {
     /// Returns the index of the column in the MaxReduce trace.
     pub const fn index(self) -> usize {
@@ -182,55 +218,6 @@ impl MaxReduceColumn {
 impl TraceColumn for MaxReduceColumn {
     /// Returns the number of columns in the main trace and interaction trace.
     fn count() -> (usize, usize) {
-        (15, 2)
+        (N_TRACE_COLUMNS, 2)
     }
-}
-
-/// Generates the interaction trace for the MaxReduce component using the main trace and node elements.
-pub fn interaction_trace_evaluation(
-    main_trace_eval: &TraceEval,
-    node_elements: &NodeElements,
-) -> Result<(TraceEval, InteractionClaim), TraceError> {
-    if main_trace_eval.is_empty() {
-        return Err(TraceError::EmptyTrace);
-    }
-
-    let log_size = main_trace_eval[0].domain.log_size();
-    let mut logup_gen = LogupTraceGenerator::new(log_size);
-
-    // Create trace for Input
-    let input_main_col = &main_trace_eval[MaxReduceColumn::Input.index()].data;
-    let input_id_col = &main_trace_eval[MaxReduceColumn::InputId.index()].data;
-    let input_mult_col = &main_trace_eval[MaxReduceColumn::InputMult.index()].data;
-    let mut input_int_col = logup_gen.new_col();
-    for row in 0..1 << (log_size - LOG_N_LANES) {
-        let input = input_main_col[row];
-        let id = input_id_col[row];
-        let multiplicity = input_mult_col[row];
-
-        input_int_col.write_frac(
-            row,
-            multiplicity.into(),
-            node_elements.combine(&[input, id]),
-        );
-    }
-    input_int_col.finalize_col();
-
-    // Create trace for OUTPUT
-    let out_main_col = &main_trace_eval[MaxReduceColumn::Out.index()].data;
-    let node_id_col = &main_trace_eval[MaxReduceColumn::NodeId.index()].data;
-    let out_mult_col = &main_trace_eval[MaxReduceColumn::OutMult.index()].data;
-    let mut out_int_col = logup_gen.new_col();
-    for row in 0..1 << (log_size - LOG_N_LANES) {
-        let out = out_main_col[row];
-        let id = node_id_col[row];
-        let multiplicity = out_mult_col[row];
-
-        out_int_col.write_frac(row, multiplicity.into(), node_elements.combine(&[out, id]));
-    }
-    out_int_col.finalize_col();
-
-    let (trace, claimed_sum) = logup_gen.finalize_last();
-
-    Ok((trace, InteractionClaim { claimed_sum }))
 }

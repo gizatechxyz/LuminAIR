@@ -12,6 +12,8 @@ license = "MIT"
 stwo-prover = { git = "https://github.com/starkware-libs/stwo", rev = "045963c", features = [
     "parallel",
 ], default-features = false }
+stwo-air-utils-derive = { git = "https://github.com/starkware-libs/stwo", rev = "045963c" }
+stwo-air-utils = { git = "https://github.com/starkware-libs/stwo", rev = "045963c" }
 luminal = { git = "https://github.com/raphaelDkhn/luminal.git", rev = "80ae0fd" }
 numerair = { git = "https://github.com/gizatechxyz/NumerAir.git", rev = "79d84ec" }
 rayon = "1.10.0"

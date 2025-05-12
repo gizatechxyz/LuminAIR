@@ -1,8 +1,12 @@
 use std::{any::Any, cell::OnceCell, cmp::Reverse};
 
-use crate::components::{
-    lookups::{Layout, Lookups},
-    TraceEval,
+use crate::{
+    components::{
+        //lookups::Lookups,
+        lookups::Lookups,
+        TraceEval,
+    },
+    utils::calculate_log_size,
 };
 use numerair::Fixed;
 use serde::{Deserialize, Serialize};
@@ -10,14 +14,10 @@ use stwo_prover::{
     constraint_framework::preprocessed_columns::PreProcessedColumnId,
     core::{
         backend::{
-            simd::{
-                column::BaseColumn,
-                m31::{PackedM31, N_LANES},
-                SimdBackend,
-            },
+            simd::{column::BaseColumn, SimdBackend},
             Column,
         },
-        fields::m31::{BaseField, M31},
+        fields::m31::BaseField,
         poly::{
             circle::{CanonicCoset, CircleEvaluation},
             BitReversedOrder,
@@ -25,6 +25,88 @@ use stwo_prover::{
     },
 };
 use typetag;
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct Range(pub Fixed, pub Fixed);
+
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+pub struct LookupLayout {
+    pub ranges: Vec<Range>,
+    pub log_size: u32,
+}
+
+impl LookupLayout {
+    pub fn new(ranges: Vec<Range>) -> Self {
+        let log_size = calculate_log_size(value_count(&ranges) as usize);
+        Self { ranges, log_size }
+    }
+
+    /// Finds the index of a value in the LUT.
+    pub fn find_index(&self, target: i64) -> Option<usize> {
+        // Binary search to find the range containing the target
+        match self.find_containing_range(target) {
+            Some((range_idx, range)) => {
+                // Calculate the cumulative count of values before this range
+                let mut cumulative_count = 0;
+                for i in 0..range_idx {
+                    let r = &self.ranges[i];
+                    cumulative_count += (r.1 .0 - r.0 .0 + 1) as usize;
+                }
+
+                // Add the offset within the found range
+                let offset = (target - range.0 .0) as usize;
+                Some(cumulative_count + offset)
+            }
+            None => None,
+        }
+    }
+
+    /// Find which range contains the target value.
+    fn find_containing_range(&self, target: i64) -> Option<(usize, &Range)> {
+        // Early check for empty ranges
+        if self.ranges.is_empty() {
+            return None;
+        }
+
+        // Binary search to find the correct range
+        let mut left = 0;
+        let mut right = self.ranges.len() - 1;
+
+        while left <= right {
+            let mid = left + (right - left) / 2;
+            let range = &self.ranges[mid];
+
+            // Check if target is in this range
+            if target >= range.0 .0 && target <= range.1 .0 {
+                return Some((mid, range));
+            }
+
+            // Adjust search boundaries
+            if target < range.0 .0 {
+                // Target is before this range
+                if mid == 0 {
+                    break; // Can't go left further
+                }
+                right = mid - 1;
+            } else {
+                // Target is after this range
+                if mid == self.ranges.len() - 1 {
+                    break; // Can't go right further
+                }
+                left = mid + 1;
+            }
+        }
+
+        None
+    }
+}
+
+/// Counts the exact number of **distinct, non‑zero** integer inputs that
+/// will populate this lookup column **before** the column is
+/// padded to the next power‑of‑two.
+fn value_count(ranges: &Vec<Range>) -> u32 {
+    ranges.iter().map(|r| (r.1 .0 - r.0 .0 + 1) as u32).sum()
+}
 
 #[typetag::serde]
 pub trait PreProcessedColumn: Any {
@@ -69,8 +151,8 @@ impl PreProcessedTrace {
 pub fn lookups_to_preprocessed_column(lookups: &Lookups) -> Vec<Box<dyn PreProcessedColumn>> {
     let mut lut_cols: Vec<Box<dyn PreProcessedColumn>> = Vec::new();
     if let Some(sin_lookup) = &lookups.sin {
-        let col_0 = SinLUT::new(sin_lookup.layout.clone(), 0);
-        let col_1 = SinLUT::new(sin_lookup.layout.clone(), 1);
+        let col_0 = SinPreProcessed::new(sin_lookup.layout.clone(), 0);
+        let col_1 = SinPreProcessed::new(sin_lookup.layout.clone(), 1);
         lut_cols.push(Box::new(col_0));
         lut_cols.push(Box::new(col_1));
     }
@@ -80,8 +162,8 @@ pub fn lookups_to_preprocessed_column(lookups: &Lookups) -> Vec<Box<dyn PreProce
 // ================== SIN ==================
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct SinLUT {
-    pub layout: Layout,
+pub struct SinPreProcessed {
+    pub layout: LookupLayout,
     pub col_index: usize,
 
     #[serde(skip)]
@@ -89,8 +171,8 @@ pub struct SinLUT {
     pub eval: OnceCell<CircleEvaluation<SimdBackend, BaseField, BitReversedOrder>>,
 }
 
-impl SinLUT {
-    pub fn new(layout: Layout, col_index: usize) -> Self {
+impl SinPreProcessed {
+    pub fn new(layout: LookupLayout, col_index: usize) -> Self {
         assert!(col_index < 2, "Sin LUT must have 2 columns");
 
         Self {
@@ -104,39 +186,10 @@ impl SinLUT {
     pub fn evaluation(&self) -> &CircleEvaluation<SimdBackend, BaseField, BitReversedOrder> {
         self.eval.get_or_init(|| self.gen_column())
     }
-
-    /// Given a vector of row index, computes the packed M31 values for that row
-    pub fn packed_at(&self, vec_row: usize, values_from_range: &[i64]) -> PackedM31 {
-        // Calculate starting index for this vector row
-        let start_idx = vec_row * N_LANES;
-
-        // Create array of M31 values
-        let values = std::array::from_fn(|i| {
-            let idx = start_idx + i;
-            if idx < values_from_range.len() {
-                // Get the actual input value
-                let input_val = values_from_range[idx];
-
-                match self.col_index {
-                    0 => Fixed(input_val).to_m31(), // Input column
-                    1 => {
-                        // Compute sine
-                        Fixed::from_f64(Fixed(input_val).to_f64().sin()).to_m31()
-                    }
-                    _ => unreachable!(),
-                }
-            } else {
-                // Padding with zeros
-                M31::from_u32_unchecked(0)
-            }
-        });
-
-        PackedM31::from(values)
-    }
 }
 
 #[typetag::serde]
-impl PreProcessedColumn for SinLUT {
+impl PreProcessedColumn for SinPreProcessed {
     fn log_size(&self) -> u32 {
         self.layout.log_size
     }
@@ -187,7 +240,6 @@ impl PreProcessedColumn for SinLUT {
 
 #[cfg(test)]
 mod range_tests {
-    use crate::components::lookups::Range;
 
     use super::*;
 
@@ -199,7 +251,7 @@ mod range_tests {
         // Get all values from ranges
         let mut all_values: Vec<i64> = ranges.iter().flat_map(|r| (r.0 .0..=r.1 .0)).collect();
 
-        // Sort and deduplicate (mimicking what SinLUT does)
+        // Sort and deduplicate (mimicking what SinPreProcessed does)
         all_values.sort_unstable();
         all_values.dedup();
 
@@ -220,7 +272,7 @@ mod range_tests {
             range(200, 210),  // 11 values
         ];
 
-        let layout = Layout::new(ranges.clone());
+        let layout = LookupLayout::new(ranges.clone());
 
         // Compute expected indices for validation
         let expected_indices = calculate_expected_indices(&ranges);

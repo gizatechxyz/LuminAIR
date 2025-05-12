@@ -502,7 +502,6 @@ fn benchmark_max_reduce(c: &mut Criterion) {
     group.finish();
 }
 
-
 // Benchmark for Sin operator
 fn benchmark_sin(c: &mut Criterion) {
     let mut group = c.benchmark_group("Sin Operator");
@@ -522,8 +521,7 @@ fn benchmark_sin(c: &mut Criterion) {
         group.bench_function(params.to_string(), |b| {
             b.iter_with_setup(
                 || {
-                    let mut graph =
-                        create_unary!(|a: GraphTensor| a.sin(), (rows, cols), true);
+                    let mut graph = create_unary!(|a: GraphTensor| a.sin(), (rows, cols), true);
                     let settings = graph.gen_circuit_settings();
                     (graph, settings)
                 },
@@ -541,8 +539,7 @@ fn benchmark_sin(c: &mut Criterion) {
         group.bench_function(params.to_string(), |b| {
             b.iter_with_setup(
                 || {
-                    let mut graph =
-                        create_unary!(|a: GraphTensor| a.sin(), (rows, cols), true);
+                    let mut graph = create_unary!(|a: GraphTensor| a.sin(), (rows, cols), true);
                     let mut settings = graph.gen_circuit_settings();
                     let trace = graph
                         .gen_trace(&mut settings)
@@ -565,8 +562,7 @@ fn benchmark_sin(c: &mut Criterion) {
         group.bench_function(params.to_string(), |b| {
             b.iter_with_setup(
                 || {
-                    let mut graph =
-                        create_unary!(|a: GraphTensor| a.sin(), (rows, cols), true);
+                    let mut graph = create_unary!(|a: GraphTensor| a.sin(), (rows, cols), true);
                     let mut settings = graph.gen_circuit_settings();
                     let trace = graph
                         .gen_trace(&mut settings)
