@@ -5,7 +5,7 @@ use crate::{
         add::table::AddTraceTable, lookups::sin::table::SinLookupTraceTable,
         max_reduce::table::MaxReduceTraceTable, mul::table::MulTraceTable,
         recip::table::RecipTraceTable, sin::table::SinTraceTable,
-        sum_reduce::table::SumReduceTraceTable, ClaimType,
+        sum_reduce::table::SumReduceTraceTable,
     },
     utils::AtomicMultiplicityColumn,
 };
