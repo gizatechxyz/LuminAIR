@@ -119,7 +119,9 @@ impl InteractionClaimGenerator {
             let output = lut_col_1[row];
 
             let denom: PackedQM31 = elements.combine(&[input, output]);
-            col_gen.write_frac(row, -PackedQM31::one() * multiplicity, denom);
+            let num: PackedQM31 = -PackedQM31::one() * multiplicity;
+
+            col_gen.write_frac(row, num, denom);
         }
         col_gen.finalize_col();
 

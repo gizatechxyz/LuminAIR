@@ -70,7 +70,6 @@ impl FrameworkEval for SinEval {
         // Multiplicities for interaction constraints
         let input_mult = eval.next_trace_mask();
         let out_mult = eval.next_trace_mask();
-        let lookup_mult = eval.next_trace_mask();
 
         // ┌─────────────────────────────┐
         // │   Consistency Constraints   │
@@ -115,7 +114,7 @@ impl FrameworkEval for SinEval {
 
         eval.add_to_relation(RelationEntry::new(
             &self.lookup_elements,
-            lookup_mult.into(),
+            E::EF::one(),
             &[input_val, out_val],
         ));
 
