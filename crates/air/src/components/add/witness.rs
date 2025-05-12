@@ -12,22 +12,22 @@ use stwo_prover::{
 
 use crate::{
     components::{
-        add::table::{AddColumn, AddTableRow},
+        add::table::{AddColumn, AddTraceTableRow},
         AddClaim, InteractionClaim, NodeElements, TraceError,
     },
     utils::{pack_values, TreeBuilder},
 };
 
-use super::table::{AddTable, PackedAddTableRow};
+use super::table::{AddTraceTable, PackedAddTraceTableRow};
 
 pub(crate) const N_TRACE_COLUMNS: usize = 15;
 
 pub struct ClaimGenerator {
-    pub inputs: AddTable,
+    pub inputs: AddTraceTable,
 }
 
 impl ClaimGenerator {
-    pub fn new(inputs: AddTable) -> Self {
+    pub fn new(inputs: AddTraceTable) -> Self {
         Self { inputs }
     }
 
@@ -44,7 +44,7 @@ impl ClaimGenerator {
         let size = std::cmp::max(n_rows.next_power_of_two(), N_LANES);
         let log_size = size.ilog2();
 
-        self.inputs.table.resize(size, AddTableRow::padding());
+        self.inputs.table.resize(size, AddTraceTableRow::padding());
         let packed_inputs = pack_values(&self.inputs.table);
 
         let (trace, lookup_data) = write_trace_simd(packed_inputs);
@@ -62,7 +62,7 @@ impl ClaimGenerator {
 }
 
 fn write_trace_simd(
-    inputs: Vec<PackedAddTableRow>,
+    inputs: Vec<PackedAddTraceTableRow>,
 ) -> (ComponentTrace<N_TRACE_COLUMNS>, LookupData) {
     let log_n_packed_rows = inputs.len().ilog2();
     let log_size = log_n_packed_rows + LOG_N_LANES;

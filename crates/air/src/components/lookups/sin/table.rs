@@ -15,18 +15,18 @@ use super::witness::N_TRACE_COLUMNS;
 /// Represents the trace for the SinLookup component, containing the required registers for its
 /// constraints.
 #[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
-pub struct SinLookupTable {
-    /// A vector of [`SinLookupTableRow`] representing the table rows.
-    pub table: Vec<SinLookupTableRow>,
+pub struct SinLookupTraceTable {
+    /// A vector of [`SinLookupTraceTableRow`] representing the table rows.
+    pub table: Vec<SinLookupTraceTableRow>,
 }
 
-/// Represents a single row of the [`SinLookupTable`]
+/// Represents a single row of the [`SinLookupTraceTable`]
 #[derive(Debug, Copy, Clone, serde::Serialize, serde::Deserialize)]
-pub struct SinLookupTableRow {
+pub struct SinLookupTraceTableRow {
     pub multiplicity: M31,
 }
 
-impl SinLookupTableRow {
+impl SinLookupTraceTableRow {
     pub(crate) fn padding() -> Self {
         Self {
             multiplicity: M31::zero(),
@@ -35,40 +35,40 @@ impl SinLookupTableRow {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct PackedSinLookupTableRow {
+pub struct PackedSinLookupTraceTableRow {
     pub multiplicity: PackedM31,
 }
 
-impl Pack for SinLookupTableRow {
-    type SimdType = PackedSinLookupTableRow;
+impl Pack for SinLookupTraceTableRow {
+    type SimdType = PackedSinLookupTraceTableRow;
 
     fn pack(inputs: [Self; N_LANES]) -> Self::SimdType {
-        PackedSinLookupTableRow {
+        PackedSinLookupTraceTableRow {
             multiplicity: PackedM31::from_array(std::array::from_fn(|i| inputs[i].multiplicity)),
         }
     }
 }
 
-impl Unpack for PackedSinLookupTableRow {
-    type CpuType = SinLookupTableRow;
+impl Unpack for PackedSinLookupTraceTableRow {
+    type CpuType = SinLookupTraceTableRow;
 
     fn unpack(self) -> [Self::CpuType; N_LANES] {
         let multiplicities = self.multiplicity.to_array();
 
-        std::array::from_fn(|i| SinLookupTableRow {
+        std::array::from_fn(|i| SinLookupTraceTableRow {
             multiplicity: multiplicities[i],
         })
     }
 }
 
-impl SinLookupTable {
-    /// Creates a new, empty [`SinLookupTable`]
+impl SinLookupTraceTable {
+    /// Creates a new, empty [`SinLookupTraceTable`]
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Adds a new row to the Sin Lookup table.
-    pub fn add_row(&mut self, row: SinLookupTableRow) {
+    pub fn add_row(&mut self, row: SinLookupTraceTableRow) {
         self.table.push(row);
     }
 }

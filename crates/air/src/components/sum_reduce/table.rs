@@ -15,14 +15,14 @@ use super::witness::N_TRACE_COLUMNS;
 /// Represents the table for the component, containing the required registers for its
 /// constraints.
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
-pub struct SumReduceTable {
-    /// A vector of [`SumReduceTableRow`] representing the table rows.
-    pub table: Vec<SumReduceTableRow>,
+pub struct SumReduceTraceTable {
+    /// A vector of [`SumReduceTraceTableRow`] representing the table rows.
+    pub table: Vec<SumReduceTraceTableRow>,
 }
 
-/// Represents a single row of the [`SumReduceTable`]
+/// Represents a single row of the [`SumReduceTraceTable`]
 #[derive(Debug, Default, Copy, Clone, serde::Serialize, serde::Deserialize)]
-pub struct SumReduceTableRow {
+pub struct SumReduceTraceTableRow {
     pub node_id: M31,
     pub input_id: M31,
     pub idx: M31,
@@ -39,7 +39,7 @@ pub struct SumReduceTableRow {
     pub out_mult: M31,
 }
 
-impl SumReduceTableRow {
+impl SumReduceTraceTableRow {
     pub(crate) fn padding() -> Self {
         Self {
             node_id: M31::zero(),
@@ -61,7 +61,7 @@ impl SumReduceTableRow {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct PackedSumReduceTableRow {
+pub struct PackedSumReduceTraceTableRow {
     pub node_id: PackedM31,
     pub input_id: PackedM31,
     pub idx: PackedM31,
@@ -78,11 +78,11 @@ pub struct PackedSumReduceTableRow {
     pub out_mult: PackedM31,
 }
 
-impl Pack for SumReduceTableRow {
-    type SimdType = PackedSumReduceTableRow;
+impl Pack for SumReduceTraceTableRow {
+    type SimdType = PackedSumReduceTraceTableRow;
 
     fn pack(inputs: [Self; N_LANES]) -> Self::SimdType {
-        PackedSumReduceTableRow {
+        PackedSumReduceTraceTableRow {
             node_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].node_id)),
             input_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].input_id)),
             idx: PackedM31::from_array(std::array::from_fn(|i| inputs[i].idx)),
@@ -101,8 +101,8 @@ impl Pack for SumReduceTableRow {
     }
 }
 
-impl Unpack for PackedSumReduceTableRow {
-    type CpuType = SumReduceTableRow;
+impl Unpack for PackedSumReduceTraceTableRow {
+    type CpuType = SumReduceTraceTableRow;
 
     fn unpack(self) -> [Self::CpuType; N_LANES] {
         let (
@@ -137,7 +137,7 @@ impl Unpack for PackedSumReduceTableRow {
             self.out_mult.to_array(),
         );
 
-        std::array::from_fn(|i| SumReduceTableRow {
+        std::array::from_fn(|i| SumReduceTraceTableRow {
             node_id: node_id[i],
             input_id: input_id[i],
             idx: idx[i],
@@ -156,14 +156,14 @@ impl Unpack for PackedSumReduceTableRow {
     }
 }
 
-impl SumReduceTable {
-    /// Creates a new, empty [`SumReduceTable`].
+impl SumReduceTraceTable {
+    /// Creates a new, empty [`SumReduceTraceTable`].
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Adds a new row to the Table.
-    pub fn add_row(&mut self, row: SumReduceTableRow) {
+    /// Adds a new row to the TraceTable.
+    pub fn add_row(&mut self, row: SumReduceTraceTableRow) {
         self.table.push(row);
     }
 }

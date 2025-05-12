@@ -1,12 +1,12 @@
 use luminair_air::{
     components::{
-        add::table::{AddColumn, AddTable, AddTableRow},
+        add::table::{AddColumn, AddTraceTable, AddTraceTableRow},
         lookups::sin::SinLookup,
-        max_reduce::table::{MaxReduceColumn, MaxReduceTable, MaxReduceTableRow},
-        mul::table::{MulColumn, MulTable, MulTableRow},
-        recip::table::{RecipColumn, RecipTable, RecipTableRow},
-        sin::table::{SinColumn, SinTable, SinTableRow},
-        sum_reduce::table::{SumReduceColumn, SumReduceTable, SumReduceTableRow},
+        max_reduce::table::{MaxReduceColumn, MaxReduceTraceTable, MaxReduceTraceTableRow},
+        mul::table::{MulColumn, MulTraceTable, MulTraceTableRow},
+        recip::table::{RecipColumn, RecipTraceTable, RecipTraceTableRow},
+        sin::table::{SinColumn, SinTraceTable, SinTraceTableRow},
+        sum_reduce::table::{SumReduceColumn, SumReduceTraceTable, SumReduceTraceTableRow},
     },
     pie::NodeInfo,
 };
@@ -154,11 +154,11 @@ impl LuminairRecip {
     }
 }
 
-impl LuminairOperator<RecipColumn, RecipTable, ()> for LuminairRecip {
+impl LuminairOperator<RecipColumn, RecipTraceTable, ()> for LuminairRecip {
     fn process_trace(
         &mut self,
         inp: Vec<(InputTensor, ShapeTracker)>,
-        table: &mut RecipTable,
+        table: &mut RecipTraceTable,
         node_info: &NodeInfo,
         _lookup: &mut (),
     ) -> Vec<Tensor> {
@@ -183,7 +183,7 @@ impl LuminairOperator<RecipColumn, RecipTable, ()> for LuminairRecip {
 
             let is_last_idx: u32 = if idx == (output_size - 1) { 1 } else { 0 };
 
-            table.add_row(RecipTableRow {
+            table.add_row(RecipTraceTableRow {
                 node_id,
                 input_id,
                 idx: idx.into(),
@@ -257,11 +257,11 @@ impl LuminairSin {
     }
 }
 
-impl LuminairOperator<SinColumn, SinTable, SinLookup> for LuminairSin {
+impl LuminairOperator<SinColumn, SinTraceTable, SinLookup> for LuminairSin {
     fn process_trace(
         &mut self,
         inp: Vec<(InputTensor, ShapeTracker)>,
-        table: &mut SinTable,
+        table: &mut SinTraceTable,
         node_info: &NodeInfo,
         lookup: &mut SinLookup,
     ) -> Vec<Tensor> {
@@ -286,7 +286,7 @@ impl LuminairOperator<SinColumn, SinTable, SinLookup> for LuminairSin {
 
             let is_last_idx: u32 = if idx == (output_size - 1) { 1 } else { 0 };
 
-            table.add_row(SinTableRow {
+            table.add_row(SinTraceTableRow {
                 node_id,
                 input_id,
                 idx: idx.into(),
@@ -373,11 +373,11 @@ impl LuminairAdd {
     }
 }
 
-impl LuminairOperator<AddColumn, AddTable, ()> for LuminairAdd {
+impl LuminairOperator<AddColumn, AddTraceTable, ()> for LuminairAdd {
     fn process_trace(
         &mut self,
         inp: Vec<(InputTensor, ShapeTracker)>,
-        table: &mut AddTable,
+        table: &mut AddTraceTable,
         node_info: &NodeInfo,
         _lookup: &mut (),
     ) -> Vec<Tensor> {
@@ -408,7 +408,7 @@ impl LuminairOperator<AddColumn, AddTable, ()> for LuminairAdd {
 
             let is_last_idx: u32 = if idx == (output_size - 1) { 1 } else { 0 };
 
-            table.add_row(AddTableRow {
+            table.add_row(AddTraceTableRow {
                 node_id,
                 lhs_id,
                 rhs_id,
@@ -489,11 +489,11 @@ impl LuminairMul {
     }
 }
 
-impl LuminairOperator<MulColumn, MulTable, ()> for LuminairMul {
+impl LuminairOperator<MulColumn, MulTraceTable, ()> for LuminairMul {
     fn process_trace(
         &mut self,
         inp: Vec<(InputTensor, ShapeTracker)>,
-        table: &mut MulTable,
+        table: &mut MulTraceTable,
         node_info: &NodeInfo,
         _lookup: &mut (),
     ) -> Vec<Tensor> {
@@ -526,7 +526,7 @@ impl LuminairOperator<MulColumn, MulTable, ()> for LuminairMul {
 
             let is_last_idx: u32 = if idx == (output_size - 1) { 1 } else { 0 };
 
-            table.add_row(MulTableRow {
+            table.add_row(MulTraceTableRow {
                 node_id,
                 lhs_id,
                 rhs_id,
@@ -628,11 +628,11 @@ impl LuminairSumReduce {
     }
 }
 
-impl LuminairOperator<SumReduceColumn, SumReduceTable, ()> for LuminairSumReduce {
+impl LuminairOperator<SumReduceColumn, SumReduceTraceTable, ()> for LuminairSumReduce {
     fn process_trace(
         &mut self,
         inp: Vec<(InputTensor, ShapeTracker)>,
-        table: &mut SumReduceTable,
+        table: &mut SumReduceTraceTable,
         node_info: &NodeInfo,
         _lookup: &mut (),
     ) -> Vec<Tensor> {
@@ -659,7 +659,7 @@ impl LuminairOperator<SumReduceColumn, SumReduceTable, ()> for LuminairSumReduce
 
             let is_last_idx: u32 = if idx == (output_size - 1) { 1 } else { 0 };
 
-            table.add_row(SumReduceTableRow {
+            table.add_row(SumReduceTraceTableRow {
                 node_id,
                 input_id,
                 idx: idx.into(),
@@ -781,11 +781,11 @@ impl LuminairMaxReduce {
     }
 }
 
-impl LuminairOperator<MaxReduceColumn, MaxReduceTable, ()> for LuminairMaxReduce {
+impl LuminairOperator<MaxReduceColumn, MaxReduceTraceTable, ()> for LuminairMaxReduce {
     fn process_trace(
         &mut self,
         inp: Vec<(InputTensor, ShapeTracker)>,
-        table: &mut MaxReduceTable,
+        table: &mut MaxReduceTraceTable,
         node_info: &NodeInfo,
         _lookup: &mut (),
     ) -> Vec<Tensor> {
@@ -812,7 +812,7 @@ impl LuminairOperator<MaxReduceColumn, MaxReduceTable, ()> for LuminairMaxReduce
 
             let is_last_idx: u32 = if idx == (output_size - 1) { 1 } else { 0 };
 
-            table.add_row(MaxReduceTableRow {
+            table.add_row(MaxReduceTraceTableRow {
                 node_id,
                 input_id,
                 idx: idx.into(),

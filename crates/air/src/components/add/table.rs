@@ -15,14 +15,14 @@ use super::witness::N_TRACE_COLUMNS;
 /// Represents the trace for the Add component, containing the required registers for its
 /// constraints.
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
-pub struct AddTable {
-    /// A vector of [`AddTableRow`] representing the table rows.
-    pub table: Vec<AddTableRow>,
+pub struct AddTraceTable {
+    /// A vector of [`AddTraceTableRow`] representing the table rows.
+    pub table: Vec<AddTraceTableRow>,
 }
 
-/// Represents a single row of the [`AddTable`]
+/// Represents a single row of the [`AddTraceTable`]
 #[derive(Debug, Copy, Clone, serde::Serialize, serde::Deserialize)]
-pub struct AddTableRow {
+pub struct AddTraceTableRow {
     pub node_id: M31,
     pub lhs_id: M31,
     pub rhs_id: M31,
@@ -40,7 +40,7 @@ pub struct AddTableRow {
     pub out_mult: M31,
 }
 
-impl AddTableRow {
+impl AddTraceTableRow {
     pub(crate) fn padding() -> Self {
         Self {
             node_id: M31::zero(),
@@ -63,7 +63,7 @@ impl AddTableRow {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct PackedAddTableRow {
+pub struct PackedAddTraceTableRow {
     pub node_id: PackedM31,
     pub lhs_id: PackedM31,
     pub rhs_id: PackedM31,
@@ -81,11 +81,11 @@ pub struct PackedAddTableRow {
     pub out_mult: PackedM31,
 }
 
-impl Pack for AddTableRow {
-    type SimdType = PackedAddTableRow;
+impl Pack for AddTraceTableRow {
+    type SimdType = PackedAddTraceTableRow;
 
     fn pack(inputs: [Self; N_LANES]) -> Self::SimdType {
-        PackedAddTableRow {
+        PackedAddTraceTableRow {
             node_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].node_id)),
             lhs_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].lhs_id)),
             rhs_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].rhs_id)),
@@ -105,8 +105,8 @@ impl Pack for AddTableRow {
     }
 }
 
-impl Unpack for PackedAddTableRow {
-    type CpuType = AddTableRow;
+impl Unpack for PackedAddTraceTableRow {
+    type CpuType = AddTraceTableRow;
 
     fn unpack(self) -> [Self::CpuType; N_LANES] {
         let (
@@ -143,7 +143,7 @@ impl Unpack for PackedAddTableRow {
             self.out_mult.to_array(),
         );
 
-        std::array::from_fn(|i| AddTableRow {
+        std::array::from_fn(|i| AddTraceTableRow {
             node_id: node_id[i],
             lhs_id: lhs_id[i],
             rhs_id: rhs_id[i],
@@ -163,14 +163,14 @@ impl Unpack for PackedAddTableRow {
     }
 }
 
-impl AddTable {
-    /// Creates a new, empty [`AddTable`].
+impl AddTraceTable {
+    /// Creates a new, empty [`AddTraceTable`].
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Adds a new row to the Add Table.
-    pub fn add_row(&mut self, row: AddTableRow) {
+    /// Adds a new row to the Add TraceTable.
+    pub fn add_row(&mut self, row: AddTraceTableRow) {
         self.table.push(row);
     }
 }

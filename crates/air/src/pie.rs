@@ -2,9 +2,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     components::{
-        add::table::AddTable, lookups::sin::table::SinLookupTable,
-        max_reduce::table::MaxReduceTable, mul::table::MulTable, recip::table::RecipTable,
-        sin::table::SinTable, sum_reduce::table::SumReduceTable, ClaimType,
+        add::table::AddTraceTable, lookups::sin::table::SinLookupTraceTable,
+        max_reduce::table::MaxReduceTraceTable, mul::table::MulTraceTable, recip::table::RecipTraceTable,
+        sin::table::SinTraceTable, sum_reduce::table::SumReduceTraceTable, ClaimType,
     },
     utils::AtomicMultiplicityColumn,
 };
@@ -12,36 +12,36 @@ use crate::{
 /// Represents an operator's trace table along with its claim before conversion
 /// to a serialized trace format. Used to defer trace evaluation until proving.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub enum TableTrace {
-    Add { table: AddTable },
-    Mul { table: MulTable },
-    Recip { table: RecipTable },
-    Sin { table: SinTable },
-    SinLookup { table: SinLookupTable },
-    SumReduce { table: SumReduceTable },
-    MaxReduce { table: MaxReduceTable },
+pub enum TraceTable {
+    Add { table: AddTraceTable },
+    Mul { table: MulTraceTable },
+    Recip { table: RecipTraceTable },
+    Sin { table: SinTraceTable },
+    SinLookup { table: SinLookupTraceTable },
+    SumReduce { table: SumReduceTraceTable },
+    MaxReduce { table: MaxReduceTraceTable },
 }
 
-impl TableTrace {
-    pub fn from_add(table: AddTable) -> Self {
+impl TraceTable {
+    pub fn from_add(table: AddTraceTable) -> Self {
         Self::Add { table }
     }
-    pub fn from_mul(table: MulTable) -> Self {
+    pub fn from_mul(table: MulTraceTable) -> Self {
         Self::Mul { table }
     }
-    pub fn from_recip(table: RecipTable) -> Self {
+    pub fn from_recip(table: RecipTraceTable) -> Self {
         Self::Recip { table }
     }
-    pub fn from_sin(table: SinTable) -> Self {
+    pub fn from_sin(table: SinTraceTable) -> Self {
         Self::Sin { table }
     }
-    pub fn from_sin_lookup(table: SinLookupTable) -> Self {
+    pub fn from_sin_lookup(table: SinLookupTraceTable) -> Self {
         Self::SinLookup { table }
     }
-    pub fn from_sum_reduce(table: SumReduceTable) -> Self {
+    pub fn from_sum_reduce(table: SumReduceTraceTable) -> Self {
         Self::SumReduce { table }
     }
-    pub fn from_max_reduce(table: MaxReduceTable) -> Self {
+    pub fn from_max_reduce(table: MaxReduceTraceTable) -> Self {
         Self::MaxReduce { table }
     }
 }
@@ -49,7 +49,7 @@ impl TableTrace {
 /// Container for traces and execution resources of a computational graph.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LuminairPie {
-    pub table_traces: Vec<TableTrace>,
+    pub trace_tables: Vec<TraceTable>,
     pub execution_resources: ExecutionResources,
 }
 

@@ -14,14 +14,14 @@ use super::witness::N_TRACE_COLUMNS;
 /// Represents the table for the component, containing the required registers for its
 /// constraints.
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
-pub struct MaxReduceTable {
-    /// A vector of [`MaxReduceTableRow`] representing the table rows.
-    pub table: Vec<MaxReduceTableRow>,
+pub struct MaxReduceTraceTable {
+    /// A vector of [`MaxReduceTraceTableRow`] representing the table rows.
+    pub table: Vec<MaxReduceTraceTableRow>,
 }
 
-/// Represents a single row of the [`MaxReduceTable`]
+/// Represents a single row of the [`MaxReduceTraceTable`]
 #[derive(Debug, Default, Copy, Clone, serde::Serialize, serde::Deserialize)]
-pub struct MaxReduceTableRow {
+pub struct MaxReduceTraceTableRow {
     pub node_id: M31,
     pub input_id: M31,
     pub idx: M31,
@@ -39,7 +39,7 @@ pub struct MaxReduceTableRow {
     pub out_mult: M31,
 }
 
-impl MaxReduceTableRow {
+impl MaxReduceTraceTableRow {
     pub(crate) fn padding() -> Self {
         Self {
             node_id: M31::zero(),
@@ -62,7 +62,7 @@ impl MaxReduceTableRow {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct PackedMaxReduceTableRow {
+pub struct PackedMaxReduceTraceTableRow {
     pub node_id: PackedM31,
     pub input_id: PackedM31,
     pub idx: PackedM31,
@@ -80,11 +80,11 @@ pub struct PackedMaxReduceTableRow {
     pub out_mult: PackedM31,
 }
 
-impl Pack for MaxReduceTableRow {
-    type SimdType = PackedMaxReduceTableRow;
+impl Pack for MaxReduceTraceTableRow {
+    type SimdType = PackedMaxReduceTraceTableRow;
 
     fn pack(inputs: [Self; N_LANES]) -> Self::SimdType {
-        PackedMaxReduceTableRow {
+        PackedMaxReduceTraceTableRow {
             node_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].node_id)),
             input_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].input_id)),
             idx: PackedM31::from_array(std::array::from_fn(|i| inputs[i].idx)),
@@ -104,8 +104,8 @@ impl Pack for MaxReduceTableRow {
     }
 }
 
-impl Unpack for PackedMaxReduceTableRow {
-    type CpuType = MaxReduceTableRow;
+impl Unpack for PackedMaxReduceTraceTableRow {
+    type CpuType = MaxReduceTraceTableRow;
 
     fn unpack(self) -> [Self::CpuType; N_LANES] {
         let (
@@ -142,7 +142,7 @@ impl Unpack for PackedMaxReduceTableRow {
             self.out_mult.to_array(),
         );
 
-        std::array::from_fn(|i| MaxReduceTableRow {
+        std::array::from_fn(|i| MaxReduceTraceTableRow {
             node_id: node_id[i],
             input_id: input_id[i],
             idx: idx[i],
@@ -162,14 +162,14 @@ impl Unpack for PackedMaxReduceTableRow {
     }
 }
 
-impl MaxReduceTable {
-    /// Creates a new, empty [`MaxReduceTable`].
+impl MaxReduceTraceTable {
+    /// Creates a new, empty [`MaxReduceTraceTable`].
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Adds a new row to the Table.
-    pub fn add_row(&mut self, row: MaxReduceTableRow) {
+    /// Adds a new row to the TraceTable.
+    pub fn add_row(&mut self, row: MaxReduceTraceTableRow) {
         self.table.push(row);
     }
 }

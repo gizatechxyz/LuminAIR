@@ -15,14 +15,14 @@ use super::witness::N_TRACE_COLUMNS;
 /// Represents the table for the component, containing the required registers for its
 /// constraints.
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
-pub struct SinTable {
-    /// A vector of [`SinTableRow`] representing the table rows.
-    pub table: Vec<SinTableRow>,
+pub struct SinTraceTable {
+    /// A vector of [`SinTraceTableRow`] representing the table rows.
+    pub table: Vec<SinTraceTableRow>,
 }
 
-/// Represents a single row of the [`SinTable`]
+/// Represents a single row of the [`SinTraceTable`]
 #[derive(Debug, Copy, Clone, serde::Serialize, serde::Deserialize)]
-pub struct SinTableRow {
+pub struct SinTraceTableRow {
     pub node_id: M31,
     pub input_id: M31,
     pub idx: M31,
@@ -37,7 +37,7 @@ pub struct SinTableRow {
     pub lookup_mult: M31,
 }
 
-impl SinTableRow {
+impl SinTraceTableRow {
     pub(crate) fn padding() -> Self {
         Self {
             node_id: M31::zero(),
@@ -57,7 +57,7 @@ impl SinTableRow {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct PackedSinTableRow {
+pub struct PackedSinTraceTableRow {
     pub node_id: PackedM31,
     pub input_id: PackedM31,
     pub idx: PackedM31,
@@ -72,11 +72,11 @@ pub struct PackedSinTableRow {
     pub lookup_mult: PackedM31,
 }
 
-impl Pack for SinTableRow {
-    type SimdType = PackedSinTableRow;
+impl Pack for SinTraceTableRow {
+    type SimdType = PackedSinTraceTableRow;
 
     fn pack(inputs: [Self; N_LANES]) -> Self::SimdType {
-        PackedSinTableRow {
+        PackedSinTraceTableRow {
             node_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].node_id)),
             input_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].input_id)),
             idx: PackedM31::from_array(std::array::from_fn(|i| inputs[i].idx)),
@@ -93,8 +93,8 @@ impl Pack for SinTableRow {
     }
 }
 
-impl Unpack for PackedSinTableRow {
-    type CpuType = SinTableRow;
+impl Unpack for PackedSinTraceTableRow {
+    type CpuType = SinTraceTableRow;
 
     fn unpack(self) -> [Self::CpuType; N_LANES] {
         let (
@@ -125,7 +125,7 @@ impl Unpack for PackedSinTableRow {
             self.lookup_mult.to_array(),
         );
 
-        std::array::from_fn(|i| SinTableRow {
+        std::array::from_fn(|i| SinTraceTableRow {
             node_id: node_id[i],
             input_id: input_id[i],
             idx: idx[i],
@@ -142,14 +142,14 @@ impl Unpack for PackedSinTableRow {
     }
 }
 
-impl SinTable {
-    /// Creates a new, empty [`SinTable`].
+impl SinTraceTable {
+    /// Creates a new, empty [`SinTraceTable`].
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Adds a new row to the Sin Table.
-    pub fn add_row(&mut self, row: SinTableRow) {
+    /// Adds a new row to the Sin TraceTable.
+    pub fn add_row(&mut self, row: SinTraceTableRow) {
         self.table.push(row);
     }
 }

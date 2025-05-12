@@ -15,14 +15,14 @@ use super::witness::N_TRACE_COLUMNS;
 /// Represents the table for the component, containing the required registers for its
 /// constraints.
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
-pub struct RecipTable {
-    /// A vector of [`RecipTableRow`] representing the table rows.
-    pub table: Vec<RecipTableRow>,
+pub struct RecipTraceTable {
+    /// A vector of [`RecipTraceTableRow`] representing the table rows.
+    pub table: Vec<RecipTraceTableRow>,
 }
 
-/// Represents a single row of the [`RecipTable`]
+/// Represents a single row of the [`RecipTraceTable`]
 #[derive(Debug, Copy, Clone, serde::Serialize, serde::Deserialize)]
-pub struct RecipTableRow {
+pub struct RecipTraceTableRow {
     pub node_id: M31,
     pub input_id: M31,
     pub idx: M31,
@@ -38,7 +38,7 @@ pub struct RecipTableRow {
     pub out_mult: M31,
 }
 
-impl RecipTableRow {
+impl RecipTraceTableRow {
     pub(crate) fn padding() -> Self {
         Self {
             node_id: M31::zero(),
@@ -59,7 +59,7 @@ impl RecipTableRow {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct PackedRecipTableRow {
+pub struct PackedRecipTraceTableRow {
     pub node_id: PackedM31,
     pub input_id: PackedM31,
     pub idx: PackedM31,
@@ -75,11 +75,11 @@ pub struct PackedRecipTableRow {
     pub out_mult: PackedM31,
 }
 
-impl Pack for RecipTableRow {
-    type SimdType = PackedRecipTableRow;
+impl Pack for RecipTraceTableRow {
+    type SimdType = PackedRecipTraceTableRow;
 
     fn pack(inputs: [Self; N_LANES]) -> Self::SimdType {
-        PackedRecipTableRow {
+        PackedRecipTraceTableRow {
             node_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].node_id)),
             input_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].input_id)),
             idx: PackedM31::from_array(std::array::from_fn(|i| inputs[i].idx)),
@@ -97,8 +97,8 @@ impl Pack for RecipTableRow {
     }
 }
 
-impl Unpack for PackedRecipTableRow {
-    type CpuType = RecipTableRow;
+impl Unpack for PackedRecipTraceTableRow {
+    type CpuType = RecipTraceTableRow;
 
     fn unpack(self) -> [Self::CpuType; N_LANES] {
         let (
@@ -131,7 +131,7 @@ impl Unpack for PackedRecipTableRow {
             self.out_mult.to_array(),
         );
 
-        std::array::from_fn(|i| RecipTableRow {
+        std::array::from_fn(|i| RecipTraceTableRow {
             node_id: node_id[i],
             input_id: input_id[i],
             idx: idx[i],
@@ -149,14 +149,14 @@ impl Unpack for PackedRecipTableRow {
     }
 }
 
-impl RecipTable {
-    /// Creates a new, empty [`RecipTable`].
+impl RecipTraceTable {
+    /// Creates a new, empty [`RecipTraceTable`].
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Adds a new row to the Recip Table.
-    pub fn add_row(&mut self, row: RecipTableRow) {
+    /// Adds a new row to the Recip TraceTable.
+    pub fn add_row(&mut self, row: RecipTraceTableRow) {
         self.table.push(row);
     }
 }

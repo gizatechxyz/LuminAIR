@@ -13,14 +13,14 @@ use crate::components::TraceColumn;
 /// Represents the table for the component, containing the required registers for its
 /// constraints.
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
-pub struct MulTable {
-    /// A vector of [`MulTableRow`] representing the table rows.
-    pub table: Vec<MulTableRow>,
+pub struct MulTraceTable {
+    /// A vector of [`MulTraceTableRow`] representing the table rows.
+    pub table: Vec<MulTraceTableRow>,
 }
 
-/// Represents a single row of the [`MulTable`]
+/// Represents a single row of the [`MulTraceTable`]
 #[derive(Debug, Copy, Clone, serde::Serialize, serde::Deserialize)]
-pub struct MulTableRow {
+pub struct MulTraceTableRow {
     pub node_id: M31,
     pub lhs_id: M31,
     pub rhs_id: M31,
@@ -39,7 +39,7 @@ pub struct MulTableRow {
     pub out_mult: M31,
 }
 
-impl MulTableRow {
+impl MulTraceTableRow {
     pub(crate) fn padding() -> Self {
         Self {
             node_id: M31::zero(),
@@ -63,7 +63,7 @@ impl MulTableRow {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct PackedMulTableRow {
+pub struct PackedMulTraceTableRow {
     pub node_id: PackedM31,
     pub lhs_id: PackedM31,
     pub rhs_id: PackedM31,
@@ -82,11 +82,11 @@ pub struct PackedMulTableRow {
     pub out_mult: PackedM31,
 }
 
-impl Pack for MulTableRow {
-    type SimdType = PackedMulTableRow;
+impl Pack for MulTraceTableRow {
+    type SimdType = PackedMulTraceTableRow;
 
     fn pack(inputs: [Self; N_LANES]) -> Self::SimdType {
-        PackedMulTableRow {
+        PackedMulTraceTableRow {
             node_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].node_id)),
             lhs_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].lhs_id)),
             rhs_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].rhs_id)),
@@ -107,8 +107,8 @@ impl Pack for MulTableRow {
     }
 }
 
-impl Unpack for PackedMulTableRow {
-    type CpuType = MulTableRow;
+impl Unpack for PackedMulTraceTableRow {
+    type CpuType = MulTraceTableRow;
 
     fn unpack(self) -> [Self::CpuType; N_LANES] {
         let (
@@ -147,7 +147,7 @@ impl Unpack for PackedMulTableRow {
             self.out_mult.to_array(),
         );
 
-        std::array::from_fn(|i| MulTableRow {
+        std::array::from_fn(|i| MulTraceTableRow {
             node_id: node_id[i],
             lhs_id: lhs_id[i],
             rhs_id: rhs_id[i],
@@ -168,14 +168,14 @@ impl Unpack for PackedMulTableRow {
     }
 }
 
-impl MulTable {
-    /// Creates a new, empty [`MulTable`].
+impl MulTraceTable {
+    /// Creates a new, empty [`MulTraceTable`].
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Adds a new row to the Mul Table.
-    pub fn add_row(&mut self, row: MulTableRow) {
+    /// Adds a new row to the Mul TraceTable.
+    pub fn add_row(&mut self, row: MulTraceTableRow) {
         self.table.push(row);
     }
 }

@@ -15,16 +15,16 @@ use crate::{
     utils::{pack_values, TreeBuilder},
 };
 
-use super::table::{MaxReduceColumn, MaxReduceTable, MaxReduceTableRow, PackedMaxReduceTableRow};
+use super::table::{MaxReduceColumn, MaxReduceTraceTable, MaxReduceTraceTableRow, PackedMaxReduceTraceTableRow};
 
 pub(crate) const N_TRACE_COLUMNS: usize = 15;
 
 pub struct ClaimGenerator {
-    pub inputs: MaxReduceTable,
+    pub inputs: MaxReduceTraceTable,
 }
 
 impl ClaimGenerator {
-    pub fn new(inputs: MaxReduceTable) -> Self {
+    pub fn new(inputs: MaxReduceTraceTable) -> Self {
         Self { inputs }
     }
 
@@ -41,7 +41,7 @@ impl ClaimGenerator {
         let size = std::cmp::max(n_rows.next_power_of_two(), N_LANES);
         let log_size = size.ilog2();
 
-        self.inputs.table.resize(size, MaxReduceTableRow::padding());
+        self.inputs.table.resize(size, MaxReduceTraceTableRow::padding());
         let packed_inputs = pack_values(&self.inputs.table);
 
         let (trace, lookup_data) = write_trace_simd(packed_inputs);
@@ -59,7 +59,7 @@ impl ClaimGenerator {
 }
 
 fn write_trace_simd(
-    inputs: Vec<PackedMaxReduceTableRow>,
+    inputs: Vec<PackedMaxReduceTraceTableRow>,
 ) -> (ComponentTrace<N_TRACE_COLUMNS>, LookupData) {
     let log_n_packed_rows = inputs.len().ilog2();
     let log_size = log_n_packed_rows + LOG_N_LANES;

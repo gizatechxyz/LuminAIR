@@ -3,7 +3,7 @@ use std::{collections::BTreeSet, sync::atomic::Ordering};
 use numerair::Fixed;
 use serde::{Deserialize, Serialize};
 use stwo_prover::{core::fields::m31::BaseField, relation};
-use table::{SinLookupTable, SinLookupTableRow};
+use table::{SinLookupTraceTable, SinLookupTraceTableRow};
 
 use crate::{preprocessed::LookupLayout, utils::AtomicMultiplicityColumn};
 
@@ -33,9 +33,9 @@ impl SinLookup {
         }
     }
 
-    pub fn add_multiplicities_to_table(&self, table: &mut SinLookupTable) {
+    pub fn add_multiplicities_to_table(&self, table: &mut SinLookupTraceTable) {
         for mult in &self.multiplicities.data {
-            table.add_row(SinLookupTableRow {
+            table.add_row(SinLookupTraceTableRow {
                 multiplicity: BaseField::from_u32_unchecked(mult.load(Ordering::Relaxed)),
             });
         }

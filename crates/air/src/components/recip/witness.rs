@@ -14,16 +14,16 @@ use stwo_prover::{
     },
 };
 
-use super::table::{PackedRecipTableRow, RecipColumn, RecipTable, RecipTableRow};
+use super::table::{PackedRecipTraceTableRow, RecipColumn, RecipTraceTable, RecipTraceTableRow};
 
 pub(crate) const N_TRACE_COLUMNS: usize = 13;
 
 pub struct ClaimGenerator {
-    pub inputs: RecipTable,
+    pub inputs: RecipTraceTable,
 }
 
 impl ClaimGenerator {
-    pub fn new(inputs: RecipTable) -> Self {
+    pub fn new(inputs: RecipTraceTable) -> Self {
         Self { inputs }
     }
 
@@ -40,7 +40,7 @@ impl ClaimGenerator {
         let size = std::cmp::max(n_rows.next_power_of_two(), N_LANES);
         let log_size = size.ilog2();
 
-        self.inputs.table.resize(size, RecipTableRow::padding());
+        self.inputs.table.resize(size, RecipTraceTableRow::padding());
         let packed_inputs = pack_values(&self.inputs.table);
 
         let (trace, lookup_data) = write_trace_simd(packed_inputs);
@@ -58,7 +58,7 @@ impl ClaimGenerator {
 }
 
 fn write_trace_simd(
-    inputs: Vec<PackedRecipTableRow>,
+    inputs: Vec<PackedRecipTraceTableRow>,
 ) -> (ComponentTrace<N_TRACE_COLUMNS>, LookupData) {
     let log_n_packed_rows = inputs.len().ilog2();
     let log_size = log_n_packed_rows + LOG_N_LANES;
