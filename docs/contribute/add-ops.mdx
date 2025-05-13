@@ -42,7 +42,7 @@ For example, the real number `1.5` would be represented as `1.5 * 2^12 = 6144` i
 
 To implement a new operator in LuminAIR, you need to create several components:
 
-1. **Table Definition:** Define the structure for storing execution traces.
+1. **TraceTable Definition:** Define the structure for storing execution traces.
 2. **AIR Component:** Define constraints that verify the operation's correctness.
 3. **Operator Implementation:** Create the logic that executes the operation and generates traces.
 4. **Interaction Trace:** Generate the traces needed for LopUp arguments.
@@ -50,24 +50,24 @@ To implement a new operator in LuminAIR, you need to create several components:
 
 Let's walk through each of these components in detail, using the `Add` operator as our example.
 
-# Implementing the Operator Table
+# Implementing the Operator TraceTable
 
 The first step is defining the structure for storing the execution trace of your operator. 
 This is done by creating a table that holds all the values needed for the constraint system.
 
-For the `Add` operator, we define `AddTable` and `AddTableRow` in `crates/air/src/components/add/table.rs`:
+For the `Add` operator, we define `AddTraceTable` and `AddTraceTableRow` in `crates/air/src/components/add/table.rs`:
 
 ```rust
 /// Represents the trace for the Add component
 #[derive(Debug, Default, PartialEq, Eq, Clone)]
-pub struct AddTable {
-    /// A vector of AddTableRow representing the table rows
-    pub table: Vec<AddTableRow>,
+pub struct AddTraceTable {
+    /// A vector of AddTraceTableRow representing the table rows
+    pub table: Vec<AddTraceTableRow>,
 }
 
-/// Represents a single row of the AddTable
+/// Represents a single row of the AddTraceTable
 #[derive(Debug, Default, PartialEq, Eq, Clone)]
-pub struct AddTableRow {
+pub struct AddTraceTableRow {
     pub node_id: BaseField,
     pub lhs_id: BaseField,
     pub rhs_id: BaseField,
@@ -94,11 +94,11 @@ Each row in the table represents one step in the execution of the addition opera
 - `lhs`, `rhs`, `out`: The left operand, right operand, and result values.
 - `lhs_mult`, `rhs_mult`, `out_mult`: Multiplicity values for the lookup argument.
 
-You'll also need to implement the `trace_evaluation` method on `AddTable`, which converts the table into a format that can be used for commitment and proofs:
+You'll also need to implement the `trace_evaluation` method on `AddTraceTable`, which converts the table into a format that can be used for commitment and proofs:
 
 ```rust
-impl AddTable {
-    /// Transforms the [`AddTable`] into [`TraceEval`] to be commited
+impl AddTraceTable {
+    /// Transforms the [`AddTraceTable`] into [`TraceEval`] to be commited
     /// when generating a STARK proof.
     pub fn trace_evaluation(&self) -> Result<(TraceEval, AddClaim), TraceError> {
         let n_rows = self.table.len();
@@ -300,12 +300,12 @@ The `Add` operator is a primitive operator, so we will add this operator in `cra
 #[derive(Debug, Clone, Default, PartialEq)]
 struct LuminairAdd {}
 
-impl LuminairOperator<AddColumn, AddTable> for LuminairAdd {
+impl LuminairOperator<AddColumn, AddTraceTable> for LuminairAdd {
     /// Processes two input tensors, generating a trace, claim, and output tensor.
     fn process_trace(
         &mut self,
         inp: Vec<(InputTensor, ShapeTracker)>,
-        table: &mut AddTable,
+        table: &mut AddTraceTable,
         node_info: &NodeInfo,
     ) -> Vec<Tensor> {
         // Get buffer from tensor.
@@ -358,8 +358,8 @@ impl LuminairOperator<AddColumn, AddTable> for LuminairAdd {
 
             *out = out_val;
             
-            // Add a row in the AddTable. 
-            table.add_row(AddTableRow {
+            // Add a row in the AddTraceTable. 
+            table.add_row(AddTraceTableRow {
                 node_id,
                 lhs_id,
                 rhs_id,
@@ -698,19 +698,19 @@ fn gen_trace(&mut self) -> Result<LuminairPie, TraceError> {
     // Existing code...
 
     // Initialize trace collectors and tables
-    let mut add_table: AddTable = AddTable::new();
-    let mut mul_table: MulTable = MulTable::new();
+    let mut add_table: AddTraceTable = AddTraceTable::new();
+    let mut mul_table: MulTraceTable = MulTraceTable::new();
 
     // Process nodes...
     for (node, src_ids) in self.linearized_graph.as_ref().unwrap() {
 
         let tensors =
-            if <Box<dyn Operator> as HasProcessTrace<AddColumn, AddTable>>::has_process_trace(
+            if <Box<dyn Operator> as HasProcessTrace<AddColumn, AddTraceTable>>::has_process_trace(
                     node_op,
                 ) {
                     let tensors = <Box<dyn Operator> as HasProcessTrace<
                         AddColumn,
-                        AddTable,
+                        AddTraceTable,
                     >>::call_process_trace(
                         node_op, srcs, &mut add_table, &node_info
                     )
@@ -718,7 +718,7 @@ fn gen_trace(&mut self) -> Result<LuminairPie, TraceError> {
                     *op_counter.add.get_or_insert(0) += 1;
 
                     tensors
-                } else if <Box<dyn Operator> as HasProcessTrace<MulColumn, MulTable>>::has_process_trace(
+                } else if <Box<dyn Operator> as HasProcessTrace<MulColumn, MulTraceTable>>::has_process_trace(
                 node_op,
             ) {
                 // Existing code for Mul...

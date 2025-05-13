@@ -7,10 +7,14 @@ license.workspace = true
 
 [dependencies]
 stwo-prover.workspace = true
+stwo-air-utils-derive.workspace = true
+stwo-air-utils.workspace = true
 luminal.workspace = true
 tracing.workspace = true
 numerair.workspace = true
 serde.workspace = true
 thiserror.workspace = true
 num-traits.workspace = true
+typetag.workspace = true
+rayon.workspace = true
 itertools = "0.12.0"

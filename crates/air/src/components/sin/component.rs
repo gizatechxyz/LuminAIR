@@ -1,56 +1,74 @@
-use crate::components::{MaxReduceClaim, NodeElements};
+use crate::components::{
+    //lookups::sin::SinLookupElements,
+    lookups::sin::SinLookupElements,
+    NodeElements,
+    SinClaim,
+};
 use num_traits::One;
 use stwo_prover::constraint_framework::{
     EvalAtRow, FrameworkComponent, FrameworkEval, RelationEntry,
 };
 
-/// The STWO AIR component for Max-Reduce operations.
-/// Wraps the `MaxReduceEval` logic within the STWO `FrameworkComponent`.
-pub type MaxReduceComponent = FrameworkComponent<MaxReduceEval>;
+/// The STWO AIR component for element-wise Sine (`sin(x)`) operations.
+/// Wraps the `SinEval` logic within the STWO `FrameworkComponent`.
+/// Correctness of `sin(x)` is enforced via a lookup argument into a preprocessed table.
+pub type SinComponent = FrameworkComponent<SinEval>;
 
-/// Defines the AIR constraints evaluation logic for the MaxReduce component.
-/// Implements `FrameworkEval` for the step-by-step max-finding process.
-pub struct MaxReduceEval {
-    /// Log2 size of the component's trace segment.
+/// Defines the AIR constraints evaluation logic for the Sin component.
+/// Implements `FrameworkEval` to define trace layout, degrees, and constraints.
+/// Relies heavily on LogUp arguments for consistency.
+pub struct SinEval {
+    /// Log2 size of the component's main trace segment.
     log_size: u32,
-    /// Interaction elements for node relations (used in LogUp).
+    /// Log2 size of the preprocessed Sine Lookup Table.
+    lut_log_size: u32,
+    /// Interaction elements for node relations (used in input/output LogUp).
     node_elements: NodeElements,
+    /// Specific interaction elements for the Sine LUT LogUp.
+    lookup_elements: SinLookupElements,
 }
 
-impl MaxReduceEval {
-    /// Creates a new `MaxReduceEval` instance.
-    /// Takes the component's claim (for `log_size`) and interaction elements.
-    pub fn new(claim: &MaxReduceClaim, node_elements: NodeElements) -> Self {
+impl SinEval {
+    /// Creates a new `SinEval` instance.
+    /// Takes the component's claim, interaction elements for nodes and lookups,
+    /// and the log_size of the Sine LUT.
+    pub fn new(
+        claim: &SinClaim,
+        node_elements: NodeElements,
+        lookup_elements: SinLookupElements,
+        lut_log_size: u32,
+    ) -> Self {
         Self {
             log_size: claim.log_size,
+            lut_log_size,
             node_elements,
+            lookup_elements,
         }
     }
 }
 
-/// Implements the core constraint evaluation logic for the MaxReduce component.
-impl FrameworkEval for MaxReduceEval {
-    /// Returns the log2 size of this component's trace segment.
+/// Implements the core constraint evaluation logic for the Sin component.
+impl FrameworkEval for SinEval {
+    /// Returns the log2 size of this component's main trace segment.
     fn log_size(&self) -> u32 {
         self.log_size
     }
 
-    /// Returns the maximum expected log2 degree bound for the component's constraints.
+    /// Returns the max log2 degree bound, considering both main trace and LUT sizes.
     fn max_constraint_log_degree_bound(&self) -> u32 {
-        self.log_size + 1
+        std::cmp::max(self.log_size, self.lut_log_size) + 1
     }
 
-    /// Evaluates the MaxReduce AIR constraints on a given evaluation point (`eval`).
+    /// Evaluates the Sin AIR constraints on a given evaluation point (`eval`).
     ///
     /// Defines constraints for:
-    /// - **Consistency:**
-    ///   - `is_last_idx`, `is_last_step`, `is_max` are boolean.
-    ///   - Max update logic:
-    ///     - If `is_max` is 1, then `next_max_val = input_val`.
-    ///     - If `is_max` is 0, then `next_max_val = max_val`.
-    ///   - Output validity: `out = next_max_val` only if `is_last_step` is true.
-    /// - **Transition (for output elements):** Standard logic for node/input IDs and `idx` increment.
-    /// - **Interaction (LogUp):** Links `input_val` and `out_val` to the global LogUp argument.
+    /// - **Consistency:** Ensures `is_last_idx` is boolean.
+    /// - **Transition:** Correct state transitions (node/input ID, index increment).
+    /// - **Interaction (LogUp):** Three LogUp arguments are crucial here:
+    ///     1. Links `input_val` (from this trace) to where it's defined elsewhere.
+    ///     2. Links `out_val` (from this trace) to where it's used elsewhere.
+    ///     3. Links the pair `(input_val, out_val)` to the preprocessed Sine Lookup Table,
+    ///        effectively constraining `out_val` to be `sin(input_val)`.
     fn evaluate<E: EvalAtRow>(&self, mut eval: E) -> E {
         // IDs
         let node_id = eval.next_trace_mask(); // ID of the node in the computational graph.
@@ -66,36 +84,18 @@ impl FrameworkEval for MaxReduceEval {
         // Values for consistency constraints
         let input_val = eval.next_trace_mask(); // Value from the tensor at index.
         let out_val = eval.next_trace_mask(); // Value in output tensor at index.
-        let max_val = eval.next_trace_mask(); // Current max value.
-        let next_max_val = eval.next_trace_mask(); // Next max value.
-        let is_last_step = eval.next_trace_mask(); // Flag if this is the last step.
-        let is_max = eval.next_trace_mask(); // Flag if current input is the max so far.
 
         // Multiplicities for interaction constraints
         let input_mult = eval.next_trace_mask();
         let out_mult = eval.next_trace_mask();
+        let lookup_mult = eval.next_trace_mask();
 
         // ┌─────────────────────────────┐
         // │   Consistency Constraints   │
         // └─────────────────────────────┘
 
-        // The is_last_idx, is_last_step, and is_max flags are either 0 or 1.
+        // The is_last_idx flag is either 0 or 1.
         eval.add_constraint(is_last_idx.clone() * (is_last_idx.clone() - E::F::one()));
-        eval.add_constraint(is_last_step.clone() * (is_last_step.clone() - E::F::one()));
-        eval.add_constraint(is_max.clone() * (is_max.clone() - E::F::one()));
-
-        // If is_max is 1, then input_val >= max_val
-        // To express this constraint: (input_val - max_val) * is_max >= 0
-        // But we need a direct equality constraint, so:
-        // If is_max is 1, then input_val == next_max_val (the input becomes the new max)
-        // If is_max is 0, then max_val == next_max_val (max doesn't change)
-        eval.add_constraint(is_max.clone() * (next_max_val.clone() - input_val.clone()));
-        eval.add_constraint(
-            (E::F::one() - is_max.clone()) * (next_max_val.clone() - max_val.clone()),
-        );
-
-        // The output value must be the maximum value in the last step
-        eval.add_constraint((out_val.clone() - next_max_val) * is_last_step);
 
         // ┌────────────────────────────┐
         // │   Transition Constraints   │
@@ -122,13 +122,19 @@ impl FrameworkEval for MaxReduceEval {
         eval.add_to_relation(RelationEntry::new(
             &self.node_elements,
             input_mult.into(),
-            &[input_val, input_id],
+            &[input_val.clone(), input_id],
         ));
 
         eval.add_to_relation(RelationEntry::new(
             &self.node_elements,
             out_mult.into(),
-            &[out_val, node_id],
+            &[out_val.clone(), node_id],
+        ));
+
+        eval.add_to_relation(RelationEntry::new(
+            &self.lookup_elements,
+            lookup_mult.into(),
+            &[input_val, out_val],
         ));
 
         eval.finalize_logup();

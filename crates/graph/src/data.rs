@@ -1,36 +1,47 @@
 use luminal::prelude::*;
+use num_traits::Zero;
 use numerair::Fixed;
 use std::sync::Arc;
 
-/// Represents tensor data in a form compatible with Stwo.
+/// A wrapper for tensor data using `Fixed` point numbers, suitable for the STWO prover.
+///
+/// Stores data as an `Arc<Vec<Fixed>>` for efficient sharing.
 #[derive(Clone, Debug)]
 pub(crate) struct StwoData(pub(crate) Arc<Vec<Fixed>>);
 
 impl StwoData {
-    /// Creates a new `StwoData` instance from a slice of `f32` values.
+    /// Creates a new `StwoData` instance by converting a slice of `f32` values to `Fixed` point.
     pub(crate) fn from_f32(data: &[f32]) -> Self {
-        let mut fixed_data = Vec::with_capacity(data.len());
-        for d in data {
-            fixed_data.push(Fixed::from_f64(*d as f64));
-        }
+        let fixed_data = data
+            .iter()
+            .map(|&d| Fixed::from_f64(d as f64))
+            .collect::<Vec<_>>();
 
         StwoData(Arc::new(fixed_data))
     }
 
-    /// Converts the fixed point data back to a vector of `f32` values.
+    /// Converts the internal `Fixed` point data back to a vector of `f32` values.
     pub(crate) fn to_f32(&self) -> Vec<f32> {
-        let mut float_data = Vec::with_capacity(self.0.len());
+        self.0.iter().map(|&d| d.to_f64() as f32).collect()
+    }
 
-        for &d in self.0.iter() {
-            float_data.push(d.to_f64() as f32);
-        }
-
-        float_data
+    /// Finds the minimum and maximum `Fixed` point values within the data.
+    pub(crate) fn min_max(&self) -> (Fixed, Fixed) {
+        self.0.iter().fold(
+            (Fixed::zero(), Fixed::zero()),
+            |(min_val, max_val), &val| match self.0.len() {
+                0 => (Fixed::zero(), Fixed::zero()),
+                _ if min_val.0 == 0 && max_val.0 == 0 => (val, val),
+                _ => (
+                    if val.0 < min_val.0 { val } else { min_val },
+                    if val.0 > max_val.0 { val } else { max_val },
+                ),
+            },
+        )
     }
 }
 
-/// Implementation of the `Data` trait for `StwoData`, allowing it to be used
-/// within the Luminal framework's tensor system.
+/// Enables `StwoData` to be used as a generic data container within Luminal's tensor operations.
 impl Data for StwoData {
     fn as_any(&self) -> &dyn std::any::Any {
         self

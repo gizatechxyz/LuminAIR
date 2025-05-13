@@ -4,39 +4,56 @@ use numerair::eval::EvalFixedPoint;
 use stwo_prover::constraint_framework::{
     EvalAtRow, FrameworkComponent, FrameworkEval, RelationEntry,
 };
+
+/// The STWO AIR component for element-wise addition operations.
+///
+/// This wraps the `AddEval` logic within the STWO `FrameworkComponent`,
+/// which handles common AIR component setup and evaluation.
 /// Component for element-wise addition operations, using `SimdBackend` with fallback to `CpuBackend` for small traces.
 pub type AddComponent = FrameworkComponent<AddEval>;
 
-/// Defines the AIR for the addition component.
+/// Defines the AIR constraints evaluation logic for the Add component.
+///
+/// Implements the `FrameworkEval` trait, providing methods to define the component's
+/// trace layout, constraint degrees, and the core constraint evaluation function.
 pub struct AddEval {
+    /// Log2 size of the component's trace segment.
     log_size: u32,
-    lookup_elements: NodeElements,
+    /// Interaction elements for node relations (used in LogUp).
+    node_elements: NodeElements,
 }
 
 impl AddEval {
-    /// Creates a new `AddEval` instance from a claim and lookup elements.
-    pub fn new(claim: &AddClaim, lookup_elements: NodeElements) -> Self {
+    /// Creates a new `AddEval` instance.
+    /// Takes the component's claim (for `log_size`) and interaction elements.
+    pub fn new(claim: &AddClaim, node_elements: NodeElements) -> Self {
         Self {
             log_size: claim.log_size,
-            lookup_elements,
+            node_elements,
         }
     }
 }
 
+/// Implements the core constraint evaluation logic for the Add component.
 impl FrameworkEval for AddEval {
-    /// Returns the logarithmic size of the main trace.
+    /// Returns the log2 size of this component's trace segment.
     fn log_size(&self) -> u32 {
         self.log_size
     }
 
-    /// The degree of the constraints is bounded by the size of the trace.
-    ///
-    /// Returns the ilog2 (upper) bound of the constraint degree for the component.
+    /// Returns the maximum expected log2 degree bound for the component's constraints.
+    /// Used by the framework to configure constraint evaluation domains.
     fn max_constraint_log_degree_bound(&self) -> u32 {
         self.log_size + 1
     }
 
-    /// Evaluates the AIR constraints for the addition operation.
+    /// Evaluates the Add AIR constraints on a given evaluation point (`eval`).
+    ///
+    /// Defines constraints ensuring:
+    /// - **Consistency:** Correctness of individual rows (e.g., `lhs + rhs == out`, boolean flags).
+    /// - **Transition:** Correctness of transitions between consecutive rows (e.g., index increments).
+    /// - **Interaction (LogUp):** Links values used/produced by Add operations to the global LogUp argument,
+    ///   ensuring consistency across the entire computation trace.
     fn evaluate<E: EvalAtRow>(&self, mut eval: E) -> E {
         // IDs
         let node_id = eval.next_trace_mask(); // ID of the node in the computational graph.
@@ -95,19 +112,19 @@ impl FrameworkEval for AddEval {
         // └─────────────────────────────┘
 
         eval.add_to_relation(RelationEntry::new(
-            &self.lookup_elements,
+            &self.node_elements,
             lhs_mult.into(),
             &[lhs_val, lhs_id],
         ));
 
         eval.add_to_relation(RelationEntry::new(
-            &self.lookup_elements,
+            &self.node_elements,
             rhs_mult.into(),
             &[rhs_val, rhs_id],
         ));
 
         eval.add_to_relation(RelationEntry::new(
-            &self.lookup_elements,
+            &self.node_elements,
             out_mult.into(),
             &[out_val, node_id],
         ));

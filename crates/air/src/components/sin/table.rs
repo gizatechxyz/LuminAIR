@@ -1,10 +1,3 @@
-use crate::{
-    components::{
-        InteractionClaim, NodeElements, SumReduceClaim, TraceColumn, TraceError, TraceEval,
-    },
-    utils::calculate_log_size,
-};
-use num_traits::One;
 use num_traits::{One, Zero};
 use serde::{Deserialize, Serialize};
 use stwo_prover::core::{
@@ -19,56 +12,50 @@ use crate::components::TraceColumn;
 
 use super::witness::N_TRACE_COLUMNS;
 
-/// Represents the raw trace data collected for Sum-Reduce operations.
+/// Represents the raw trace data collected for Sine (`sin(x)`) operations.
 ///
-/// Stores rows capturing the step-by-step accumulation process, inputs, outputs,
-/// and metadata for each SumReduce operation.
+/// Stores rows capturing inputs, outputs, and metadata for each Sin operation,
+/// including multiplicities for LogUp and the Sine Lookup Table interaction.
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
-pub struct SumReduceTraceTable {
-    /// Vector containing all rows of the SumReduce trace.
-    pub table: Vec<SumReduceTraceTableRow>,
+pub struct SinTraceTable {
+    /// Vector containing all rows of the Sin trace.
+    pub table: Vec<SinTraceTableRow>,
 }
 
-/// Represents a single row in the `SumReduceTraceTable`.
+/// Represents a single row in the `SinTraceTable`.
 ///
-/// Contains values for evaluating SumReduce AIR constraints: current/next state IDs,
-/// current input value, current/next accumulator value, a flag indicating the last step
-/// of reduction for an output element, the final output (valid on last step),
-/// and LogUp multiplicities.
-#[derive(Debug, Default, Copy, Clone, serde::Serialize, serde::Deserialize)]
-pub struct SumReduceTraceTableRow {
-    /// ID of the current SumReduce node.
+/// Contains values for evaluating Sin AIR constraints: current/next state IDs,
+/// input/output values, and multiplicities for LogUp (input/output) and LUT interaction.
+#[derive(Debug, Copy, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SinTraceTableRow {
+    /// ID of the current Sin node.
     pub node_id: M31,
-    /// ID of the node providing the input tensor.
+    /// ID of the node providing the input.
     pub input_id: M31,
-    /// Index of the output element being computed.
+    /// Index within the tensor for this operation.
     pub idx: M31,
-    /// Flag: is this the last output element for this node (1 if true, 0 otherwise).
+    /// Flag indicating if this is the last element processed for this node (1 if true, 0 otherwise).
     pub is_last_idx: M31,
-    /// ID of the *next* SumReduce node processed in the trace.
+    /// ID of the *next* Sin node processed in the trace.
     pub next_node_id: M31,
     /// ID of the *next* input provider node.
     pub next_input_id: M31,
-    /// Index of the *next* output element.
+    /// Index of the *next* element processed.
     pub next_idx: M31,
-    /// Current input value being processed in the reduction sum.
+    /// Value of the input (`x`).
     pub input: M31,
-    /// Final output value (sum for `idx`). Valid only if `is_last_step` is 1.
+    /// Value of the output (`sin(x)`).
     pub out: M31,
-    /// Accumulator value *before* adding the current `input`.
-    pub acc: M31,
-    /// Accumulator value *after* adding the current `input` (`acc + input`).
-    pub next_acc: M31,
-    /// Flag: is this the last input element being summed for the current `out` (1 if true, 0 otherwise).
-    pub is_last_step: M31,
-    /// Multiplicity contribution for the LogUp argument (input tensor values).
+    /// Multiplicity contribution for the LogUp argument (input).
     pub input_mult: M31,
-    /// Multiplicity contribution for the LogUp argument (output tensor values).
+    /// Multiplicity contribution for the LogUp argument (output).
     pub out_mult: M31,
+    /// Multiplicity contribution for the Sine Lookup Table interaction.
+    pub lookup_mult: M31,
 }
 
-impl SumReduceTraceTableRow {
-    /// Creates a default padding row for the SumReduce trace.
+impl SinTraceTableRow {
+    /// Creates a default padding row for the Sin trace.
     pub(crate) fn padding() -> Self {
         Self {
             node_id: M31::zero(),
@@ -80,25 +67,23 @@ impl SumReduceTraceTableRow {
             next_idx: M31::zero(),
             input: M31::zero(),
             out: M31::zero(),
-            acc: M31::zero(),
-            next_acc: M31::zero(),
-            is_last_step: M31::zero(),
             input_mult: M31::zero(),
             out_mult: M31::zero(),
+            lookup_mult: M31::zero(),
         }
     }
 }
 
-/// SIMD-packed representation of a `SumReduceTraceTableRow`.
+/// SIMD-packed representation of a `SinTraceTableRow`.
 #[derive(Debug, Copy, Clone)]
-pub struct PackedSumReduceTraceTableRow {
+pub struct PackedSinTraceTableRow {
     /// Packed `node_id` values.
     pub node_id: PackedM31,
     /// Packed `input_id` values.
     pub input_id: PackedM31,
-    /// Packed `idx` (output element index) values.
+    /// Packed `idx` values.
     pub idx: PackedM31,
-    /// Packed `is_last_idx` flags.
+    /// Packed `is_last_idx` values.
     pub is_last_idx: PackedM31,
     /// Packed `next_node_id` values.
     pub next_node_id: PackedM31,
@@ -106,27 +91,23 @@ pub struct PackedSumReduceTraceTableRow {
     pub next_input_id: PackedM31,
     /// Packed `next_idx` values.
     pub next_idx: PackedM31,
-    /// Packed current `input` values for reduction.
+    /// Packed `input` values.
     pub input: PackedM31,
-    /// Packed `out` (final sum) values.
+    /// Packed `out` values.
     pub out: PackedM31,
-    /// Packed `acc` (accumulator before input) values.
-    pub acc: PackedM31,
-    /// Packed `next_acc` (accumulator after input) values.
-    pub next_acc: PackedM31,
-    /// Packed `is_last_step` flags (for reduction step).
-    pub is_last_step: PackedM31,
     /// Packed `input_mult` values.
     pub input_mult: PackedM31,
     /// Packed `out_mult` values.
     pub out_mult: PackedM31,
+    /// Packed `lookup_mult` values.
+    pub lookup_mult: PackedM31,
 }
 
-impl Pack for SumReduceTraceTableRow {
-    type SimdType = PackedSumReduceTraceTableRow;
+impl Pack for SinTraceTableRow {
+    type SimdType = PackedSinTraceTableRow;
 
     fn pack(inputs: [Self; N_LANES]) -> Self::SimdType {
-        PackedSumReduceTraceTableRow {
+        PackedSinTraceTableRow {
             node_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].node_id)),
             input_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].input_id)),
             idx: PackedM31::from_array(std::array::from_fn(|i| inputs[i].idx)),
@@ -136,17 +117,15 @@ impl Pack for SumReduceTraceTableRow {
             next_idx: PackedM31::from_array(std::array::from_fn(|i| inputs[i].next_idx)),
             input: PackedM31::from_array(std::array::from_fn(|i| inputs[i].input)),
             out: PackedM31::from_array(std::array::from_fn(|i| inputs[i].out)),
-            acc: PackedM31::from_array(std::array::from_fn(|i| inputs[i].acc)),
-            next_acc: PackedM31::from_array(std::array::from_fn(|i| inputs[i].next_acc)),
-            is_last_step: PackedM31::from_array(std::array::from_fn(|i| inputs[i].is_last_step)),
             input_mult: PackedM31::from_array(std::array::from_fn(|i| inputs[i].input_mult)),
             out_mult: PackedM31::from_array(std::array::from_fn(|i| inputs[i].out_mult)),
+            lookup_mult: PackedM31::from_array(std::array::from_fn(|i| inputs[i].lookup_mult)),
         }
     }
 }
 
-impl Unpack for PackedSumReduceTraceTableRow {
-    type CpuType = SumReduceTraceTableRow;
+impl Unpack for PackedSinTraceTableRow {
+    type CpuType = SinTraceTableRow;
 
     fn unpack(self) -> [Self::CpuType; N_LANES] {
         let (
@@ -159,11 +138,9 @@ impl Unpack for PackedSumReduceTraceTableRow {
             next_idx,
             input,
             out,
-            acc,
-            next_acc,
-            is_last_step,
             input_mult,
             out_mult,
+            lookup_mult,
         ) = (
             self.node_id.to_array(),
             self.input_id.to_array(),
@@ -174,14 +151,12 @@ impl Unpack for PackedSumReduceTraceTableRow {
             self.next_idx.to_array(),
             self.input.to_array(),
             self.out.to_array(),
-            self.acc.to_array(),
-            self.next_acc.to_array(),
-            self.is_last_step.to_array(),
             self.input_mult.to_array(),
             self.out_mult.to_array(),
+            self.lookup_mult.to_array(),
         );
 
-        std::array::from_fn(|i| SumReduceTraceTableRow {
+        std::array::from_fn(|i| SinTraceTableRow {
             node_id: node_id[i],
             input_id: input_id[i],
             idx: idx[i],
@@ -191,35 +166,56 @@ impl Unpack for PackedSumReduceTraceTableRow {
             next_idx: next_idx[i],
             input: input[i],
             out: out[i],
-            acc: acc[i],
-            next_acc: next_acc[i],
-            is_last_step: is_last_step[i],
             input_mult: input_mult[i],
             out_mult: out_mult[i],
+            lookup_mult: lookup_mult[i],
         })
     }
 }
 
-impl SumReduceTraceTable {
-    /// Creates a new, empty `SumReduceTraceTable`.
+impl SinTraceTable {
+    /// Creates a new, empty `SinTraceTable`.
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Appends a single row to the trace table.
-    pub fn add_row(&mut self, row: SumReduceTraceTableRow) {
+    pub fn add_row(&mut self, row: SinTraceTableRow) {
         self.table.push(row);
     }
 }
 
-/// Enum defining the columns of the SumReduce AIR component's trace.
+/// Enum defining the columns of the Sin AIR component's trace.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum SumReduceColumn {
-    NodeId, InputId, Idx, IsLastIdx, NextNodeId, NextInputId, NextIdx, Input, Out, Acc, NextAcc, IsLastStep, InputMult, OutMult
+pub enum SinColumn {
+    /// ID of the current Sin node.
+    NodeId,
+    /// ID of the node providing the input.
+    InputId,
+    /// Index within the tensor for this operation.
+    Idx,
+    /// Flag indicating if this is the last element processed for this node.
+    IsLastIdx,
+    /// ID of the *next* Sin node processed in the trace.
+    NextNodeId,
+    /// ID of the *next* input provider node.
+    NextInputId,
+    /// Index of the *next* element processed.
+    NextIdx,
+    /// Value of the input (`x`).
+    Input,
+    /// Value of the output (`sin(x)`).
+    Out,
+    /// Multiplicity for the LogUp argument (input).
+    InputMult,
+    /// Multiplicity for the LogUp argument (output).
+    OutMult,
+    /// Multiplicity for the Sine Lookup Table interaction.
+    LookupMult,
 }
 
-impl SumReduceColumn {
-    /// Returns the 0-based index for this column within the SumReduce trace segment.
+impl SinColumn {
+    /// Returns the 0-based index for this column within the Sin trace segment.
     pub const fn index(self) -> usize {
         match self {
             Self::NodeId => 0,
@@ -231,21 +227,19 @@ impl SumReduceColumn {
             Self::NextIdx => 6,
             Self::Input => 7,
             Self::Out => 8,
-            Self::Acc => 9,
-            Self::NextAcc => 10,
-            Self::IsLastStep => 11,
-            Self::InputMult => 12,
-            Self::OutMult => 13,
+            Self::InputMult => 9,
+            Self::OutMult => 10,
+            Self::LookupMult => 11,
         }
     }
 }
 
-/// Implements the `TraceColumn` trait for `SumReduceColumn`.
-impl TraceColumn for SumReduceColumn {
-    /// Specifies the number of columns used by the SumReduce component.
-    /// Returns `(N_TRACE_COLUMNS, 2)`, indicating main trace columns
-    /// and 2 interaction trace columns (for input and output LogUp).
+/// Implements the `TraceColumn` trait for `SinColumn`.
+impl TraceColumn for SinColumn {
+    /// Specifies the number of columns used by the Sin component.
+    /// Returns `(N_TRACE_COLUMNS, 3)`, indicating the number of main trace columns
+    /// and 3 interaction trace columns (input LogUp, output LogUp, LUT interaction).
     fn count() -> (usize, usize) {
-        (N_TRACE_COLUMNS, 2)
+        (N_TRACE_COLUMNS, 3)
     }
 }

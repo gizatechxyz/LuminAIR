@@ -1,152 +1,232 @@
-use crate::{
-    components::{InteractionClaim, NodeElements, RecipClaim, TraceColumn, TraceError, TraceEval},
-    utils::calculate_log_size,
-};
-use num_traits::One;
+use num_traits::{One, Zero};
 use serde::{Deserialize, Serialize};
-use stwo_prover::{
-    constraint_framework::{logup::LogupTraceGenerator, Relation},
-    core::{
-        backend::{
-            simd::{column::BaseColumn, m31::LOG_N_LANES},
-            Column,
-        },
-        fields::m31::BaseField,
-        poly::circle::{CanonicCoset, CircleEvaluation},
+use stwo_prover::core::{
+    backend::simd::{
+        conversion::{Pack, Unpack},
+        m31::{PackedM31, N_LANES},
     },
+    fields::m31::M31,
 };
 
-/// Represents the trace for the Recip component, containing the required registers for its
-/// constraints.
-#[derive(Debug, Default, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
-pub struct RecipTable {
-    /// A vector of [`RecipTableRow`] representing the table rows.
-    pub table: Vec<RecipTableRow>,
+use crate::components::TraceColumn;
+
+use super::witness::N_TRACE_COLUMNS;
+
+/// Represents the raw trace data collected for Reciprocal operations (`1/x`).
+///
+/// Stores rows capturing inputs, outputs, remainder (for fixed-point reciprocal),
+/// and metadata for each Recip operation.
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+pub struct RecipTraceTable {
+    /// Vector containing all rows of the Recip trace.
+    pub table: Vec<RecipTraceTableRow>,
 }
 
-/// Represents a single row of the [`RecipTable`]
-#[derive(Debug, Default, PartialEq, Eq, Clone, serde::Serialize, serde::Deserialize)]
-pub struct RecipTableRow {
-    pub node_id: BaseField,
-    pub input_id: BaseField,
-    pub idx: BaseField,
-    pub is_last_idx: BaseField,
-    pub next_node_id: BaseField,
-    pub next_input_id: BaseField,
-    pub next_idx: BaseField,
-    pub input: BaseField,
-    pub out: BaseField,
-    pub rem: BaseField,
-    pub scale: BaseField,
-    pub input_mult: BaseField,
-    pub out_mult: BaseField,
+/// Represents a single row in the `RecipTraceTable`.
+///
+/// Contains values for evaluating Recip AIR constraints: current/next state IDs,
+/// input/output values, fixed-point remainder, scale factor, and LogUp multiplicities.
+#[derive(Debug, Copy, Clone, serde::Serialize, serde::Deserialize)]
+pub struct RecipTraceTableRow {
+    /// ID of the current Recip node.
+    pub node_id: M31,
+    /// ID of the node providing the input.
+    pub input_id: M31,
+    /// Index within the tensor for this operation.
+    pub idx: M31,
+    /// Flag indicating if this is the last element processed for this node (1 if true, 0 otherwise).
+    pub is_last_idx: M31,
+    /// ID of the *next* Recip node processed in the trace.
+    pub next_node_id: M31,
+    /// ID of the *next* input provider node.
+    pub next_input_id: M31,
+    /// Index of the *next* element processed.
+    pub next_idx: M31,
+    /// Value of the input (`x`).
+    pub input: M31,
+    /// Value of the output (`SCALE / x`).
+    pub out: M31,
+    /// Remainder from fixed-point reciprocal (`SCALE % x`).
+    pub rem: M31,
+    /// The scale factor used (typically `numerair::SCALE_FACTOR`).
+    pub scale: M31,
+    /// Multiplicity contribution for the LogUp argument (input).
+    pub input_mult: M31,
+    /// Multiplicity contribution for the LogUp argument (output).
+    pub out_mult: M31,
 }
 
-impl RecipTable {
-    /// Creates a new, empty [`RecipTable`].
+impl RecipTraceTableRow {
+    /// Creates a default padding row for the Recip trace.
+    pub(crate) fn padding() -> Self {
+        Self {
+            node_id: M31::zero(),
+            input_id: M31::zero(),
+            idx: M31::zero(),
+            is_last_idx: M31::one(),
+            next_node_id: M31::zero(),
+            next_input_id: M31::zero(),
+            next_idx: M31::zero(),
+            input: M31::zero(),
+            out: M31::zero(),
+            rem: M31::zero(),
+            scale: M31::zero(),
+            input_mult: M31::zero(),
+            out_mult: M31::zero(),
+        }
+    }
+}
+
+/// SIMD-packed representation of a `RecipTraceTableRow`.
+#[derive(Debug, Copy, Clone)]
+pub struct PackedRecipTraceTableRow {
+    /// Packed `node_id` values.
+    pub node_id: PackedM31,
+    /// Packed `input_id` values.
+    pub input_id: PackedM31,
+    /// Packed `idx` values.
+    pub idx: PackedM31,
+    /// Packed `is_last_idx` values.
+    pub is_last_idx: PackedM31,
+    /// Packed `next_node_id` values.
+    pub next_node_id: PackedM31,
+    /// Packed `next_input_id` values.
+    pub next_input_id: PackedM31,
+    /// Packed `next_idx` values.
+    pub next_idx: PackedM31,
+    /// Packed `input` values.
+    pub input: PackedM31,
+    /// Packed `out` values.
+    pub out: PackedM31,
+    /// Packed `rem` values.
+    pub rem: PackedM31,
+    /// Packed `scale` values.
+    pub scale: PackedM31,
+    /// Packed `input_mult` values.
+    pub input_mult: PackedM31,
+    /// Packed `out_mult` values.
+    pub out_mult: PackedM31,
+}
+
+impl Pack for RecipTraceTableRow {
+    type SimdType = PackedRecipTraceTableRow;
+
+    fn pack(inputs: [Self; N_LANES]) -> Self::SimdType {
+        PackedRecipTraceTableRow {
+            node_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].node_id)),
+            input_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].input_id)),
+            idx: PackedM31::from_array(std::array::from_fn(|i| inputs[i].idx)),
+            is_last_idx: PackedM31::from_array(std::array::from_fn(|i| inputs[i].is_last_idx)),
+            next_node_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].next_node_id)),
+            next_input_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].next_input_id)),
+            next_idx: PackedM31::from_array(std::array::from_fn(|i| inputs[i].next_idx)),
+            input: PackedM31::from_array(std::array::from_fn(|i| inputs[i].input)),
+            out: PackedM31::from_array(std::array::from_fn(|i| inputs[i].out)),
+            rem: PackedM31::from_array(std::array::from_fn(|i| inputs[i].rem)),
+            scale: PackedM31::from_array(std::array::from_fn(|i| inputs[i].scale)),
+            input_mult: PackedM31::from_array(std::array::from_fn(|i| inputs[i].input_mult)),
+            out_mult: PackedM31::from_array(std::array::from_fn(|i| inputs[i].out_mult)),
+        }
+    }
+}
+
+impl Unpack for PackedRecipTraceTableRow {
+    type CpuType = RecipTraceTableRow;
+
+    fn unpack(self) -> [Self::CpuType; N_LANES] {
+        let (
+            node_id,
+            input_id,
+            idx,
+            is_last_idx,
+            next_node_id,
+            next_input_id,
+            next_idx,
+            input,
+            out,
+            rem,
+            scale,
+            input_mult,
+            out_mult,
+        ) = (
+            self.node_id.to_array(),
+            self.input_id.to_array(),
+            self.idx.to_array(),
+            self.is_last_idx.to_array(),
+            self.next_node_id.to_array(),
+            self.next_input_id.to_array(),
+            self.next_idx.to_array(),
+            self.input.to_array(),
+            self.out.to_array(),
+            self.rem.to_array(),
+            self.scale.to_array(),
+            self.input_mult.to_array(),
+            self.out_mult.to_array(),
+        );
+
+        std::array::from_fn(|i| RecipTraceTableRow {
+            node_id: node_id[i],
+            input_id: input_id[i],
+            idx: idx[i],
+            is_last_idx: is_last_idx[i],
+            next_node_id: next_node_id[i],
+            next_input_id: next_input_id[i],
+            next_idx: next_idx[i],
+            input: input[i],
+            out: out[i],
+            rem: rem[i],
+            scale: scale[i],
+            input_mult: input_mult[i],
+            out_mult: out_mult[i],
+        })
+    }
+}
+
+impl RecipTraceTable {
+    /// Creates a new, empty `RecipTraceTable`.
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Adds a new row to the Recip Table.
-    pub fn add_row(&mut self, row: RecipTableRow) {
+    /// Appends a single row to the trace table.
+    pub fn add_row(&mut self, row: RecipTraceTableRow) {
         self.table.push(row);
-    }
-
-    /// Transforms the [`RecipTable`] into [`TraceEval`] to be committed
-    /// when generating a STARK proof.
-    pub fn trace_evaluation(&self) -> Result<(TraceEval, RecipClaim), TraceError> {
-        let n_rows = self.table.len();
-        if n_rows == 0 {
-            return Err(TraceError::EmptyTrace);
-        }
-        // Calculate log size
-        let log_size = calculate_log_size(n_rows);
-
-        // Calculate trace size
-        let trace_size = 1 << log_size;
-
-        // Create columns
-        let mut node_id = BaseColumn::zeros(trace_size);
-        let mut input_id = BaseColumn::zeros(trace_size);
-        let mut idx = BaseColumn::zeros(trace_size);
-        let mut is_last_idx = BaseColumn::zeros(trace_size);
-        let mut next_node_id = BaseColumn::zeros(trace_size);
-        let mut next_input_id = BaseColumn::zeros(trace_size);
-        let mut next_idx = BaseColumn::zeros(trace_size);
-        let mut input = BaseColumn::zeros(trace_size);
-        let mut out = BaseColumn::zeros(trace_size);
-        let mut rem = BaseColumn::zeros(trace_size);
-        let mut scale = BaseColumn::zeros(trace_size);
-        let mut input_mult = BaseColumn::zeros(trace_size);
-        let mut out_mult = BaseColumn::zeros(trace_size);
-
-        // Fill columns
-        for (vec_row, row) in self.table.iter().enumerate() {
-            node_id.set(vec_row, row.node_id);
-            input_id.set(vec_row, row.input_id);
-            idx.set(vec_row, row.idx);
-            is_last_idx.set(vec_row, row.is_last_idx);
-            next_node_id.set(vec_row, row.next_node_id);
-            next_input_id.set(vec_row, row.next_input_id);
-            next_idx.set(vec_row, row.next_idx);
-            input.set(vec_row, row.input);
-            out.set(vec_row, row.out);
-            rem.set(vec_row, row.rem);
-            scale.set(vec_row, row.scale);
-            input_mult.set(vec_row, row.input_mult);
-            out_mult.set(vec_row, row.out_mult);
-        }
-
-        for i in self.table.len()..trace_size {
-            is_last_idx.set(i, BaseField::one());
-        }
-
-        // Create domain
-        let domain = CanonicCoset::new(log_size).circle_domain();
-
-        // Create trace
-        let mut trace = Vec::with_capacity(RecipColumn::count().0);
-        trace.push(CircleEvaluation::new(domain, node_id));
-        trace.push(CircleEvaluation::new(domain, input_id));
-        trace.push(CircleEvaluation::new(domain, idx));
-        trace.push(CircleEvaluation::new(domain, is_last_idx));
-        trace.push(CircleEvaluation::new(domain, next_node_id));
-        trace.push(CircleEvaluation::new(domain, next_input_id));
-        trace.push(CircleEvaluation::new(domain, next_idx));
-        trace.push(CircleEvaluation::new(domain, input));
-        trace.push(CircleEvaluation::new(domain, out));
-        trace.push(CircleEvaluation::new(domain, rem));
-        trace.push(CircleEvaluation::new(domain, scale));
-        trace.push(CircleEvaluation::new(domain, input_mult));
-        trace.push(CircleEvaluation::new(domain, out_mult));
-
-        assert_eq!(trace.len(), RecipColumn::count().0);
-
-        Ok((trace, RecipClaim::new(log_size)))
     }
 }
 
-/// Enum representing the column indices in the Recip trace.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+/// Enum defining the columns of the Recip AIR component's trace.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum RecipColumn {
+    /// ID of the current Recip node.
     NodeId,
+    /// ID of the node providing the input.
     InputId,
+    /// Index within the tensor for this operation.
     Idx,
+    /// Flag indicating if this is the last element processed for this node.
     IsLastIdx,
+    /// ID of the *next* Recip node processed in the trace.
     NextNodeId,
+    /// ID of the *next* input provider node.
     NextInputId,
+    /// Index of the *next* element processed.
     NextIdx,
+    /// Value of the input (`x`).
     Input,
+    /// Value of the output (`SCALE / x`).
     Out,
+    /// Remainder from fixed-point reciprocal (`SCALE % x`).
     Rem,
+    /// The scale factor used.
     Scale,
+    /// Multiplicity for the LogUp argument (input).
     InputMult,
+    /// Multiplicity for the LogUp argument (output).
     OutMult,
 }
 
 impl RecipColumn {
-    /// Returns the index of the column in the Recip trace.
+    /// Returns the 0-based index for this column within the Recip trace segment.
     pub const fn index(self) -> usize {
         match self {
             Self::NodeId => 0,
@@ -165,62 +245,13 @@ impl RecipColumn {
         }
     }
 }
+
+/// Implements the `TraceColumn` trait for `RecipColumn`.
 impl TraceColumn for RecipColumn {
-    /// Returns the number of columns in the main trace and interaction trace.
+    /// Specifies the number of columns used by the Recip component.
+    /// Returns `(N_TRACE_COLUMNS, 2)`, indicating the number of main trace columns
+    /// and 2 interaction trace columns (for input and output LogUp).
     fn count() -> (usize, usize) {
-        (13, 2)
+        (N_TRACE_COLUMNS, 2)
     }
-}
-
-/// Generates the interaction trace for the Recip component using the main trace and lookup elements.
-pub fn interaction_trace_evaluation(
-    main_trace_eval: &TraceEval,
-    lookup_elements: &NodeElements,
-) -> Result<(TraceEval, InteractionClaim), TraceError> {
-    if main_trace_eval.is_empty() {
-        return Err(TraceError::EmptyTrace);
-    }
-
-    let log_size = main_trace_eval[0].domain.log_size();
-    let mut logup_gen = LogupTraceGenerator::new(log_size);
-
-    // Create trace for Input
-    let input_main_col = &main_trace_eval[RecipColumn::Input.index()].data;
-    let input_id_col = &main_trace_eval[RecipColumn::InputId.index()].data;
-    let input_mult_col = &main_trace_eval[RecipColumn::InputMult.index()].data;
-    let mut input_int_col = logup_gen.new_col();
-    for row in 0..1 << (log_size - LOG_N_LANES) {
-        let input = input_main_col[row];
-        let id = input_id_col[row];
-        let multiplicity = input_mult_col[row];
-
-        input_int_col.write_frac(
-            row,
-            multiplicity.into(),
-            lookup_elements.combine(&[input, id]),
-        );
-    }
-    input_int_col.finalize_col();
-
-    // Create trace for OUTPUT
-    let out_main_col = &main_trace_eval[RecipColumn::Out.index()].data;
-    let node_id_col = &main_trace_eval[RecipColumn::NodeId.index()].data;
-    let out_mult_col = &main_trace_eval[RecipColumn::OutMult.index()].data;
-    let mut out_int_col = logup_gen.new_col();
-    for row in 0..1 << (log_size - LOG_N_LANES) {
-        let out = out_main_col[row];
-        let id = node_id_col[row];
-        let multiplicity = out_mult_col[row];
-
-        out_int_col.write_frac(
-            row,
-            multiplicity.into(),
-            lookup_elements.combine(&[out, id]),
-        );
-    }
-    out_int_col.finalize_col();
-
-    let (trace, claimed_sum) = logup_gen.finalize_last();
-
-    Ok((trace, InteractionClaim { claimed_sum }))
 }
