@@ -1,6 +1,7 @@
 #![feature(portable_simd, iter_array_chunks, array_chunks, raw_slice_split)]
 
 use ::serde::{Deserialize, Serialize};
+use components::{AddClaim, InteractionClaim, LessThanClaim, MulClaim, RecipClaim, SumReduceClaim};
 use components::{
     add, lookups, max_reduce, mul, recip, sin, sum_reduce, AddClaim, InteractionClaim,
     MaxReduceClaim, MulClaim, RecipClaim, SinClaim, SinLookupClaim, SumReduceClaim,
@@ -50,6 +51,25 @@ pub struct LuminairClaim {
     pub sum_reduce: Option<SumReduceClaim>,
     /// Claim for the MaxReduce component's trace.
     pub max_reduce: Option<MaxReduceClaim>,
+    pub is_first_log_sizes: Vec<u32>,
+    pub lessthan: Option<LessThanClaim>,
+}
+
+impl LuminairClaim {
+    /// Initializes a new claim with specified preprocessed trace log sizes.
+    pub fn new(is_first_log_sizes: Vec<u32>) -> Self {
+        Self {
+            add: None,
+            mul: None,
+            lessthan: None,
+            sum_reduce: None,
+            recip: None,
+            max_reduce: None,
+            is_first_log_sizes,
+        }
+    }
+
+    /// Mixes claim data into a Fiat-Shamir channel for proof binding.
 }
 
 impl LuminairClaim {
@@ -69,6 +89,11 @@ impl LuminairClaim {
         if let Some(ref claim) = self.sin {
             claim.mix_into(channel);
         }
+        if let Some(ref lessthan) = self.lessthan {
+            lessthan.mix_into(channel);
+        }
+        if let Some(ref sum_reduce) = self.sum_reduce {
+            sum_reduce.mix_into(channel);
         if let Some(ref claim) = self.sin_lookup {
             claim.mix_into(channel);
         }
@@ -92,6 +117,11 @@ impl LuminairClaim {
         if let Some(ref claim) = self.mul {
             log_sizes.push(claim.log_sizes());
         }
+        if let Some(ref lessthan) = self.lessthan {
+            log_sizes.push(lessthan.log_sizes());
+        }
+        if let Some(ref sum_reduce) = self.sum_reduce {
+            log_sizes.push(sum_reduce.log_sizes());
         if let Some(ref claim) = self.recip {
             log_sizes.push(claim.log_sizes());
         }
@@ -146,6 +176,8 @@ pub struct LuminairInteractionClaim {
     pub add: Option<InteractionClaim>,
     /// Interaction claim for the Mul component.
     pub mul: Option<InteractionClaim>,
+    pub lessthan: Option<InteractionClaim>,
+    pub sum_reduce: Option<InteractionClaim>,
     /// Interaction claim for the Recip component.
     pub recip: Option<InteractionClaim>,
     /// Interaction claim for the Sin component.
@@ -174,6 +206,14 @@ impl LuminairInteractionClaim {
         if let Some(ref claim) = self.sin {
             claim.mix_into(channel);
         }
+        if let Some(ref add) = self.add {
+            add.mix_into(channel);
+        }
+        if let Some(ref lessthan) = self.lessthan {
+            lessthan.mix_into(channel);
+        }
+        if let Some(ref sum_reduce) = self.sum_reduce {
+            sum_reduce.mix_into(channel);
         if let Some(ref claim) = self.sin_lookup {
             claim.mix_into(channel);
         }

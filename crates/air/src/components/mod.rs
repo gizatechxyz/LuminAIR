@@ -4,6 +4,9 @@ use add::{
     component::{AddComponent, AddEval},
     table::AddColumn,
 };
+use lessthan::{
+    component::{LessThanComponent, LessThanEval},
+    table::LessThanColumn,
 use lookups::{
     sin::{
         component::{SinLookupComponent, SinLookupEval},
@@ -51,6 +54,7 @@ use thiserror::Error;
 use crate::{preprocessed::PreProcessedTrace, LuminairClaim, LuminairInteractionClaim};
 
 pub mod add;
+pub mod lessthan;
 pub mod lookups;
 pub mod max_reduce;
 pub mod mul;
@@ -74,6 +78,11 @@ pub type TraceEval = ColumnVec<CircleEvaluation<SimdBackend, BaseField, BitRever
 pub type AddClaim = Claim<AddColumn>;
 /// Type alias for the claim associated with the Mul component's trace.
 pub type MulClaim = Claim<MulColumn>;
+/// Claim for the LessThan trace.
+pub type LessThanClaim = Claim<LessThanColumn>;
+/// Claim for the SumReduce trace.
+pub type SumReduceClaim = Claim<SumReduceColumn>;
+/// Claim for the Recip trace.
 /// Type alias for the claim associated with the Recip component's trace.
 pub type RecipClaim = Claim<RecipColumn>;
 /// Type alias for the claim associated with the Sin component's trace.
@@ -140,6 +149,8 @@ pub enum ClaimType {
     Add(Claim<AddColumn>),
     /// Claim for a Mul component trace.
     Mul(Claim<MulColumn>),
+    LessThan(Claim<LessThanColumn>),
+    SumReduce(Claim<SumReduceColumn>),
     /// Claim for a Recip component trace.
     Recip(Claim<RecipColumn>),
     /// Claim for a Sin component trace.
@@ -209,6 +220,8 @@ pub struct LuminairComponents {
     add: Option<AddComponent>,
     /// Optional Mul component instance.
     mul: Option<MulComponent>,
+    lessthan: Option<LessThanComponent>,
+    sum_reduce: Option<SumReduceComponent>,
     /// Optional Recip component instance.
     recip: Option<RecipComponent>,
     /// Optional Sin component instance.
@@ -264,6 +277,21 @@ impl LuminairComponents {
             None
         };
 
+        let lessthan = if let Some(ref lessthan_claim) = claim.lessthan {
+            Some(LessThanComponent::new(
+                tree_span_provider,
+                LessThanEval::new(
+                    &lessthan_claim,
+                    interaction_elements.node_lookup_elements.clone(),
+                ),
+                interaction_claim.lessthan.as_ref().unwrap().claimed_sum,
+            ))
+        } else {
+            None
+        };
+
+        let sum_reduce = if let Some(ref sum_reduce_claim) = claim.sum_reduce {
+            Some(SumReduceComponent::new(
         let recip = if let Some(ref recip_claim) = claim.recip {
             Some(RecipComponent::new(
                 tree_span_provider,
@@ -332,6 +360,8 @@ impl LuminairComponents {
         Self {
             add,
             mul,
+            lessthan,
+            sum_reduce,
             recip,
             sin,
             sin_lookup,
@@ -356,6 +386,11 @@ impl LuminairComponents {
         if let Some(ref component) = self.recip {
             components.push(component);
         }
+        if let Some(ref lessthan_component) = self.lessthan {
+            components.push(lessthan_component);
+        }
+        if let Some(ref sum_reduce_component) = self.sum_reduce {
+            components.push(sum_reduce_component);
 
         if let Some(ref component) = self.sin {
             components.push(component);

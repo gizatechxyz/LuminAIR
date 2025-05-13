@@ -1,5 +1,9 @@
 use serde::{Deserialize, Serialize};
 
+use crate::components::{
+    add::table::AddTable, lessthan::table::LessThanTable, mul::table::MulTable,
+    add::table::AddTable, max_reduce::table::MaxReduceTable, mul::table::MulTable,
+    recip::table::RecipTable, sum_reduce::table::SumReduceTable, ClaimType, TraceError, TraceEval,
 use crate::{
     components::{
         add::table::AddTraceTable, lookups::sin::table::SinLookupTraceTable,
@@ -16,6 +20,19 @@ use crate::{
 /// produced during the graph execution (`gen_trace` phase) into a heterogeneous list (`Vec<TraceTable>`)
 /// before being processed by the prover.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub enum TableTrace {
+    /// Addition operator trace table.
+    Add { table: AddTable },
+    /// Multiplication operator trace table.
+    Mul { table: MulTable },
+    /// LessThan operator trace table.
+    LessThan { table: LessThanTable },
+    /// Sum Reduce operator trace table.
+    SumReduce { table: SumReduceTable },
+    /// Recip operator trace table.
+    Recip { table: RecipTable },
+    /// Max Reduce operator trace table.
+    MaxReduce { table: MaxReduceTable },
 pub enum TraceTable {
     /// Trace table for Add operations.
     Add { table: AddTraceTable },
@@ -42,6 +59,16 @@ impl TraceTable {
     pub fn from_mul(table: MulTraceTable) -> Self {
         Self::Mul { table }
     }
+
+    /// Creates a new [`TableTrace`] from a [`LessThanTable`]
+    /// for use in the proof generation.
+    pub fn from_lessthan(table: LessThanTable) -> Self {
+        Self::LessThan { table }
+    }
+
+    /// Creates a new [`TableTrace`] from a [`RecipTable`]
+    /// for use in the proof generation.
+    pub fn from_recip(table: RecipTable) -> Self {
     /// Creates a `TraceTable::Recip` variant.
     pub fn from_recip(table: RecipTraceTable) -> Self {
         Self::Recip { table }
@@ -61,6 +88,40 @@ impl TraceTable {
     /// Creates a `TraceTable::MaxReduce` variant.
     pub fn from_max_reduce(table: MaxReduceTraceTable) -> Self {
         Self::MaxReduce { table }
+    }
+
+    pub fn to_trace(&self) -> Result<(TraceEval, ClaimType), TraceError> {
+        match self {
+            TableTrace::Add { table } => {
+                let (trace, claim) = table.trace_evaluation()?;
+                Ok((trace, ClaimType::Add(claim)))
+            }
+
+            TableTrace::Mul { table } => {
+                let (trace, claim) = table.trace_evaluation()?;
+                Ok((trace, ClaimType::Mul(claim)))
+            }
+
+            TableTrace::LessThan { table } => {
+                let (trace, claim) = table.trace_evaluation()?;
+                Ok((trace, ClaimType::LessThan(claim)))
+            }
+
+            TableTrace::SumReduce { table } => {
+                let (trace, claim) = table.trace_evaluation()?;
+                Ok((trace, ClaimType::SumReduce(claim)))
+            }
+
+            TableTrace::Recip { table } => {
+                let (trace, claim) = table.trace_evaluation()?;
+                Ok((trace, ClaimType::Recip(claim)))
+            }
+
+            TableTrace::MaxReduce { table } => {
+                let (trace, claim) = table.trace_evaluation()?;
+                Ok((trace, ClaimType::MaxReduce(claim)))
+            }
+        }
     }
 }
 
@@ -100,6 +161,12 @@ pub struct ExecutionResources {
 /// Counts the occurrences of each specific AIR operation type during graph execution.
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct OpCounter {
+    pub add: Option<usize>,
+    pub mul: Option<usize>,
+    pub lessthan: Option<usize>,
+    pub sum_reduce: Option<usize>,
+    pub recip: Option<usize>,
+    pub max_reduce: Option<usize>,
     /// Number of Add operations.
     pub add: usize,
     /// Number of Mul operations.
