@@ -1,3 +1,4 @@
+use luminair_air::DEFAULT_FP_SCALE;
 use luminal::prelude::*;
 use num_traits::Zero;
 use numerair::Fixed;
@@ -7,7 +8,7 @@ use std::sync::Arc;
 ///
 /// Stores data as an `Arc<Vec<Fixed>>` for efficient sharing.
 #[derive(Clone, Debug)]
-pub(crate) struct StwoData(pub(crate) Arc<Vec<Fixed>>);
+pub(crate) struct StwoData(pub(crate) Arc<Vec<Fixed<DEFAULT_FP_SCALE>>>);
 
 impl StwoData {
     /// Creates a new `StwoData` instance by converting a slice of `f32` values to `Fixed` point.
@@ -26,7 +27,7 @@ impl StwoData {
     }
 
     /// Finds the minimum and maximum `Fixed` point values within the data.
-    pub(crate) fn min_max(&self) -> (Fixed, Fixed) {
+    pub(crate) fn min_max(&self) -> (Fixed<DEFAULT_FP_SCALE>, Fixed<DEFAULT_FP_SCALE>) {
         self.0.iter().fold(
             (Fixed::zero(), Fixed::zero()),
             |(min_val, max_val), &val| match self.0.len() {

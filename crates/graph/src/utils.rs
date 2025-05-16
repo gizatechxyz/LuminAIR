@@ -1,7 +1,7 @@
 use std::any::{Any, TypeId};
 
 use crate::data::StwoData;
-use luminair_air::preprocessed::Range;
+use luminair_air::{preprocessed::Range, DEFAULT_FP_SCALE};
 use luminal::prelude::*;
 use num_traits::Zero;
 use numerair::Fixed;
@@ -29,7 +29,7 @@ pub(crate) fn get_index(
     (ind, val): &(Expression, Expression),
     stack: &mut Vec<i64>,
     index: usize,
-) -> Fixed {
+) -> Fixed<DEFAULT_FP_SCALE> {
     if val.exec_single_var_stack(index, stack) != 0 {
         let i = ind.exec_single_var_stack(index, stack);
         data.0[i]

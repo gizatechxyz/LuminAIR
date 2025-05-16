@@ -15,7 +15,7 @@ stwo-prover = { git = "https://github.com/starkware-libs/stwo", rev = "045963c",
 stwo-air-utils-derive = { git = "https://github.com/starkware-libs/stwo", rev = "045963c" }
 stwo-air-utils = { git = "https://github.com/starkware-libs/stwo", rev = "045963c" }
 luminal = { git = "https://github.com/raphaelDkhn/luminal.git", rev = "80ae0fd" }
-numerair = { git = "https://github.com/gizatechxyz/NumerAir.git", rev = "79d84ec" }
+numerair = { git = "https://github.com/gizatechxyz/NumerAir.git", rev = "564a85e" }
 rayon = "1.10.0"
 tracing = "0.1"
 tracing-subscriber = "0.3"

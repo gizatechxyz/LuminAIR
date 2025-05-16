@@ -1,8 +1,12 @@
-use crate::components::{MulClaim, NodeElements};
+use crate::{
+    components::{MulClaim, NodeElements},
+    DEFAULT_FP_SCALE,
+};
 use num_traits::One;
-use numerair::{eval::EvalFixedPoint, SCALE_FACTOR};
-use stwo_prover::constraint_framework::{
-    EvalAtRow, FrameworkComponent, FrameworkEval, RelationEntry,
+use numerair::eval::EvalFixedPoint;
+use stwo_prover::{
+    constraint_framework::{EvalAtRow, FrameworkComponent, FrameworkEval, RelationEntry},
+    core::fields::m31::M31,
 };
 
 /// The STWO AIR component for element-wise multiplication operations.
@@ -75,6 +79,8 @@ impl FrameworkEval for MulEval {
         let rhs_mult = eval.next_trace_mask();
         let out_mult = eval.next_trace_mask();
 
+        let scale_factor = E::F::from(M31::from_u32_unchecked(1 << DEFAULT_FP_SCALE));
+
         // ┌─────────────────────────────┐
         // │   Consistency Constraints   │
         // └─────────────────────────────┘
@@ -86,7 +92,7 @@ impl FrameworkEval for MulEval {
         eval.eval_fixed_mul(
             lhs_val.clone(),
             rhs_val.clone(),
-            SCALE_FACTOR.into(),
+            scale_factor,
             out_val.clone(),
             rem_val,
         );
