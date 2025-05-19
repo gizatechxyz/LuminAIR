@@ -17,6 +17,9 @@ use luminair_air::{
             sin::{table::SinLookupTraceTable, SinLookup},
             Lookups,
         },
+        lessthan::{
+            self,
+            table::{LessThanColumn, LessThanTable},
         max_reduce::{
             self,
             table::{MaxReduceColumn, MaxReduceTraceTable},
@@ -206,6 +209,12 @@ impl LuminairGraph for Graph {
         let mut op_counter = OpCounter::default();
 
         // Initializes table for each operator
+        let mut add_table = AddTable::new();
+        let mut mul_table = MulTable::new();
+        let mut lessthan_table = LessThanTable::new();
+        let mut recip_table = RecipTable::new();
+        let mut sum_reduce_table = SumReduceTable::new();
+        let mut max_reduce_table = MaxReduceTable::new();
         let mut add_table = AddTraceTable::new();
         let mut mul_table = MulTraceTable::new();
         let mut recip_table = RecipTraceTable::new();
@@ -286,6 +295,93 @@ impl LuminairGraph for Graph {
             let node_op = &mut *self.graph.node_weight_mut(*node).unwrap();
 
             let tensors =
+                if <Box<dyn Operator> as HasProcessTrace<AddColumn,
+        AddTable>>::has_process_trace(
+                    node_op,
+                ) {
+                    let tensors = <Box<dyn Operator> as HasProcessTrace<
+                        AddColumn,
+                        AddTable,
+                    >>::call_process_trace(
+                        node_op, srcs, &mut add_table, &node_info
+                    )
+                    .unwrap();
+                    *op_counter.add.get_or_insert(0) += 1;
+
+                    tensors
+                }  else if <Box<dyn Operator> as HasProcessTrace<MulColumn,
+        MulTable>>::has_process_trace(
+                    node_op,
+                ) {
+                    let tensors = <Box<dyn Operator> as HasProcessTrace<
+                        MulColumn,
+                        MulTable,
+                    >>::call_process_trace(
+                        node_op, srcs, &mut mul_table, &node_info
+                    )
+                    .unwrap();
+                    *op_counter.mul.get_or_insert(0) += 1;
+
+                    tensors
+                } else if <Box<dyn Operator> as HasProcessTrace<LessThanColumn,
+        LessThanTable>>::has_process_trace(
+                    node_op,
+                ) {
+                    let tensors = <Box<dyn Operator> as HasProcessTrace<
+                        LessThanColumn,
+                        LessThanTable,
+                    >>::call_process_trace(
+                        node_op, srcs, &mut lessthan_table, &node_info
+                    )
+                    .unwrap();
+                    *op_counter.lessthan.get_or_insert(0) += 1;
+
+                    tensors
+                } else if <Box<dyn Operator> as HasProcessTrace<SumReduceColumn,
+        SumReduceTable>>::has_process_trace(
+                    node_op,
+                ) {
+                    let tensors = <Box<dyn Operator> as HasProcessTrace<
+                        SumReduceColumn,
+                        SumReduceTable,
+                    >>::call_process_trace(
+                        node_op, srcs, &mut sum_reduce_table, &node_info
+                    )
+                    .unwrap();
+                    *op_counter.sum_reduce.get_or_insert(0) += 1;
+
+                    tensors
+                } else if <Box<dyn Operator> as HasProcessTrace<RecipColumn,
+        RecipTable>>::has_process_trace(
+                    node_op,
+                ) {
+                    let tensors = <Box<dyn Operator> as HasProcessTrace<
+                    RecipColumn,
+                    RecipTable,
+                    >>::call_process_trace(
+                        node_op, srcs, &mut recip_table, &node_info
+                    )
+                    .unwrap();
+                    *op_counter.recip.get_or_insert(0) += 1;
+
+                    tensors
+                } else if <Box<dyn Operator> as HasProcessTrace<MaxReduceColumn, MaxReduceTable>>::has_process_trace(
+                    node_op,
+                ) {
+                    let tensors = <Box<dyn Operator> as HasProcessTrace<
+                    MaxReduceColumn,
+                    MaxReduceTable,
+                    >>::call_process_trace(
+                        node_op, srcs, &mut max_reduce_table, &node_info
+                    )
+                    .unwrap();
+                    *op_counter.max_reduce.get_or_insert(0) += 1;
+
+                    tensors
+                }
+                else {
+                    // Handle other operators or fallback
+                    node_op.process(srcs)
                 match () {
                     _
                         if <Box<dyn Operator> as HasProcessTrace<
@@ -458,6 +554,13 @@ impl LuminairGraph for Graph {
             trace_tables.push(TraceTable::from_sqrt(sqrt_table));
         }
 
+        if !lessthan_table.table.is_empty() {
+            let log_size = calculate_log_size(lessthan_table.table.len());
+            max_log_size = max_log_size.max(log_size);
+
+            table_traces.push(TableTrace::from_lessthan(lessthan_table));
+        }
+
         Ok(LuminairPie {
             trace_tables,
             execution_resources: ExecutionResources {
@@ -520,6 +623,19 @@ impl LuminairGraph for Graph {
         let mut interaction_claim_gen = LuminairInteractionClaimGenerator::default();
         let mut tree_builder = commitment_scheme.tree_builder();
 
+            processed_traces.push((trace.clone(), claim_type.clone()));
+
+            // Add the trace to the commit tree.
+            tree_builder.extend_evals(trace.clone());
+
+            // Update the main claim based the correct claim type
+            match claim_type {
+                ClaimType::Add(claim) => main_claim.add = Some(claim),
+                ClaimType::Mul(claim) => main_claim.mul = Some(claim),
+                ClaimType::LessThan(claim) => main_claim.lessthan = Some(claim),
+                ClaimType::SumReduce(claim) => main_claim.sum_reduce = Some(claim),
+                ClaimType::Recip(claim) => main_claim.recip = Some(claim),
+                ClaimType::MaxReduce(claim) => main_claim.max_reduce = Some(claim),
         for table in pie.trace_tables.clone() {
             match table {
                 TraceTable::Add { table } => {
@@ -584,6 +700,52 @@ impl LuminairGraph for Graph {
         tracing::info!("Interaction Trace");
         let interaction_elements = LuminairInteractionElements::draw(channel);
         let mut interaction_claim = LuminairInteractionClaim::default();
+
+        let lookup_elements = &interaction_elements.node_lookup_elements;
+
+        for (trace, claim_type) in processed_traces {
+            match claim_type {
+                ClaimType::Add(_) => {
+                    let (tr, cl) =
+                        add::table::interaction_trace_evaluation(&trace, lookup_elements).unwrap();
+                    tree_builder.extend_evals(tr);
+                    interaction_claim.add = Some(cl);
+                }
+                ClaimType::Mul(_) => {
+                    let (tr, cl) =
+                        mul::table::interaction_trace_evaluation(&trace, lookup_elements).unwrap();
+                    tree_builder.extend_evals(tr);
+                    interaction_claim.mul = Some(cl);
+                }
+                ClaimType::LessThan(_) => {
+                    let (tr, cl) =
+                        lessthan::table::interaction_trace_evaluation(&trace, lookup_elements)
+                            .unwrap();
+                    tree_builder.extend_evals(tr);
+                    interaction_claim.lessthan = Some(cl);
+                }
+                ClaimType::SumReduce(_) => {
+                    let (tr, cl) =
+                        sum_reduce::table::interaction_trace_evaluation(&trace, lookup_elements)
+                            .unwrap();
+                    tree_builder.extend_evals(tr);
+                    interaction_claim.sum_reduce = Some(cl);
+                }
+                ClaimType::Recip(_) => {
+                    let (tr, cl) =
+                        recip::table::interaction_trace_evaluation(&trace, lookup_elements)
+                            .unwrap();
+                    tree_builder.extend_evals(tr);
+                    interaction_claim.recip = Some(cl);
+                }
+                ClaimType::MaxReduce(_) => {
+                    let (tr, cl) =
+                        max_reduce::table::interaction_trace_evaluation(&trace, lookup_elements)
+                            .unwrap();
+                    tree_builder.extend_evals(tr);
+                    interaction_claim.max_reduce = Some(cl);
+                }
+            }
         let mut tree_builder = commitment_scheme.tree_builder();
         let node_elements = &interaction_elements.node_elements;
         let lookup_elements = &interaction_elements.lookup_elements;
@@ -744,6 +906,63 @@ impl LuminairGraph for Graph {
     }
 }
 
+#[test]
+fn test_direct_table_trace_processing() {
+    use crate::StwoCompiler;
+
+    let mut cx = Graph::new();
+    let a = cx.tensor((10, 10)).set(vec![1.0; 100]);
+    let b = cx.tensor((10, 10)).set(vec![2.0; 100]);
+    let c = a * b;
+    let less = a.less_than(b);
+    let mut d = (c + a).retrieve();
+    let mut l = less.retrieve();
+
+    cx.compile(<(GenericCompiler, StwoCompiler)>::default(), &mut d);
+    cx.compile(<(GenericCompiler, StwoCompiler)>::default(), &mut l);
+    let _e = a.sum_reduce(0).retrieve();
+    let _f = a.max_reduce(0).retrieve();
+
+    cx.compile(<(GenericCompiler, StwoCompiler)>::default(), &mut d);
+
+    // Generate trace with direct table storage
+    let trace = cx.gen_trace().expect("Trace generation failed");
+
+    // Verify that table traces contain both operation types
+
+    let has_add = trace
+        .table_traces
+        .iter()
+        .any(|t| matches!(t, TableTrace::Add { .. }));
+    let has_mul = trace
+        .table_traces
+        .iter()
+        .any(|t| matches!(t, TableTrace::Mul { .. }));
+    let has_lessthan = trace
+        .table_traces
+        .iter()
+        .any(|t| matches!(t, TableTrace::LessThan { .. }));
+    let has_sum_reduce = trace
+        .table_traces
+        .iter()
+        .any(|t| matches!(t, TableTrace::SumReduce { .. }));
+    let has_max_reduce = trace
+        .table_traces
+        .iter()
+        .any(|t| matches!(t, TableTrace::MaxReduce { .. }));
+
+    assert!(has_add, "Should contain Add table traces");
+    assert!(has_mul, "Should contain Mul table traces");
+    assert!(has_lessthan, "Should contain LessThan table traces");
+    assert!(has_sum_reduce, "Should contain SumReduce table traces");
+    assert!(has_max_reduce, "Should contain MaxReduce table traces");
+
+    // Verify the end-to-end proof pipeline
+    let proof = cx.prove(trace).expect("Proof generation failed");
+    assert!(
+        cx.verify(proof).is_ok(),
+        "Proof verification should succeed"
+    );
 /// Merges overlapping or adjacent ranges into a minimal set of disjoint ranges.
 ///
 /// Used to consolidate the input ranges identified for lookup operations during

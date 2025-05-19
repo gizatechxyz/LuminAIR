@@ -1,3 +1,10 @@
+use crate::{
+    components::{
+        InteractionClaim, NodeElements, SumReduceClaim, TraceColumn, TraceError, TraceEval,
+    },
+    utils::calculate_log_size,
+};
+use num_traits::One;
 use num_traits::{One, Zero};
 use serde::{Deserialize, Serialize};
 use stwo_prover::core::{
