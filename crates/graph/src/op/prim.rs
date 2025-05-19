@@ -794,12 +794,12 @@ impl LuminairSumReduce {
                         (Fixed::<DEFAULT_FP_SCALE>::zero(), BaseField::zero()) // Placeholder for incomplete reductions
                     };
 
-                    // Only collect intermediate values if in trace mode
+                    // Record intermediate values if in trace mode
                     if let Some(values) = &mut intermediate_values {
                         values.push((idx, input_val, out_val, acc, next_acc, is_last_step));
-
-                        acc = next_acc;
                     }
+                    // Update running sum
+                    acc = next_acc;
                 }
             }
         }
@@ -954,7 +954,7 @@ impl LuminairMaxReduce {
 
                     let idx = i * back_size + j; // Index for out_data
 
-                    // Only collect intermediate values if in trace mode
+                    // Record intermediate values if in trace mode
                     if let Some(values) = &mut intermediate_values {
                         values.push((
                             idx,
@@ -965,9 +965,10 @@ impl LuminairMaxReduce {
                             is_max,
                             is_last_step,
                         ));
-
-                        max_val = next_max_val;
                     }
+
+                    // Update running maximum
+                    max_val = next_max_val;
                 }
             }
         }
