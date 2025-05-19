@@ -312,7 +312,7 @@ impl LuminairGraph for Graph {
                         (),
                     >>::has_process_trace(node_op) =>
                     {
-                        op_counter.mul += 1;
+                        op_counter.recip += 1;
                         <Box<dyn Operator> as HasProcessTrace<RecipColumn, RecipTraceTable, ()>>::call_process_trace(
                         node_op, srcs, &mut recip_table, &node_info, &mut ()
                     ).unwrap()
@@ -323,7 +323,7 @@ impl LuminairGraph for Graph {
                         SinLookup,
                     >>::has_process_trace(node_op) =>
                     {
-                        op_counter.mul += 1;
+                        op_counter.sin += 1;
                         match settings.lookups.sin.as_mut() {
                             Some(lookup) => <Box<dyn Operator> as HasProcessTrace<
                                 SinColumn,
@@ -346,7 +346,7 @@ impl LuminairGraph for Graph {
                         (),
                     >>::has_process_trace(node_op) =>
                     {
-                        op_counter.mul += 1;
+                        op_counter.sum_reduce += 1;
                         <Box<dyn Operator> as HasProcessTrace<
                             SumReduceColumn,
                             SumReduceTraceTable,
@@ -366,7 +366,7 @@ impl LuminairGraph for Graph {
                         (),
                     >>::has_process_trace(node_op) =>
                     {
-                        op_counter.mul += 1;
+                        op_counter.max_reduce += 1;
                         <Box<dyn Operator> as HasProcessTrace<
                             MaxReduceColumn,
                             MaxReduceTraceTable,
