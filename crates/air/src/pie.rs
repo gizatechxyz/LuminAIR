@@ -4,7 +4,7 @@ use crate::{
     components::{
         add::table::AddTraceTable, lookups::sin::table::SinLookupTraceTable,
         max_reduce::table::MaxReduceTraceTable, mul::table::MulTraceTable,
-        recip::table::RecipTraceTable, sin::table::SinTraceTable,
+        recip::table::RecipTraceTable, sin::table::SinTraceTable, sqrt::table::SqrtTraceTable,
         sum_reduce::table::SumReduceTraceTable,
     },
     utils::AtomicMultiplicityColumn,
@@ -31,6 +31,8 @@ pub enum TraceTable {
     SumReduce { table: SumReduceTraceTable },
     /// Trace table for MaxReduce operations.
     MaxReduce { table: MaxReduceTraceTable },
+    /// Trace table for Sqrt operations.
+    Sqrt { table: SqrtTraceTable },
 }
 
 impl TraceTable {
@@ -62,6 +64,10 @@ impl TraceTable {
     pub fn from_max_reduce(table: MaxReduceTraceTable) -> Self {
         Self::MaxReduce { table }
     }
+    /// Creates a `TraceTable::Sqrt` variant.
+    pub fn from_sqrt(table: SqrtTraceTable) -> Self {
+        Self::Sqrt { table }
+    }
 }
 
 /// Primary container for the PIE generated during trace execution.
@@ -82,8 +88,6 @@ pub struct LuminairPie {
 pub struct LUTMultiplicities {
     pub sin: AtomicMultiplicityColumn,
 }
-
-
 
 /// Holds resource usage metadata gathered during graph execution.
 ///
@@ -112,6 +116,8 @@ pub struct OpCounter {
     pub sum_reduce: usize,
     /// Number of MaxReduce operations.
     pub max_reduce: usize,
+    /// Number of Sqrt operations.
+    pub sqrt: usize,
 }
 
 /// Metadata about a specific input to a graph node.
