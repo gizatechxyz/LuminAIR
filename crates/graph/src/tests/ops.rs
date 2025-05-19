@@ -12,6 +12,7 @@ use rand::{rngs::StdRng, SeedableRng};
 // =============== UNARY ===============
 // unary_test!(|a| a.recip(), test_recip, f32, true);
 unary_test!(|a| a.sin(), test_sin, f32, true);
+unary_test!(|a| a.sqrt(), test_sqrt, f32, true);
 
 // =============== BINARY ===============
 

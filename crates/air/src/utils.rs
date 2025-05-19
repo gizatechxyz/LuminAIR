@@ -49,6 +49,7 @@ pub fn log_sum_valid(interaction_claim: &LuminairInteractionClaim) -> bool {
         &interaction_claim.max_reduce,
         &interaction_claim.sin,
         &interaction_claim.sin_lookup,
+        &interaction_claim.sqrt,
     ] {
         if let Some(ref int_cl) = claim_opt {
             sum += int_cl.claimed_sum.into();
@@ -57,7 +58,6 @@ pub fn log_sum_valid(interaction_claim: &LuminairInteractionClaim) -> bool {
 
     sum.is_zero()
 }
-
 
 /// Packs a slice of elements `T` into SIMD vectors (`T::SimdType`).
 ///

@@ -7,6 +7,7 @@ use crate::{
         TraceEval,
     },
     utils::calculate_log_size,
+    DEFAULT_FP_SCALE,
 };
 use numerair::Fixed;
 use serde::{Deserialize, Serialize};
@@ -28,7 +29,7 @@ use typetag;
 
 /// Represents a closed range [min, max] using fixed-point numbers.
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct Range(pub Fixed, pub Fixed);
+pub struct Range(pub Fixed<DEFAULT_FP_SCALE>, pub Fixed<DEFAULT_FP_SCALE>);
 
 /// Defines the layout of a lookup table (LUT) based on value ranges.
 ///
@@ -280,8 +281,14 @@ impl PreProcessedColumn for SinPreProcessed {
 
         for (i, value) in all_values.iter().enumerate() {
             match self.col_index {
-                0 => column.set(i, Fixed(*value).to_m31()),
-                1 => column.set(i, Fixed::from_f64(Fixed(*value).to_f64().sin()).to_m31()),
+                0 => column.set(i, Fixed::<DEFAULT_FP_SCALE>(*value).to_m31()),
+                1 => column.set(
+                    i,
+                    Fixed::<DEFAULT_FP_SCALE>::from_f64(
+                        Fixed::<DEFAULT_FP_SCALE>(*value).to_f64().sin(),
+                    )
+                    .to_m31(),
+                ),
                 _ => unreachable!(),
             }
         }

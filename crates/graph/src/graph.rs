@@ -36,6 +36,10 @@ use luminair_air::{
             self,
             table::{SinColumn, SinTraceTable},
         },
+        sqrt::{
+            self,
+            table::{SqrtColumn, SqrtTraceTable},
+        },
         sum_reduce::{
             self,
             table::{SumReduceColumn, SumReduceTraceTable},
@@ -218,6 +222,7 @@ impl LuminairGraph for Graph {
         let mut sin_lookup_table = SinLookupTraceTable::new();
         let mut sum_reduce_table = SumReduceTraceTable::new();
         let mut max_reduce_table = MaxReduceTraceTable::new();
+        let mut sqrt_table = SqrtTraceTable::new();
 
         for (node, src_ids) in self.linearized_graph.as_ref().unwrap() {
             if self.tensors.contains_key(&(*node, 0)) {
@@ -408,7 +413,7 @@ impl LuminairGraph for Graph {
                         (),
                     >>::has_process_trace(node_op) =>
                     {
-                        op_counter.mul += 1;
+                        op_counter.recip += 1;
                         <Box<dyn Operator> as HasProcessTrace<RecipColumn, RecipTraceTable, ()>>::call_process_trace(
                         node_op, srcs, &mut recip_table, &node_info, &mut ()
                     ).unwrap()
@@ -419,7 +424,7 @@ impl LuminairGraph for Graph {
                         SinLookup,
                     >>::has_process_trace(node_op) =>
                     {
-                        op_counter.mul += 1;
+                        op_counter.sin += 1;
                         match settings.lookups.sin.as_mut() {
                             Some(lookup) => <Box<dyn Operator> as HasProcessTrace<
                                 SinColumn,
@@ -442,7 +447,7 @@ impl LuminairGraph for Graph {
                         (),
                     >>::has_process_trace(node_op) =>
                     {
-                        op_counter.mul += 1;
+                        op_counter.sum_reduce += 1;
                         <Box<dyn Operator> as HasProcessTrace<
                             SumReduceColumn,
                             SumReduceTraceTable,
@@ -462,7 +467,7 @@ impl LuminairGraph for Graph {
                         (),
                     >>::has_process_trace(node_op) =>
                     {
-                        op_counter.mul += 1;
+                        op_counter.max_reduce += 1;
                         <Box<dyn Operator> as HasProcessTrace<
                             MaxReduceColumn,
                             MaxReduceTraceTable,
@@ -475,6 +480,17 @@ impl LuminairGraph for Graph {
                             &mut (),
                         )
                         .unwrap()
+                    }
+                    _ if <Box<dyn Operator> as HasProcessTrace<
+                        SqrtColumn,
+                        SqrtTraceTable,
+                        (),
+                    >>::has_process_trace(node_op) =>
+                    {
+                        op_counter.sqrt += 1;
+                        <Box<dyn Operator> as HasProcessTrace<SqrtColumn, SqrtTraceTable, ()>>::call_process_trace(
+                        node_op, srcs, &mut sqrt_table, &node_info, &mut ()
+                    ).unwrap()
                     }
                     _ => node_op.process(srcs),
                 };
@@ -531,6 +547,11 @@ impl LuminairGraph for Graph {
             let log_size = calculate_log_size(max_reduce_table.table.len());
             max_log_size = max_log_size.max(log_size);
             trace_tables.push(TraceTable::from_max_reduce(max_reduce_table));
+        }
+        if !sqrt_table.table.is_empty() {
+            let log_size = calculate_log_size(sqrt_table.table.len());
+            max_log_size = max_log_size.max(log_size);
+            trace_tables.push(TraceTable::from_sqrt(sqrt_table));
         }
 
         if !lessthan_table.table.is_empty() {
@@ -659,6 +680,12 @@ impl LuminairGraph for Graph {
                     main_claim.max_reduce = Some(cl.clone());
                     interaction_claim_gen.max_reduce = Some(in_cl_gen);
                 }
+                TraceTable::Sqrt { table } => {
+                    let claim_gen = sqrt::witness::ClaimGenerator::new(table);
+                    let (cl, in_cl_gen) = claim_gen.write_trace(&mut tree_builder)?;
+                    main_claim.sqrt = Some(cl.clone());
+                    interaction_claim_gen.sqrt = Some(in_cl_gen);
+                }
             }
         }
         // Mix the claim into the Fiat-Shamir channel.
@@ -760,6 +787,10 @@ impl LuminairGraph for Graph {
         if let Some(claim_gen) = interaction_claim_gen.max_reduce {
             let claim = claim_gen.write_interaction_trace(&mut tree_builder, node_elements);
             interaction_claim.max_reduce = Some(claim)
+        }
+        if let Some(claim_gen) = interaction_claim_gen.sqrt {
+            let claim = claim_gen.write_interaction_trace(&mut tree_builder, node_elements);
+            interaction_claim.sqrt = Some(claim)
         }
         // Mix the interaction claim into the Fiat-Shamir channel.
         interaction_claim.mix_into(channel);

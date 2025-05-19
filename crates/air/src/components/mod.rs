@@ -31,6 +31,10 @@ use sin::{
     component::{SinComponent, SinEval},
     table::SinColumn,
 };
+use sqrt::{
+    component::{SqrtComponent, SqrtEval},
+    table::SqrtColumn,
+};
 use stwo_prover::{
     constraint_framework::TraceLocationAllocator,
     core::{
@@ -60,6 +64,7 @@ pub mod max_reduce;
 pub mod mul;
 pub mod recip;
 pub mod sin;
+pub mod sqrt;
 pub mod sum_reduce;
 
 /// Errors that can occur during AIR trace generation or processing.
@@ -93,6 +98,8 @@ pub type SinLookupClaim = Claim<SinLookupColumn>;
 pub type SumReduceClaim = Claim<SumReduceColumn>;
 /// Type alias for the claim associated with the MaxReduce component's trace.
 pub type MaxReduceClaim = Claim<MaxReduceColumn>;
+/// Type alias for the claim associated with the Sqrt component's trace.
+pub type SqrtClaim = Claim<SqrtColumn>;
 
 /// Trait implemented by trace column definitions (e.g., `AddColumn`).
 /// Provides metadata about the number of columns used by the component.
@@ -161,6 +168,8 @@ pub enum ClaimType {
     SumReduce(Claim<SumReduceColumn>),
     /// Claim for a MaxReduce component trace.
     MaxReduce(Claim<MaxReduceColumn>),
+    /// Claim for a Sqrt component trace.
+    Sqrt(Claim<SqrtColumn>),
 }
 
 /// Represents the claim resulting from the interaction phase (e.g., LogUp protocol).
@@ -232,6 +241,8 @@ pub struct LuminairComponents {
     sum_reduce: Option<SumReduceComponent>,
     /// Optional MaxReduce component instance.
     max_reduce: Option<MaxReduceComponent>,
+    /// Optional Sqrt component instance.
+    sqrt: Option<SqrtComponent>,
 }
 
 impl LuminairComponents {
@@ -357,6 +368,16 @@ impl LuminairComponents {
             None
         };
 
+        let sqrt = if let Some(ref sqrt_claim) = claim.sqrt {
+            Some(SqrtComponent::new(
+                tree_span_provider,
+                SqrtEval::new(&sqrt_claim, interaction_elements.node_elements.clone()),
+                interaction_claim.sqrt.as_ref().unwrap().claimed_sum,
+            ))
+        } else {
+            None
+        };
+
         Self {
             add,
             mul,
@@ -367,6 +388,7 @@ impl LuminairComponents {
             sin_lookup,
             sum_reduce,
             max_reduce,
+            sqrt,
         }
     }
 
@@ -405,6 +427,10 @@ impl LuminairComponents {
         }
 
         if let Some(ref component) = self.max_reduce {
+            components.push(component);
+        }
+
+        if let Some(ref component) = self.sqrt {
             components.push(component);
         }
         components

@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use stwo_prover::{core::fields::m31::BaseField, relation};
 use table::{SinLookupTraceTable, SinLookupTraceTableRow};
 
-use crate::{preprocessed::LookupLayout, utils::AtomicMultiplicityColumn};
+use crate::{preprocessed::LookupLayout, utils::AtomicMultiplicityColumn, DEFAULT_FP_SCALE};
 
 pub mod component;
 pub mod table;
@@ -57,9 +57,9 @@ impl SinLookup {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct SinLookupData {
     /// Column of input values (`x`) to the sine function.
-    pub col_0: Vec<Fixed>,
+    pub col_0: Vec<Fixed<DEFAULT_FP_SCALE>>,
     /// Column of output values (`sin(x)`).
-    pub col_1: Vec<Fixed>,
+    pub col_1: Vec<Fixed<DEFAULT_FP_SCALE>>,
 }
 
 impl SinLookupData {

@@ -3,8 +3,8 @@
 use ::serde::{Deserialize, Serialize};
 use components::{AddClaim, InteractionClaim, LessThanClaim, MulClaim, RecipClaim, SumReduceClaim};
 use components::{
-    add, lookups, max_reduce, mul, recip, sin, sum_reduce, AddClaim, InteractionClaim,
-    MaxReduceClaim, MulClaim, RecipClaim, SinClaim, SinLookupClaim, SumReduceClaim,
+    add, lookups, max_reduce, mul, recip, sin, sqrt, sum_reduce, AddClaim, InteractionClaim,
+    MaxReduceClaim, MulClaim, RecipClaim, SinClaim, SinLookupClaim, SqrtClaim, SumReduceClaim,
 };
 use stwo_prover::core::{
     channel::Channel, pcs::TreeVec, prover::StarkProof, vcs::ops::MerkleHasher,
@@ -14,6 +14,9 @@ pub mod components;
 pub mod pie;
 pub mod preprocessed;
 pub mod utils;
+
+// TODO (@raphaelDkhn): We should parametizing the fixed pointscale.
+pub const DEFAULT_FP_SCALE: u32 = 12;
 
 /// Represents the complete proof for a LuminAIR computation.
 ///
@@ -70,6 +73,8 @@ impl LuminairClaim {
     }
 
     /// Mixes claim data into a Fiat-Shamir channel for proof binding.
+    /// Claim for the Sqrt component's trace.
+    pub sqrt: Option<SqrtClaim>,
 }
 
 impl LuminairClaim {
@@ -101,6 +106,9 @@ impl LuminairClaim {
             claim.mix_into(channel);
         }
         if let Some(ref claim) = self.max_reduce {
+            claim.mix_into(channel);
+        }
+        if let Some(ref claim) = self.sqrt {
             claim.mix_into(channel);
         }
     }
@@ -137,6 +145,9 @@ impl LuminairClaim {
         if let Some(ref claim) = self.max_reduce {
             log_sizes.push(claim.log_sizes());
         }
+        if let Some(ref claim) = self.sqrt {
+            log_sizes.push(claim.log_sizes());
+        }
         TreeVec::concat_cols(log_sizes.into_iter())
     }
 }
@@ -162,13 +173,15 @@ pub struct LuminairInteractionClaimGenerator {
     pub sum_reduce: Option<sum_reduce::witness::InteractionClaimGenerator>,
     /// Generator for the MaxReduce component's interaction claim.
     pub max_reduce: Option<max_reduce::witness::InteractionClaimGenerator>,
+    /// Generator for the Sqrt component's interaction claim.
+    pub sqrt: Option<sqrt::witness::InteractionClaimGenerator>,
 }
 
 /// Container for claims related to the interaction trace of LuminAIR components.
 ///
 /// These claims typically arise from LogUp protocol, representing accumulated values
 /// across different trace segments after incorporating randomness drawn from the channel.
-/// They are essential for linking different parts of the trace (e.g., main trace, lookups) and for ensuring 
+/// They are essential for linking different parts of the trace (e.g., main trace, lookups) and for ensuring
 /// the integrity of the dataflow.
 #[derive(Serialize, Deserialize, Default, Debug)]
 pub struct LuminairInteractionClaim {
@@ -188,6 +201,8 @@ pub struct LuminairInteractionClaim {
     pub sum_reduce: Option<InteractionClaim>,
     /// Interaction claim for the MaxReduce component.
     pub max_reduce: Option<InteractionClaim>,
+    /// Interaction claim for the Sqrt component.
+    pub sqrt: Option<InteractionClaim>,
 }
 
 impl LuminairInteractionClaim {
@@ -221,6 +236,9 @@ impl LuminairInteractionClaim {
             claim.mix_into(channel);
         }
         if let Some(ref claim) = self.max_reduce {
+            claim.mix_into(channel);
+        }
+        if let Some(ref claim) = self.sqrt {
             claim.mix_into(channel);
         }
     }
