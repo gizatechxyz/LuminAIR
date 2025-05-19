@@ -2,8 +2,8 @@
 
 use ::serde::{Deserialize, Serialize};
 use components::{
-    add, lookups, max_reduce, mul, recip, sin, sum_reduce, AddClaim, InteractionClaim,
-    MaxReduceClaim, MulClaim, RecipClaim, SinClaim, SinLookupClaim, SumReduceClaim,
+    add, lookups, max_reduce, mul, recip, sin, sqrt, sum_reduce, AddClaim, InteractionClaim,
+    MaxReduceClaim, MulClaim, RecipClaim, SinClaim, SinLookupClaim, SqrtClaim, SumReduceClaim,
 };
 use stwo_prover::core::{
     channel::Channel, pcs::TreeVec, prover::StarkProof, vcs::ops::MerkleHasher,
@@ -53,6 +53,8 @@ pub struct LuminairClaim {
     pub sum_reduce: Option<SumReduceClaim>,
     /// Claim for the MaxReduce component's trace.
     pub max_reduce: Option<MaxReduceClaim>,
+    /// Claim for the Sqrt component's trace.
+    pub sqrt: Option<SqrtClaim>,
 }
 
 impl LuminairClaim {
@@ -79,6 +81,9 @@ impl LuminairClaim {
             claim.mix_into(channel);
         }
         if let Some(ref claim) = self.max_reduce {
+            claim.mix_into(channel);
+        }
+        if let Some(ref claim) = self.sqrt {
             claim.mix_into(channel);
         }
     }
@@ -110,6 +115,9 @@ impl LuminairClaim {
         if let Some(ref claim) = self.max_reduce {
             log_sizes.push(claim.log_sizes());
         }
+        if let Some(ref claim) = self.sqrt {
+            log_sizes.push(claim.log_sizes());
+        }
         TreeVec::concat_cols(log_sizes.into_iter())
     }
 }
@@ -135,6 +143,8 @@ pub struct LuminairInteractionClaimGenerator {
     pub sum_reduce: Option<sum_reduce::witness::InteractionClaimGenerator>,
     /// Generator for the MaxReduce component's interaction claim.
     pub max_reduce: Option<max_reduce::witness::InteractionClaimGenerator>,
+    /// Generator for the Sqrt component's interaction claim.
+    pub sqrt: Option<sqrt::witness::InteractionClaimGenerator>,
 }
 
 /// Container for claims related to the interaction trace of LuminAIR components.
@@ -159,6 +169,8 @@ pub struct LuminairInteractionClaim {
     pub sum_reduce: Option<InteractionClaim>,
     /// Interaction claim for the MaxReduce component.
     pub max_reduce: Option<InteractionClaim>,
+    /// Interaction claim for the Sqrt component.
+    pub sqrt: Option<InteractionClaim>,
 }
 
 impl LuminairInteractionClaim {
@@ -184,6 +196,9 @@ impl LuminairInteractionClaim {
             claim.mix_into(channel);
         }
         if let Some(ref claim) = self.max_reduce {
+            claim.mix_into(channel);
+        }
+        if let Some(ref claim) = self.sqrt {
             claim.mix_into(channel);
         }
     }
