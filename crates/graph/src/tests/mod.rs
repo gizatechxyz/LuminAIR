@@ -1,4 +1,3 @@
-use luminal::{graph::Graph, op::Operator};
 use rand::Rng;
 
 mod ops;
@@ -186,14 +185,6 @@ macro_rules! binary_test {
         // Test broadcasting a column vector to a matrix
         $crate::single_binary_test!($func, $name, $type, (3, 1), (3, 4), $nonzero);
     };
-}
-
-#[allow(dead_code)]
-pub fn assert_op_in_graph<T: Operator + 'static>(graph: &Graph) {
-    assert!(
-        graph.node_indices().any(|i| graph.check_node_type::<T>(i)),
-        "Node not found in the graph!"
-    );
 }
 
 pub fn random_vec_rng<R: Rng>(n: usize, rng: &mut R, nonzero: bool) -> Vec<f32> {

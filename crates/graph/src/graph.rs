@@ -93,7 +93,7 @@ pub enum LuminairError {
     StwoVerifierError(#[from] VerificationError),
 
     #[error("{0} LogUp values do not match.")]
-    InvalidLogUp(String),
+    InvalidLogUp(Box<str>),
 }
 
 /// Trait defining the core functionality of a LuminAIR computation graph.
@@ -717,7 +717,7 @@ impl LuminairGraph for Graph {
 
         // Validate LogUp sum
         if !log_sum_valid(&interaction_claim) {
-            return Err(LuminairError::InvalidLogUp("Invalid LogUp sum".to_string()));
+            return Err(LuminairError::InvalidLogUp("Invalid LogUp sum".into()));
         }
 
         interaction_claim.mix_into(channel);
