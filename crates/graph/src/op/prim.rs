@@ -23,7 +23,7 @@ use stwo_prover::core::fields::m31::{BaseField, M31};
 
 use crate::{
     data::StwoData,
-    utils::{get_buffer_from_tensor, get_index, is},
+    utils::{get_buffer_from_tensor, get_index, is, expansion_factor},
 };
 
 use super::{IntoOperator, LuminairOperator};
@@ -188,10 +188,11 @@ impl LuminairOperator<RecipColumn, RecipTraceTable, ()> for LuminairRecip {
         let input_id: BaseField = node_info.inputs[0].id.into();
         let output_size = inp[0].1.n_elements().to_usize().unwrap();
 
+        let factor = expansion_factor(&inp[0].1);
         let input_mult = if node_info.inputs[0].is_initializer {
             BaseField::zero()
         } else {
-            -BaseField::one()
+            -BaseField::from_u32_unchecked(factor)
         };
         let out_mult = if node_info.output.is_final_output {
             BaseField::zero()
@@ -299,10 +300,11 @@ impl LuminairOperator<SinColumn, SinTraceTable, SinLookup> for LuminairSin {
         let input_id: BaseField = node_info.inputs[0].id.into();
         let output_size = inp[0].1.n_elements().to_usize().unwrap();
 
+        let factor = expansion_factor(&inp[0].1);
         let input_mult = if node_info.inputs[0].is_initializer {
             BaseField::zero()
         } else {
-            -BaseField::one()
+            -BaseField::from_u32_unchecked(factor)
         };
         let out_mult = if node_info.output.is_final_output {
             BaseField::zero()
@@ -421,10 +423,11 @@ impl LuminairOperator<SqrtColumn, SqrtTraceTable, ()> for LuminairSqrt {
         let input_id: BaseField = node_info.inputs[0].id.into();
         let output_size = inp[0].1.n_elements().to_usize().unwrap();
 
+        let factor = expansion_factor(&inp[0].1);
         let input_mult = if node_info.inputs[0].is_initializer {
             BaseField::zero()
         } else {
-            -BaseField::one()
+            -BaseField::from_u32_unchecked(factor)
         };
         let out_mult = if node_info.output.is_final_output {
             BaseField::zero()
@@ -543,15 +546,17 @@ impl LuminairOperator<AddColumn, AddTraceTable, ()> for LuminairAdd {
         let lhs_id: BaseField = node_info.inputs[0].id.into();
         let rhs_id: BaseField = node_info.inputs[1].id.into();
 
+        let lhs_factor = expansion_factor(&inp[0].1);
+        let rhs_factor = expansion_factor(&inp[1].1);
         let lhs_mult = if node_info.inputs[0].is_initializer {
             BaseField::zero()
         } else {
-            -BaseField::one()
+            -BaseField::from_u32_unchecked(lhs_factor)
         };
         let rhs_mult = if node_info.inputs[1].is_initializer {
             BaseField::zero()
         } else {
-            -BaseField::one()
+            -BaseField::from_u32_unchecked(rhs_factor)
         };
         let out_mult = if node_info.output.is_final_output {
             BaseField::zero()
@@ -672,15 +677,17 @@ impl LuminairOperator<MulColumn, MulTraceTable, ()> for LuminairMul {
         let lhs_id: BaseField = node_info.inputs[0].id.into();
         let rhs_id: BaseField = node_info.inputs[1].id.into();
 
+        let lhs_factor = expansion_factor(&inp[0].1);
+        let rhs_factor = expansion_factor(&inp[1].1);
         let lhs_mult = if node_info.inputs[0].is_initializer {
             BaseField::zero()
         } else {
-            -BaseField::one()
+            -BaseField::from_u32_unchecked(lhs_factor)
         };
         let rhs_mult = if node_info.inputs[1].is_initializer {
             BaseField::zero()
         } else {
-            -BaseField::one()
+            -BaseField::from_u32_unchecked(rhs_factor)
         };
         let out_mult = if node_info.output.is_final_output {
             BaseField::zero()
@@ -823,10 +830,11 @@ impl LuminairOperator<SumReduceColumn, SumReduceTraceTable, ()> for LuminairSumR
         let input_id: BaseField = node_info.inputs[0].id.into();
         let output_size = out_data.len();
 
+        let factor = expansion_factor(&inp[0].1);
         let input_mult = if node_info.inputs[0].is_initializer {
             BaseField::zero()
         } else {
-            -BaseField::one()
+            -BaseField::from_u32_unchecked(factor)
         };
         let out_mult = if node_info.output.is_final_output {
             BaseField::zero()
@@ -994,10 +1002,11 @@ impl LuminairOperator<MaxReduceColumn, MaxReduceTraceTable, ()> for LuminairMaxR
         let input_id: BaseField = node_info.inputs[0].id.into();
         let output_size = out_data.len();
 
+        let factor = expansion_factor(&inp[0].1);
         let input_mult = if node_info.inputs[0].is_initializer {
             BaseField::zero()
         } else {
-            -BaseField::one()
+            -BaseField::from_u32_unchecked(factor)
         };
 
         let out_mult = if node_info.output.is_final_output {

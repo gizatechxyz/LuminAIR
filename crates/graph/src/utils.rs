@@ -82,3 +82,15 @@ fn buffer_range(range: Range) -> Range {
 
     Range(low, high)
 }
+
+/// Computes how many logical elements are produced from each physical element of a tensor.
+///
+/// This "expansion factor" is the ratio between the number of logical elements
+/// (including broadcasted/fake dimensions) and the number of physical elements
+/// stored in memory. It is used to scale lookup multiplicities when a tensor is
+/// broadcast by operations like [`expand`].
+pub(crate) fn expansion_factor(shape: &ShapeTracker) -> u32 {
+    let logical = shape.n_elements().to_usize().unwrap();
+    let physical = shape.n_physical_elements().to_usize().unwrap();
+    (logical / physical) as u32
+}
