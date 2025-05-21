@@ -188,18 +188,18 @@ impl LuminairOperator<RecipColumn, RecipTraceTable, ()> for LuminairRecip {
         let input_id: BaseField = node_info.inputs[0].id.into();
         let output_size = inp[0].1.n_elements().to_usize().unwrap();
 
-        for (idx, (input_val, out_val, rem_val)) in intermediate_values.into_iter().enumerate() {
-            let input_mult = if node_info.inputs[0].is_initializer {
-                BaseField::zero()
-            } else {
-                -BaseField::one()
-            };
-            let out_mult = if node_info.output.is_final_output {
-                BaseField::zero()
-            } else {
-                BaseField::one() * BaseField::from_u32_unchecked(node_info.num_consumers)
-            };
+        let input_mult = if node_info.inputs[0].is_initializer {
+            BaseField::zero()
+        } else {
+            -BaseField::one()
+        };
+        let out_mult = if node_info.output.is_final_output {
+            BaseField::zero()
+        } else {
+            BaseField::one() * BaseField::from_u32_unchecked(node_info.num_consumers)
+        };
 
+        for (idx, (input_val, out_val, rem_val)) in intermediate_values.into_iter().enumerate() {
             let is_last_idx: u32 = if idx == (output_size - 1) { 1 } else { 0 };
 
             table.add_row(RecipTraceTableRow {
@@ -299,18 +299,18 @@ impl LuminairOperator<SinColumn, SinTraceTable, SinLookup> for LuminairSin {
         let input_id: BaseField = node_info.inputs[0].id.into();
         let output_size = inp[0].1.n_elements().to_usize().unwrap();
 
-        for (idx, (input_val, out_val)) in intermediate_values.into_iter().enumerate() {
-            let input_mult = if node_info.inputs[0].is_initializer {
-                BaseField::zero()
-            } else {
-                -BaseField::one()
-            };
-            let out_mult = if node_info.output.is_final_output {
-                BaseField::zero()
-            } else {
-                BaseField::one() * BaseField::from_u32_unchecked(node_info.num_consumers)
-            };
+        let input_mult = if node_info.inputs[0].is_initializer {
+            BaseField::zero()
+        } else {
+            -BaseField::one()
+        };
+        let out_mult = if node_info.output.is_final_output {
+            BaseField::zero()
+        } else {
+            BaseField::one() * BaseField::from_u32_unchecked(node_info.num_consumers)
+        };
 
+        for (idx, (input_val, out_val)) in intermediate_values.into_iter().enumerate() {
             let is_last_idx: u32 = if idx == (output_size - 1) { 1 } else { 0 };
 
             table.add_row(SinTraceTableRow {
@@ -421,18 +421,18 @@ impl LuminairOperator<SqrtColumn, SqrtTraceTable, ()> for LuminairSqrt {
         let input_id: BaseField = node_info.inputs[0].id.into();
         let output_size = inp[0].1.n_elements().to_usize().unwrap();
 
-        for (idx, (input_val, out_val, rem_val)) in intermediate_values.into_iter().enumerate() {
-            let input_mult = if node_info.inputs[0].is_initializer {
-                BaseField::zero()
-            } else {
-                -BaseField::one()
-            };
-            let out_mult = if node_info.output.is_final_output {
-                BaseField::zero()
-            } else {
-                BaseField::one() * BaseField::from_u32_unchecked(node_info.num_consumers)
-            };
+        let input_mult = if node_info.inputs[0].is_initializer {
+            BaseField::zero()
+        } else {
+            -BaseField::one()
+        };
+        let out_mult = if node_info.output.is_final_output {
+            BaseField::zero()
+        } else {
+            BaseField::one() * BaseField::from_u32_unchecked(node_info.num_consumers)
+        };
 
+        for (idx, (input_val, out_val, rem_val)) in intermediate_values.into_iter().enumerate() {
             let is_last_idx: u32 = if idx == (output_size - 1) { 1 } else { 0 };
 
             table.add_row(SqrtTraceTableRow {
@@ -543,23 +543,23 @@ impl LuminairOperator<AddColumn, AddTraceTable, ()> for LuminairAdd {
         let lhs_id: BaseField = node_info.inputs[0].id.into();
         let rhs_id: BaseField = node_info.inputs[1].id.into();
 
-        for (idx, (lhs_val, rhs_val, out_val)) in intermediate_values.into_iter().enumerate() {
-            let lhs_mult = if node_info.inputs[0].is_initializer {
-                BaseField::zero()
-            } else {
-                -BaseField::one()
-            };
-            let rhs_mult = if node_info.inputs[1].is_initializer {
-                BaseField::zero()
-            } else {
-                -BaseField::one()
-            };
-            let out_mult = if node_info.output.is_final_output {
-                BaseField::zero()
-            } else {
-                BaseField::one() * BaseField::from_u32_unchecked(node_info.num_consumers)
-            };
+        let lhs_mult = if node_info.inputs[0].is_initializer {
+            BaseField::zero()
+        } else {
+            -BaseField::one()
+        };
+        let rhs_mult = if node_info.inputs[1].is_initializer {
+            BaseField::zero()
+        } else {
+            -BaseField::one()
+        };
+        let out_mult = if node_info.output.is_final_output {
+            BaseField::zero()
+        } else {
+            BaseField::one() * BaseField::from_u32_unchecked(node_info.num_consumers)
+        };
 
+        for (idx, (lhs_val, rhs_val, out_val)) in intermediate_values.into_iter().enumerate() {
             let is_last_idx: u32 = if idx == (output_size - 1) { 1 } else { 0 };
 
             table.add_row(AddTraceTableRow {
@@ -672,25 +672,25 @@ impl LuminairOperator<MulColumn, MulTraceTable, ()> for LuminairMul {
         let lhs_id: BaseField = node_info.inputs[0].id.into();
         let rhs_id: BaseField = node_info.inputs[1].id.into();
 
+        let lhs_mult = if node_info.inputs[0].is_initializer {
+            BaseField::zero()
+        } else {
+            -BaseField::one()
+        };
+        let rhs_mult = if node_info.inputs[1].is_initializer {
+            BaseField::zero()
+        } else {
+            -BaseField::one()
+        };
+        let out_mult = if node_info.output.is_final_output {
+            BaseField::zero()
+        } else {
+            BaseField::one() * BaseField::from_u32_unchecked(node_info.num_consumers)
+        };
+
         for (idx, (lhs_val, rhs_val, out_val, rem_val)) in
             intermediate_values.into_iter().enumerate()
         {
-            let lhs_mult = if node_info.inputs[0].is_initializer {
-                BaseField::zero()
-            } else {
-                -BaseField::one()
-            };
-            let rhs_mult = if node_info.inputs[1].is_initializer {
-                BaseField::zero()
-            } else {
-                -BaseField::one()
-            };
-            let out_mult = if node_info.output.is_final_output {
-                BaseField::zero()
-            } else {
-                BaseField::one() * BaseField::from_u32_unchecked(node_info.num_consumers)
-            };
-
             let is_last_idx: u32 = if idx == (output_size - 1) { 1 } else { 0 };
 
             table.add_row(MulTraceTableRow {
@@ -823,19 +823,21 @@ impl LuminairOperator<SumReduceColumn, SumReduceTraceTable, ()> for LuminairSumR
         let input_id: BaseField = node_info.inputs[0].id.into();
         let output_size = out_data.len();
 
+        let input_mult = if node_info.inputs[0].is_initializer {
+            BaseField::zero()
+        } else {
+            -BaseField::one()
+        };
+        let out_mult = if node_info.output.is_final_output {
+            BaseField::zero()
+        } else {
+            BaseField::one() * BaseField::from_u32_unchecked(node_info.num_consumers)
+        };
+
         for entry in intermediate_values {
             let (idx, input_val, out_val, acc, next_acc, is_last_step) = entry;
 
-            let input_mult = if node_info.inputs[0].is_initializer {
-                BaseField::zero()
-            } else {
-                -BaseField::one()
-            };
-            let out_mult = if node_info.output.is_final_output {
-                BaseField::zero()
-            } else {
-                BaseField::one() * BaseField::from_u32_unchecked(node_info.num_consumers)
-            };
+            let out_mult = out_mult * is_last_step;
 
             let is_last_idx: u32 = if idx == (output_size - 1) { 1 } else { 0 };
 
@@ -992,19 +994,22 @@ impl LuminairOperator<MaxReduceColumn, MaxReduceTraceTable, ()> for LuminairMaxR
         let input_id: BaseField = node_info.inputs[0].id.into();
         let output_size = out_data.len();
 
-        for entry in intermediate_values {
-            let (idx, input_val, out_val, max_val, next_max_val, is_max, is_last_step) = entry;
+        let input_mult = if node_info.inputs[0].is_initializer {
+            BaseField::zero()
+        } else {
+            -BaseField::one()
+        };
 
-            let input_mult = if node_info.inputs[0].is_initializer {
-                BaseField::zero()
-            } else {
-                -BaseField::one()
-            };
-            let out_mult = if node_info.output.is_final_output {
-                BaseField::zero()
-            } else {
-                BaseField::one() * BaseField::from_u32_unchecked(node_info.num_consumers)
-            };
+        let out_mult = if node_info.output.is_final_output {
+            BaseField::zero()
+        } else {
+            BaseField::one() * BaseField::from_u32_unchecked(node_info.num_consumers)
+        };
+
+        for entry in intermediate_values {
+            let (idx, input_val, out_val, max_val, next_max_val, is_max, is_last_step_flag) = entry;
+
+            let out_mult = out_mult * is_last_step_flag;
 
             let is_last_idx: u32 = if idx == (output_size - 1) { 1 } else { 0 };
 
@@ -1021,7 +1026,7 @@ impl LuminairOperator<MaxReduceColumn, MaxReduceTraceTable, ()> for LuminairMaxR
                 max_val: max_val.to_m31(),
                 next_max_val: next_max_val.to_m31(),
                 is_max,
-                is_last_step,
+                is_last_step: is_last_step_flag,
                 input_mult,
                 out_mult,
             });
