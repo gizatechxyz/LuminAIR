@@ -82,3 +82,29 @@ fn buffer_range(range: Range) -> Range {
 
     Range(low, high)
 }
+
+/// Calculates the multiplicity expansion factor for a tensor's shape.
+///
+/// This factor represents how many logical elements each physical element of
+/// the underlying tensor accounts for due to broadcasting via fake dimensions.
+/// It is the ratio between the total logical element count (including fake
+/// dimensions) and the number of physical elements (excluding fake dimensions).
+pub(crate) fn multiplicity_factor(shape: &ShapeTracker) -> usize {
+    let total = shape.n_elements().to_usize().unwrap();
+    let physical = shape.n_physical_elements().to_usize().unwrap();
+    total / physical
+}
+
+/// Calculates the multiplicity factor excluding a specific axis.
+///
+/// Useful for reduction operations where one dimension is removed from the
+/// output shape. If the excluded axis corresponds to a fake dimension,
+/// its contribution to the factor is removed.
+pub(crate) fn multiplicity_factor_excluding(shape: &ShapeTracker, axis: usize) -> usize {
+    let mut factor = multiplicity_factor(shape);
+    let phys_idx = shape.indexes[axis];
+    if shape.fake[phys_idx] {
+        factor /= shape.dims[phys_idx].to_usize().unwrap();
+    }
+    factor
+}
