@@ -1,7 +1,4 @@
-use luminair_graph::{graph::LuminairGraph, StwoCompiler};
-use luminair_prover::prover::prove;
-use luminair_verifier::verifier::verify;
-use luminal::prelude::*;
+use luminair::prelude::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut cx = Graph::new();

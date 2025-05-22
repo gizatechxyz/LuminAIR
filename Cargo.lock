@@ -954,6 +954,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "13dc2df351e3202783a1fe0d44375f7295ffb4049267b0f3018346dc122a1d94"
 
 [[package]]
+name = "luminair"
+version = "0.0.1"
+dependencies = [
+ "luminair_air",
+ "luminair_graph",
+ "luminair_prover",
+ "luminair_verifier",
+ "luminal",
+ "luminal_nn",
+]
+
+[[package]]
 name = "luminair_air"
 version = "0.0.1"
 dependencies = [
@@ -1062,6 +1074,17 @@ dependencies = [
  "itertools 0.12.1",
  "luminal",
  "matrixmultiply",
+ "rustc-hash",
+]
+
+[[package]]
+name = "luminal_nn"
+version = "0.1.0"
+source = "git+https://github.com/raphaelDkhn/luminal.git?rev=80ae0fd#80ae0fd082f1663c1bde6dcc6950342263516d30"
+dependencies = [
+ "itertools 0.12.1",
+ "luminal",
+ "rand",
  "rustc-hash",
 ]
 
@@ -1492,9 +1515,7 @@ checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
 name = "simple"
 version = "0.0.1"
 dependencies = [
- "luminair_graph",
- "luminair_prover",
- "luminair_verifier",
+ "luminair",
  "luminal",
  "stwo-prover",
 ]

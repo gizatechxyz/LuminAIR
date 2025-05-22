@@ -1,0 +1,14 @@
+[package]
+name = "luminair"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[dependencies]
+luminal = { workspace = true }
+luminal_nn = { git = "https://github.com/raphaelDkhn/luminal.git", rev = "80ae0fd" }
+luminair_graph = { path = "../graph" }
+luminair_prover = { path = "../prover" }
+luminair_verifier = { path = "../verifiers/rust" }
+luminair_air = { path = "../air" }
