@@ -273,12 +273,44 @@ impl LuminairGraph for Graph {
                             .is::<CopyFromStwo>()
                 });
 
+            // Calculate expansion-adjusted consumer count
+            let base_consumers = *consumers.get(&(*node, 0)).unwrap_or(&0);
+            let mut expansion_adjusted_consumers = 0u32;
+
+            if base_consumers > 0 {
+                // Iterate through each consumer edge to calculate expansion factors
+                for edge in self
+                    .graph
+                    .edges_directed(*node, petgraph::Direction::Outgoing)
+                {
+                    if let Some((_, _, shape)) = edge.weight().as_data() {
+                        // Calculate expansion factor for this consumer based on fake dimensions
+                        let expansion_factor: u32 = (0..shape.len())
+                            .map(|i| {
+                                let dim_index = shape.indexes[i];
+                                if shape.fake[dim_index] {
+                                    // This dimension is fake (expanded), so count its size
+                                    shape.dims[dim_index].to_usize().unwrap_or(1) as u32
+                                } else {
+                                    // This dimension is real, contributes factor of 1
+                                    1
+                                }
+                            })
+                            .product();
+
+                        expansion_adjusted_consumers += expansion_factor;
+                    }
+                }
+            } else {
+                expansion_adjusted_consumers = base_consumers as u32;
+            }
+
             let node_info = NodeInfo {
                 inputs: input_info,
                 output: OutputInfo {
                     is_final_output: is_direct_output || is_output_via_copy,
                 },
-                num_consumers: *consumers.get(&(*node, 0)).unwrap_or(&0) as u32,
+                num_consumers: expansion_adjusted_consumers,
                 id: node.index() as u32,
             };
 

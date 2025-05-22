@@ -2,6 +2,7 @@ use luminal::{graph::Graph, op::Operator};
 use rand::Rng;
 
 mod ops;
+mod expansions;
 
 #[macro_export]
 macro_rules! single_unary_test {
