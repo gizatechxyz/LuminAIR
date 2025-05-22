@@ -980,6 +980,8 @@ dependencies = [
  "ctor",
  "itertools 0.14.0",
  "luminair_air",
+ "luminair_prover",
+ "luminair_utils",
  "luminal",
  "luminal_cpu",
  "num-traits",
@@ -993,6 +995,25 @@ dependencies = [
  "thiserror 2.0.12",
  "tracing",
  "typetag",
+]
+
+[[package]]
+name = "luminair_prover"
+version = "0.0.1"
+dependencies = [
+ "luminair_air",
+ "luminair_utils",
+ "stwo-prover",
+ "tracing",
+]
+
+[[package]]
+name = "luminair_utils"
+version = "0.0.1"
+dependencies = [
+ "luminair_air",
+ "stwo-prover",
+ "thiserror 2.0.12",
 ]
 
 [[package]]
@@ -1461,6 +1482,7 @@ name = "simple"
 version = "0.0.1"
 dependencies = [
  "luminair_graph",
+ "luminair_prover",
  "luminal",
  "stwo-prover",
 ]

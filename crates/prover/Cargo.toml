@@ -1,12 +1,12 @@
 [package]
-name = "simple"
+name = "luminair_prover"
 version.workspace = true
 edition.workspace = true
 repository.workspace = true
 license.workspace = true
 
 [dependencies]
+luminair_air = { path = "../air" }
 stwo-prover.workspace = true
-luminal.workspace = true
-luminair_graph = { path = "../../crates/graph" }
-luminair_prover = { path = "../../crates/prover" }
+luminair_utils = { path = "../utils" }
+tracing.workspace = true

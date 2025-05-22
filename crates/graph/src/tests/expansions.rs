@@ -1,4 +1,5 @@
 use crate::{graph::LuminairGraph, StwoCompiler};
+use luminair_prover::prover::prove;
 use luminal_cpu::CPUCompiler;
 use luminal::prelude::*;
 use rand::{rngs::StdRng, SeedableRng};
@@ -42,8 +43,7 @@ where
     let trace = cx
         .gen_trace(&mut settings)
         .map_err(|e| format!("Trace generation failed for {}: {:?}", name, e))?;
-    let proof = cx
-        .prove(trace, settings.clone())
+    let proof = prove(trace, settings.clone())
         .map_err(|e| format!("Proof generation failed for {}: {:?}", name, e))?;
     cx.verify(proof, settings)
         .map_err(|e| format!("Proof verification failed for {}: {:?}", name, e))?;

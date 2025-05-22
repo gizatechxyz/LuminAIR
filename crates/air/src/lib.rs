@@ -13,6 +13,7 @@ pub mod components;
 pub mod pie;
 pub mod preprocessed;
 pub mod utils;
+pub mod settings;
 
 // TODO (@raphaelDkhn): We should parametizing the fixed pointscale.
 pub const DEFAULT_FP_SCALE: u32 = 12;

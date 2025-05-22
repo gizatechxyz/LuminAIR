@@ -1,4 +1,5 @@
 use luminair_graph::{graph::LuminairGraph, StwoCompiler};
+use luminair_prover::prover::prove;
 use luminal::prelude::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -32,7 +33,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // ======= Prove & Verify =======
     println!("Generating proof for execution trace...");
-    let proof = cx.prove(trace, settings.clone())?;
+    let proof = prove(trace, settings.clone())?;
     println!("Proof generated successfully. ✅");
 
     println!("Verifying proof...");
