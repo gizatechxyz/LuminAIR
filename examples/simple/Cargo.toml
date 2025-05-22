@@ -10,3 +10,4 @@ stwo-prover.workspace = true
 luminal.workspace = true
 luminair_graph = { path = "../../crates/graph" }
 luminair_prover = { path = "../../crates/prover" }
+luminair_verifier={ path = "../../crates/verifiers/rust"}

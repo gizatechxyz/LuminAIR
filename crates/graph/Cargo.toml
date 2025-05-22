@@ -18,6 +18,7 @@ typetag.workspace = true
 luminair_air = { path = "../air" }
 luminair_utils = { path = "../utils" }
 luminair_prover = { path = "../prover" }
+luminair_verifier = { path = "../verifiers/rust" }
 itertools = "0.14.0"
 
 [dev-dependencies]

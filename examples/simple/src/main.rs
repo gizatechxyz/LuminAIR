@@ -1,5 +1,6 @@
 use luminair_graph::{graph::LuminairGraph, StwoCompiler};
 use luminair_prover::prover::prove;
+use luminair_verifier::verifier::verify;
 use luminal::prelude::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -37,7 +38,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Proof generated successfully. ✅");
 
     println!("Verifying proof...");
-    cx.verify(proof, settings)?;
+    verify(proof, settings)?;
     println!("Proof verified successfully. Computation integrity ensured. 🎉");
 
     Ok(())

@@ -982,6 +982,7 @@ dependencies = [
  "luminair_air",
  "luminair_prover",
  "luminair_utils",
+ "luminair_verifier",
  "luminal",
  "luminal_cpu",
  "num-traits",
@@ -1014,6 +1015,16 @@ dependencies = [
  "luminair_air",
  "stwo-prover",
  "thiserror 2.0.12",
+]
+
+[[package]]
+name = "luminair_verifier"
+version = "0.0.1"
+dependencies = [
+ "luminair_air",
+ "luminair_utils",
+ "stwo-prover",
+ "tracing",
 ]
 
 [[package]]
@@ -1483,6 +1494,7 @@ version = "0.0.1"
 dependencies = [
  "luminair_graph",
  "luminair_prover",
+ "luminair_verifier",
  "luminal",
  "stwo-prover",
 ]
