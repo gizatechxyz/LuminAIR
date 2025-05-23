@@ -2,6 +2,7 @@ mod utils;
 mod verifier;
 
 pub use verifier::*;
+pub use utils::{set_tracing_level, get_verification_phases};
 
 use wasm_bindgen::prelude::*;
 

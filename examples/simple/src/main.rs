@@ -34,6 +34,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let proof = prove(trace, settings.clone())?;
     println!("Proof generated successfully. ✅");
 
+    settings.to_bincode_file("./settings.bin")?;
+    proof.to_bincode_file("./proof.bin")?;
+
     println!("Verifying proof...");
     verify(proof, settings)?;
     println!("Proof verified successfully. Computation integrity ensured. 🎉");
