@@ -92,8 +92,15 @@ async function verifyProof() {
     // Test the module
     console.log(test_wasm_module());
     
-    // Verify a proof (proof and settings should be JSON strings)
-    const result = verify_proof_wasm(proofJson, settingsJson);
+    // Load binary files
+    const proofResponse = await fetch('./proof.bin');
+    const settingsResponse = await fetch('./settings.bin');
+    
+    const proofBytes = new Uint8Array(await proofResponse.arrayBuffer());
+    const settingsBytes = new Uint8Array(await settingsResponse.arrayBuffer());
+    
+    // Verify proof using binary data
+    const result = verify_proof_wasm(proofBytes, settingsBytes);
     
     if (result.success) {
         console.log('Proof verification successful!');
@@ -107,13 +114,9 @@ verifyProof();
 
 ## API
 
-### \`verify_proof_wasm(proofJson: string, settingsJson: string): VerificationResult\`
+### \`verify_proof_wasm(proofBytes: Uint8Array, settingsBytes: Uint8Array): VerificationResult\`
 
-Verifies a LuminAIR proof from JSON strings.
-
-### \`verify_proof_binary(proofBytes: Uint8Array, settingsBytes: Uint8Array): VerificationResult\`
-
-Verifies a LuminAIR proof from binary data (more efficient).
+Verifies a LuminAIR proof.
 
 ### \`test_wasm_module(): string\`
 
@@ -131,6 +134,13 @@ interface VerificationResult {
     readonly error_message?: string;
 }
 \`\`\`
+
+## Binary Format
+
+The verifier expects binary files serialized using the \`bincode\` format:
+
+- **Proof files**: Contains \`LuminairProof<Blake2sMerkleHasher>\` 
+- **Settings files**: Contains \`CircuitSettings\`
 EOF
 
 # Create example HTML file
@@ -173,10 +183,28 @@ cat > pkg/example.html << 'EOF'
         button:hover {
             background-color: #0056b3;
         }
-        textarea {
-            width: 100%;
-            height: 100px;
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .file-input {
             margin: 10px 0;
+            padding: 10px;
+            border: 2px dashed #ddd;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .file-input.has-file {
+            border-color: #28a745;
+            background-color: #f8fff9;
+        }
+        input[type="file"] {
+            margin: 5px 0;
+        }
+        .file-info {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
         }
     </style>
 </head>
@@ -191,15 +219,21 @@ cat > pkg/example.html << 'EOF'
     
     <div class="container">
         <h2>Proof Verification</h2>
-        <p>Enter your proof JSON and settings JSON below:</p>
+        <p>Select binary proof and settings files below:</p>
         
-        <label for="proofInput">Proof JSON:</label>
-        <textarea id="proofInput" placeholder="Paste your proof JSON here..."></textarea>
+        <div class="file-input" id="proofFileContainer">
+            <label for="proofFile">Proof Binary File (.bin):</label><br>
+            <input type="file" id="proofFile" accept=".bin" onchange="handleFileSelect('proof')">
+            <div class="file-info" id="proofFileInfo">No file selected</div>
+        </div>
         
-        <label for="settingsInput">Settings JSON:</label>
-        <textarea id="settingsInput" placeholder="Paste your settings JSON here..."></textarea>
+        <div class="file-input" id="settingsFileContainer">
+            <label for="settingsFile">Settings Binary File (.bin):</label><br>
+            <input type="file" id="settingsFile" accept=".bin" onchange="handleFileSelect('settings')">
+            <div class="file-info" id="settingsFileInfo">No file selected</div>
+        </div>
         
-        <button onclick="verifyProof()">Verify Proof</button>
+        <button id="verifyButton" onclick="verifyProof()" disabled>Verify Proof</button>
         <div id="verificationResult"></div>
     </div>
 
@@ -207,6 +241,8 @@ cat > pkg/example.html << 'EOF'
         import init, { verify_proof_wasm, test_wasm_module, get_version } from './luminair_verifier_wasm.js';
         
         let wasmInitialized = false;
+        let proofFile = null;
+        let settingsFile = null;
         
         async function initWasm() {
             if (!wasmInitialized) {
@@ -217,15 +253,46 @@ cat > pkg/example.html << 'EOF'
             }
         }
         
+        window.handleFileSelect = function(type) {
+            const fileInput = document.getElementById(type + 'File');
+            const fileInfo = document.getElementById(type + 'FileInfo');
+            const container = document.getElementById(type + 'FileContainer');
+            
+            if (fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                if (type === 'proof') {
+                    proofFile = file;
+                } else {
+                    settingsFile = file;
+                }
+                
+                fileInfo.textContent = \`Selected: \${file.name} (\${(file.size / 1024).toFixed(1)} KB)\`;
+                container.classList.add('has-file');
+            } else {
+                if (type === 'proof') {
+                    proofFile = null;
+                } else {
+                    settingsFile = null;
+                }
+                
+                fileInfo.textContent = 'No file selected';
+                container.classList.remove('has-file');
+            }
+            
+            // Enable verify button only when both files are selected
+            const verifyButton = document.getElementById('verifyButton');
+            verifyButton.disabled = !(proofFile && settingsFile);
+        };
+        
         window.testModule = async function() {
             try {
                 await initWasm();
                 const result = test_wasm_module();
                 document.getElementById('moduleResult').innerHTML = 
-                    `<div class="container success">✅ ${result}</div>`;
+                    \`<div class="container success">✅ \${result}</div>\`;
             } catch (error) {
                 document.getElementById('moduleResult').innerHTML = 
-                    `<div class="container error">❌ Error: ${error.message}</div>`;
+                    \`<div class="container error">❌ Error: \${error.message}</div>\`;
             }
         };
         
@@ -233,25 +300,29 @@ cat > pkg/example.html << 'EOF'
             try {
                 await initWasm();
                 
-                const proofJson = document.getElementById('proofInput').value;
-                const settingsJson = document.getElementById('settingsInput').value;
-                
-                if (!proofJson || !settingsJson) {
-                    throw new Error('Please provide both proof and settings JSON');
+                if (!proofFile || !settingsFile) {
+                    throw new Error('Please select both proof and settings binary files');
                 }
                 
-                const result = verify_proof_wasm(proofJson, settingsJson);
+                // Read file contents as binary data
+                const proofBytes = new Uint8Array(await proofFile.arrayBuffer());
+                const settingsBytes = new Uint8Array(await settingsFile.arrayBuffer());
+                
+                console.log(\`Proof file size: \${proofBytes.length} bytes\`);
+                console.log(\`Settings file size: \${settingsBytes.length} bytes\`);
+                
+                const result = verify_proof_wasm(proofBytes, settingsBytes);
                 
                 if (result.success) {
                     document.getElementById('verificationResult').innerHTML = 
-                        `<div class="container success">✅ Proof verification successful!</div>`;
+                        \`<div class="container success">✅ Proof verification successful!</div>\`;
                 } else {
                     document.getElementById('verificationResult').innerHTML = 
-                        `<div class="container error">❌ Verification failed: ${result.error_message}</div>`;
+                        \`<div class="container error">❌ Verification failed: \${result.error_message}</div>\`;
                 }
             } catch (error) {
                 document.getElementById('verificationResult').innerHTML = 
-                    `<div class="container error">❌ Error: ${error.message}</div>`;
+                    \`<div class="container error">❌ Error: \${error.message}</div>\`;
             }
         };
         

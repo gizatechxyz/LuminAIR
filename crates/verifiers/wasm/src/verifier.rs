@@ -29,61 +29,10 @@ impl VerificationResult {
 
 /// Verifies a LuminAIR proof in WASM.
 ///
-/// Takes a `LuminairProof` and `CircuitSettings` as JSON strings and returns a verification result.
+/// Takes binary data for both `LuminairProof` and `CircuitSettings` and returns a verification result.
 /// This is the main entry point for WASM-based proof verification.
 #[wasm_bindgen]
-pub fn verify_proof_wasm(proof_json: &str, settings_json: &str) -> VerificationResult {
-    console_info("Starting WASM proof verification...");
-
-    // Parse the proof from JSON
-    let proof: LuminairProof<Blake2sMerkleHasher> = match serde_json::from_str(proof_json) {
-        Ok(proof) => proof,
-        Err(e) => {
-            let error_msg = format!("Failed to parse proof JSON: {}", e);
-            console_error(&error_msg);
-            return VerificationResult {
-                success: false,
-                error_message: Some(error_msg),
-            };
-        }
-    };
-
-    // Parse the settings from JSON
-    let settings: CircuitSettings = match serde_json::from_str(settings_json) {
-        Ok(settings) => settings,
-        Err(e) => {
-            let error_msg = format!("Failed to parse settings JSON: {}", e);
-            console_error(&error_msg);
-            return VerificationResult {
-                success: false,
-                error_message: Some(error_msg),
-            };
-        }
-    };
-
-    // Perform verification
-    match verify(proof, settings) {
-        Ok(()) => {
-            console_info("Proof verification successful! ✅");
-            VerificationResult {
-                success: true,
-                error_message: None,
-            }
-        }
-        Err(e) => {
-            let error_msg = format!("Proof verification failed: {}", e);
-            console_error(&error_msg);
-            VerificationResult {
-                success: false,
-                error_message: Some(error_msg),
-            }
-        }
-    }
-}
-
-/// Alternative WASM entry point that takes binary data instead of JSON
-#[wasm_bindgen]
-pub fn verify_proof_binary(proof_bytes: &[u8], settings_bytes: &[u8]) -> VerificationResult {
+pub fn verify_proof_wasm(proof_bytes: &[u8], settings_bytes: &[u8]) -> VerificationResult {
     console_info("Starting WASM proof verification from binary...");
 
     // Parse the proof from bincode

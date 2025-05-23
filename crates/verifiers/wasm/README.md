@@ -64,8 +64,11 @@ async function main() {
   // Test that the module is working
   console.log(test_wasm_module());
 
-  // Verify a proof (assuming you have proof and settings as JSON strings)
-  const result = verify_proof_wasm(proofJson, settingsJson);
+  // Verify a proof
+  const proofArray = new Uint8Array(proofBinaryData);
+  const settingsArray = new Uint8Array(settingsBinaryData);
+  
+  const result = verify_proof_wasm(proofArray, settingsArray);
 
   if (result.success) {
     console.log("✅ Proof verification successful!");
@@ -77,21 +80,30 @@ async function main() {
 main();
 ```
 
-### Using Binary Data (More Efficient)
+### Loading Binary Data from Files
 
 ```javascript
-import init, { verify_proof_binary } from "@luminair/verifier-wasm";
+import init, { verify_proof_wasm } from "@luminair/verifier-wasm";
 
-async function verifyWithBinary(proofBytes, settingsBytes) {
+async function verifyFromFiles(proofFile, settingsFile) {
   await init();
 
-  // Convert to Uint8Array if needed
-  const proofArray = new Uint8Array(proofBytes);
-  const settingsArray = new Uint8Array(settingsBytes);
+  // Read binary files
+  const proofBytes = new Uint8Array(await proofFile.arrayBuffer());
+  const settingsBytes = new Uint8Array(await settingsFile.arrayBuffer());
 
-  const result = verify_proof_binary(proofArray, settingsArray);
+  const result = verify_proof_wasm(proofBytes, settingsBytes);
   return result;
 }
+
+// Usage with file input
+document.getElementById('fileInput').addEventListener('change', async (event) => {
+  const files = event.target.files;
+  if (files.length >= 2) {
+    const result = await verifyFromFiles(files[0], files[1]);
+    console.log('Verification result:', result);
+  }
+});
 ```
 
 ### HTML Example
@@ -109,11 +121,14 @@ async function verifyWithBinary(proofBytes, settingsBytes) {
       async function verifyProof() {
         await init();
 
-        // Your proof and settings data
-        const proofJson = "...";
-        const settingsJson = "...";
+        // Load your binary proof and settings data
+        const proofResponse = await fetch('./proof.bin');
+        const settingsResponse = await fetch('./settings.bin');
+        
+        const proofBytes = new Uint8Array(await proofResponse.arrayBuffer());
+        const settingsBytes = new Uint8Array(await settingsResponse.arrayBuffer());
 
-        const result = verify_proof_wasm(proofJson, settingsJson);
+        const result = verify_proof_wasm(proofBytes, settingsBytes);
 
         if (result.success) {
           alert("Proof verified successfully!");
@@ -126,6 +141,8 @@ async function verifyWithBinary(proofBytes, settingsBytes) {
       window.verifyProof = verifyProof;
     </script>
 
+    <input type="file" id="proofFile" accept=".bin" />
+    <input type="file" id="settingsFile" accept=".bin" />
     <button onclick="verifyProof()">Verify Proof</button>
   </body>
 </html>
@@ -135,20 +152,9 @@ async function verifyWithBinary(proofBytes, settingsBytes) {
 
 ### Functions
 
-#### `verify_proof_wasm(proofJson: string, settingsJson: string): VerificationResult`
+#### `verify_proof_wasm(proofBytes: Uint8Array, settingsBytes: Uint8Array): VerificationResult`
 
-Verifies a LuminAIR proof from JSON strings.
-
-**Parameters:**
-
-- `proofJson`: JSON string containing the serialized proof
-- `settingsJson`: JSON string containing the circuit settings
-
-**Returns:** `VerificationResult` object
-
-#### `verify_proof_binary(proofBytes: Uint8Array, settingsBytes: Uint8Array): VerificationResult`
-
-Verifies a LuminAIR proof from binary data (more efficient than JSON).
+Verifies a LuminAIR proof from binary data.
 
 **Parameters:**
 
@@ -193,7 +199,7 @@ After building, you can test the WASM module:
 
 2. Open `http://localhost:8000/example.html` in your browser
 
-3. Use the interface to test the module and verify proofs
+3. Use the interface to test the module and verify proofs using binary files
 
 ## Development
 
@@ -231,9 +237,9 @@ The WASM module includes console logging for debugging. Check your browser's dev
 
 ## Performance Considerations
 
-- **Binary vs JSON**: Use `verify_proof_binary` when possible as it's more efficient than JSON parsing
 - **Module initialization**: The WASM module only needs to be initialized once per page load
 - **Memory usage**: Large proofs may require significant memory; monitor browser memory usage
+- **File loading**: Use `fetch()` or `FileReader` API to load binary files efficiently
 
 ## Browser Compatibility
 
@@ -241,8 +247,34 @@ The WASM verifier works in all modern browsers that support:
 
 - WebAssembly (97%+ browser support)
 - ES6 modules (if using module imports)
+- Binary data handling (Uint8Array, ArrayBuffer)
 
 For older browsers, consider using a polyfill or the `no-modules` build target.
+
+## Binary File Format
+
+The verifier expects binary files serialized using the `bincode` format:
+
+- **Proof files**: Contains `LuminairProof<Blake2sMerkleHasher>` serialized with bincode
+- **Settings files**: Contains `CircuitSettings` serialized with bincode
+
+To generate compatible binary files from Rust:
+
+```rust
+use bincode;
+use std::fs::File;
+use std::io::Write;
+
+// Serialize proof to binary
+let proof_bytes = bincode::serialize(&proof)?;
+let mut proof_file = File::create("proof.bin")?;
+proof_file.write_all(&proof_bytes)?;
+
+// Serialize settings to binary
+let settings_bytes = bincode::serialize(&settings)?;
+let mut settings_file = File::create("settings.bin")?;
+settings_file.write_all(&settings_bytes)?;
+```
 
 ## Security Notes
 
@@ -285,12 +317,18 @@ When making changes:
 
 - WASM verification is computationally intensive
 - Consider showing a progress indicator to users
-- For better performance, use the binary API instead of JSON
+- Binary format provides optimal performance
+
+**Invalid binary data errors:**
+
+- Ensure binary files are generated using the correct `bincode` serialization
+- Verify file integrity and format
+- Check that proof and settings are compatible versions
 
 ### Getting Help
 
 - Check the browser console for detailed error messages
-- Ensure your proof and settings are properly formatted
+- Ensure your binary files are properly formatted
 - Verify that the proof was generated with a compatible version
 
 ## License

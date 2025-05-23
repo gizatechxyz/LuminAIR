@@ -19,7 +19,6 @@ console_error_panic_hook = { version = "0.1", optional = true }
 tracing = "0.1"
 tracing-wasm = "0.2"
 serde.workspace = true
-serde_json.workspace = true
 bincode.workspace = true
 serde-wasm-bindgen = "0.4"
 wee_alloc = { version = "0.4", optional = true }

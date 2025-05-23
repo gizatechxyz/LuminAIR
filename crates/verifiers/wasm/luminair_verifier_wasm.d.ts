@@ -19,23 +19,12 @@ declare function init(
 export default init;
 
 /**
- * Verifies a LuminAIR proof from JSON strings
- * @param proofJson - JSON string containing the serialized proof
- * @param settingsJson - JSON string containing the circuit settings
- * @returns Verification result
- */
-export function verify_proof_wasm(
-  proofJson: string,
-  settingsJson: string
-): VerificationResult;
-
-/**
- * Verifies a LuminAIR proof from binary data (more efficient)
+ * Verifies a LuminAIR proof from binary data
  * @param proofBytes - Binary proof data as Uint8Array
  * @param settingsBytes - Binary settings data as Uint8Array
  * @returns Verification result
  */
-export function verify_proof_binary(
+export function verify_proof_wasm(
   proofBytes: Uint8Array,
   settingsBytes: Uint8Array
 ): VerificationResult;
@@ -114,37 +103,23 @@ export interface DetailedVerificationResult extends VerificationResult {
  */
 export declare namespace LuminairUtils {
   /**
-   * Validates that a JSON string contains a valid proof structure
-   * @param proofJson - JSON string to validate
+   * Validates that binary data contains a valid proof structure
+   * @param proofBytes - Binary data to validate
    * @returns true if valid, false otherwise
    */
-  function isValidProofJson(proofJson: string): boolean;
+  function isValidProofBinary(proofBytes: Uint8Array): boolean;
 
   /**
-   * Validates that a JSON string contains valid settings structure
-   * @param settingsJson - JSON string to validate
+   * Validates that binary data contains valid settings structure
+   * @param settingsBytes - Binary data to validate
    * @returns true if valid, false otherwise
    */
-  function isValidSettingsJson(settingsJson: string): boolean;
-
-  /**
-   * Converts binary proof data to JSON string
-   * @param proofBytes - Binary proof data
-   * @returns JSON string representation
-   */
-  function proofBinaryToJson(proofBytes: Uint8Array): string;
-
-  /**
-   * Converts JSON proof string to binary data
-   * @param proofJson - JSON string representation
-   * @returns Binary proof data
-   */
-  function proofJsonToBinary(proofJson: string): Uint8Array;
+  function isValidSettingsBinary(settingsBytes: Uint8Array): boolean;
 
   /**
    * Estimates the size of a proof in bytes
-   * @param proofJson - JSON string representation of proof
-   * @returns Estimated size in bytes
+   * @param proofBytes - Binary proof data
+   * @returns Size in bytes
    */
-  function estimateProofSize(proofJson: string): number;
+  function getProofSize(proofBytes: Uint8Array): number;
 }

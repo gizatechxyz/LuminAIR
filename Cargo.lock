@@ -1084,7 +1084,6 @@ dependencies = [
  "luminair_verifier",
  "serde",
  "serde-wasm-bindgen",
- "serde_json",
  "stwo-prover",
  "tracing",
  "tracing-wasm",
