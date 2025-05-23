@@ -50,7 +50,6 @@ use sum_reduce::{
     component::{SumReduceComponent, SumReduceEval},
     table::SumReduceColumn,
 };
-use thiserror::Error;
 
 use crate::{preprocessed::PreProcessedTrace, LuminairClaim, LuminairInteractionClaim};
 
@@ -62,14 +61,6 @@ pub mod recip;
 pub mod sin;
 pub mod sqrt;
 pub mod sum_reduce;
-
-/// Errors that can occur during AIR trace generation or processing.
-#[derive(Debug, Clone, Error, Eq, PartialEq)]
-pub enum TraceError {
-    /// Indicates that a component trace was unexpectedly empty.
-    #[error("The trace is empty.")]
-    EmptyTrace,
-}
 
 /// Type alias for a vector of circle evaluations representing trace columns.
 /// Used commonly as the format for trace data passed to the STWO prover/verifier.

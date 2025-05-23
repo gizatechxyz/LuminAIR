@@ -17,4 +17,5 @@ thiserror.workspace = true
 num-traits.workspace = true
 typetag.workspace = true
 rayon.workspace = true
+luminair_utils = { path = "../utils" }
 itertools = "0.12.0"

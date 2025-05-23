@@ -6,7 +6,7 @@ use luminair_air::{
     pie::{LuminairPie, TraceTable},
     preprocessed::{lookups_to_preprocessed_column, PreProcessedTrace, SinPreProcessed},
     settings::CircuitSettings,
-    LuminairClaim, LuminairInteractionClaim, LuminairInteractionClaimGenerator, LuminairProof,
+    LuminairClaim, LuminairInteractionClaim, LuminairInteractionClaimGenerator,
 };
 use luminair_utils::LuminairError;
 use stwo_prover::core::{
@@ -17,6 +17,8 @@ use stwo_prover::core::{
     prover,
     vcs::blake2_merkle::{Blake2sMerkleChannel, Blake2sMerkleHasher},
 };
+
+use crate::LuminairProof;
 
 /// Generates a STWO proof for the computation graph execution.
 ///

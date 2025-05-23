@@ -1,4 +1,4 @@
-use crate::components::lookups::Lookups;
+use crate::lookups::Lookups;
 use serde::{Deserialize, Serialize};
 
 /// Configuration settings for a LuminAIR circuit.

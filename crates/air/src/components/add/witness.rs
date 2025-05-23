@@ -1,3 +1,4 @@
+use luminair_utils::TraceError;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use stwo_air_utils::trace::component_trace::ComponentTrace;
 use stwo_air_utils_derive::{IterMut, ParIterMut, Uninitialized};
@@ -13,7 +14,7 @@ use stwo_prover::{
 use crate::{
     components::{
         add::table::{AddColumn, AddTraceTableRow},
-        AddClaim, InteractionClaim, NodeElements, TraceError,
+        AddClaim, InteractionClaim, NodeElements,
     },
     utils::{pack_values, TreeBuilder},
 };

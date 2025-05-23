@@ -10,3 +10,5 @@ luminair_air = { path = "../air" }
 stwo-prover.workspace = true
 luminair_utils = { path = "../utils" }
 tracing.workspace = true
+serde.workspace = true
+serde_json.workspace = true

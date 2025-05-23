@@ -7,5 +7,4 @@ license.workspace = true
 
 [dependencies]
 thiserror.workspace = true
-luminair_air = { path = "../air" }
 stwo-prover.workspace = true

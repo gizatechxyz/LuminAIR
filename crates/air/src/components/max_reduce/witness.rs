@@ -1,3 +1,4 @@
+use luminair_utils::TraceError;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use stwo_air_utils::trace::component_trace::ComponentTrace;
 use stwo_air_utils_derive::{IterMut, ParIterMut, Uninitialized};
@@ -11,7 +12,7 @@ use stwo_prover::{
 };
 
 use crate::{
-    components::{InteractionClaim, MaxReduceClaim, NodeElements, TraceError},
+    components::{InteractionClaim, MaxReduceClaim, NodeElements},
     utils::{pack_values, TreeBuilder},
 };
 

@@ -3,8 +3,8 @@ use luminair_air::{
     preprocessed::{lookups_to_preprocessed_column, PreProcessedTrace},
     settings::CircuitSettings,
     utils::log_sum_valid,
-    LuminairProof,
 };
+use luminair_prover::LuminairProof;
 use luminair_utils::LuminairError;
 
 use stwo_prover::{
