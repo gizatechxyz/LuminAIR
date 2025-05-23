@@ -39,7 +39,7 @@ if [ ! -f pkg/package.json ]; then
     echo "📦 Creating package.json..."
     cat > pkg/package.json << EOF
 {
-  "name": "@luminair/verifier-wasm",
+  "name": "@luminair/verifier",
   "version": "0.0.1",
   "description": "LuminAIR WASM Verifier for browser-based proof verification",
   "main": "luminair_verifier_wasm.js",
@@ -77,13 +77,13 @@ Browser-based proof verifier for LuminAIR STARK proofs.
 ## Installation
 
 \`\`\`bash
-npm install @luminair/verifier-wasm
+npm install @luminair/verifier
 \`\`\`
 
 ## Usage
 
 \`\`\`javascript
-import init, { verify_proof_wasm, test_wasm_module } from '@luminair/verifier-wasm';
+import init, { verify, test_wasm_module } from '@luminair/verifier';
 
 async function verifyProof() {
     // Initialize the WASM module
@@ -100,7 +100,7 @@ async function verifyProof() {
     const settingsBytes = new Uint8Array(await settingsResponse.arrayBuffer());
     
     // Verify proof using binary data
-    const result = verify_proof_wasm(proofBytes, settingsBytes);
+    const result = verify(proofBytes, settingsBytes);
     
     if (result.success) {
         console.log('Proof verification successful!');
@@ -114,7 +114,7 @@ verifyProof();
 
 ## API
 
-### \`verify_proof_wasm(proofBytes: Uint8Array, settingsBytes: Uint8Array): VerificationResult\`
+### \`verify(proofBytes: Uint8Array, settingsBytes: Uint8Array): VerificationResult\`
 
 Verifies a LuminAIR proof.
 
@@ -238,7 +238,7 @@ cat > pkg/example.html << 'EOF'
     </div>
 
     <script type="module">
-        import init, { verify_proof_wasm, test_wasm_module, get_version } from './luminair_verifier_wasm.js';
+        import init, { verify, test_wasm_module, get_version } from './luminair_verifier_wasm.js';
         
         let wasmInitialized = false;
         let proofFile = null;
@@ -311,7 +311,7 @@ cat > pkg/example.html << 'EOF'
                 console.log(`Proof file size: ${proofBytes.length} bytes`);
                 console.log(`Settings file size: ${settingsBytes.length} bytes`);
                 
-                const result = verify_proof_wasm(proofBytes, settingsBytes);
+                const result = verify(proofBytes, settingsBytes);
                 
                 if (result.success) {
                     document.getElementById('verificationResult').innerHTML = 

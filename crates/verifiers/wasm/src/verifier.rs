@@ -1,6 +1,6 @@
 use luminair_air::settings::CircuitSettings;
 use luminair_prover::LuminairProof;
-use luminair_verifier::verifier::verify;
+use luminair_verifier::verifier::verify as verify_rust;
 use stwo_prover::core::vcs::blake2_merkle::Blake2sMerkleHasher;
 use wasm_bindgen::prelude::*;
 
@@ -32,7 +32,7 @@ impl VerificationResult {
 /// Takes binary data for both `LuminairProof` and `CircuitSettings` and returns a verification result.
 /// This is the main entry point for WASM-based proof verification.
 #[wasm_bindgen]
-pub fn verify_proof_wasm(proof_bytes: &[u8], settings_bytes: &[u8]) -> VerificationResult {
+pub fn verify(proof_bytes: &[u8], settings_bytes: &[u8]) -> VerificationResult {
     console_info("Starting WASM proof verification from binary...");
 
     // Parse the proof from bincode
@@ -62,7 +62,7 @@ pub fn verify_proof_wasm(proof_bytes: &[u8], settings_bytes: &[u8]) -> Verificat
     };
 
     // Perform verification
-    match verify(proof, settings) {
+    match verify_rust(proof, settings) {
         Ok(()) => {
             console_info("Proof verification successful! ✅");
             VerificationResult {

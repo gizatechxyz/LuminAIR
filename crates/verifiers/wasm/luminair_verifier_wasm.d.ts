@@ -24,7 +24,7 @@ export default init;
  * @param settingsBytes - Binary settings data as Uint8Array
  * @returns Verification result
  */
-export function verify_proof_wasm(
+export function verify(
   proofBytes: Uint8Array,
   settingsBytes: Uint8Array
 ): VerificationResult;

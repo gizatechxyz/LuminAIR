@@ -38,7 +38,7 @@ This will create a `pkg/` directory with the compiled WASM module and JavaScript
 ### Installation
 
 ```bash
-npm install @luminair/verifier-wasm
+npm install @luminair/verifier
 ```
 
 Or use the locally built package:
@@ -53,9 +53,9 @@ npm pack
 
 ```javascript
 import init, {
-  verify_proof_wasm,
+  verify,
   test_wasm_module,
-} from "@luminair/verifier-wasm";
+} from "@luminair/verifier";
 
 async function main() {
   // Initialize the WASM module
@@ -68,7 +68,7 @@ async function main() {
   const proofArray = new Uint8Array(proofBinaryData);
   const settingsArray = new Uint8Array(settingsBinaryData);
   
-  const result = verify_proof_wasm(proofArray, settingsArray);
+  const result = verify(proofArray, settingsArray);
 
   if (result.success) {
     console.log("✅ Proof verification successful!");
@@ -83,7 +83,7 @@ main();
 ### Loading Binary Data from Files
 
 ```javascript
-import init, { verify_proof_wasm } from "@luminair/verifier-wasm";
+import init, { verify } from "@luminair/verifier";
 
 async function verifyFromFiles(proofFile, settingsFile) {
   await init();
@@ -92,7 +92,7 @@ async function verifyFromFiles(proofFile, settingsFile) {
   const proofBytes = new Uint8Array(await proofFile.arrayBuffer());
   const settingsBytes = new Uint8Array(await settingsFile.arrayBuffer());
 
-  const result = verify_proof_wasm(proofBytes, settingsBytes);
+  const result = verify(proofBytes, settingsBytes);
   return result;
 }
 
@@ -116,7 +116,7 @@ document.getElementById('fileInput').addEventListener('change', async (event) =>
   </head>
   <body>
     <script type="module">
-      import init, { verify_proof_wasm } from "./luminair_verifier_wasm.js";
+      import init, { verify } from "./luminair_verifier_wasm.js";
 
       async function verifyProof() {
         await init();
@@ -128,7 +128,7 @@ document.getElementById('fileInput').addEventListener('change', async (event) =>
         const proofBytes = new Uint8Array(await proofResponse.arrayBuffer());
         const settingsBytes = new Uint8Array(await settingsResponse.arrayBuffer());
 
-        const result = verify_proof_wasm(proofBytes, settingsBytes);
+        const result = verify(proofBytes, settingsBytes);
 
         if (result.success) {
           alert("Proof verified successfully!");
@@ -152,7 +152,7 @@ document.getElementById('fileInput').addEventListener('change', async (event) =>
 
 ### Functions
 
-#### `verify_proof_wasm(proofBytes: Uint8Array, settingsBytes: Uint8Array): VerificationResult`
+#### `verify(proofBytes: Uint8Array, settingsBytes: Uint8Array): VerificationResult`
 
 Verifies a LuminAIR proof from binary data.
 
