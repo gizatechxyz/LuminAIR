@@ -23,12 +23,15 @@ serde_json.workspace = true
 bincode.workspace = true
 serde-wasm-bindgen = "0.4"
 wee_alloc = { version = "0.4", optional = true }
+uuid = { version = "1.0", features = ["js", "v4"] }
+getrandom = { version = "0.2", features = ["js"] }
 
 [dependencies.web-sys]
 version = "0.3"
-features = [
-  "console",
-]
+features = ["console"]
 
 [features]
 default = ["console_error_panic_hook"]
+web = []
+no-sin-lookup = []
+wee_alloc_feature = ["wee_alloc"]

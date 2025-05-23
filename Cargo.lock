@@ -1077,6 +1077,7 @@ version = "0.0.1"
 dependencies = [
  "bincode",
  "console_error_panic_hook",
+ "getrandom 0.2.16",
  "js-sys",
  "luminair_air",
  "luminair_prover",
@@ -1087,6 +1088,7 @@ dependencies = [
  "stwo-prover",
  "tracing",
  "tracing-wasm",
+ "uuid",
  "wasm-bindgen",
  "web-sys",
  "wee_alloc",
@@ -1979,6 +1981,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "458f7a779bf54acc9f347480ac654f68407d3aab21269a6e3c9f922acd9e2da9"
 dependencies = [
  "getrandom 0.3.3",
+ "js-sys",
+ "wasm-bindgen",
 ]
 
 [[package]]

@@ -1,4 +1,4 @@
-use std::{any::Any, cell::OnceCell, cmp::Reverse};
+use std::{any::Any, cmp::Reverse};
 
 use crate::{
     components::{
@@ -25,7 +25,6 @@ use stwo_prover::{
         },
     },
 };
-use typetag;
 
 /// Represents a closed range [min, max] using fixed-point numbers.
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -130,7 +129,6 @@ fn value_count(ranges: &Vec<Range>) -> u32 {
 /// Preprocessed columns contain publicly known data, like lookup tables, that
 /// are generated before the main proof computation. This trait allows different
 /// types of preprocessed columns (e.g., for different LUTs) to be handled generically.
-#[typetag::serde]
 pub trait PreProcessedColumn: Any {
     /// Returns the log2 size of this column (padded to a power of two).
     fn log_size(&self) -> u32;
@@ -204,17 +202,12 @@ pub fn lookups_to_preprocessed_column(lookups: &Lookups) -> Vec<Box<dyn PreProce
 /// Stores the layout (`LookupLayout`) and generates two columns:
 /// - Column 0: Input values `x` (as `Fixed` point `M31` elements).
 /// - Column 1: Output values `sin(x)` (as `Fixed` point `M31` elements).
-/// Uses `OnceCell` to cache the generated column evaluations.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct SinPreProcessed {
     /// The layout defining the ranges and size of the LUT.
     pub layout: LookupLayout,
     /// The index of the column (0 for input `x`, 1 for output `sin(x)`).
     pub col_index: usize,
-
-    #[serde(skip)]
-    /// Lazy cache for the generated `CircleEvaluation` of this column.
-    pub eval: OnceCell<CircleEvaluation<SimdBackend, BaseField, BitReversedOrder>>,
 }
 
 impl SinPreProcessed {
@@ -226,18 +219,15 @@ impl SinPreProcessed {
         Self {
             layout,
             col_index,
-            eval: OnceCell::new(),
         }
     }
 
     /// Returns a reference to the generated `CircleEvaluation` for this column.
-    /// Generates the column and caches it on the first call.
-    pub fn evaluation(&self) -> &CircleEvaluation<SimdBackend, BaseField, BitReversedOrder> {
-        self.eval.get_or_init(|| self.gen_column())
+    pub fn evaluation(&self) -> CircleEvaluation<SimdBackend, BaseField, BitReversedOrder> {
+        self.gen_column()
     }
 }
 
-#[typetag::serde]
 impl PreProcessedColumn for SinPreProcessed {
     /// Returns the log_size defined by the layout.
     fn log_size(&self) -> u32 {
