@@ -5,7 +5,7 @@ use std::{
 };
 
 use crate::lookups::Lookups;
-use luminair_utils::{JsonDeserialization, JsonSerialization, LuminairError};
+use luminair_utils::LuminairError;
 use serde::{Deserialize, Serialize};
 
 /// Configuration settings for a LuminAIR circuit.
@@ -18,28 +18,64 @@ pub struct CircuitSettings {
     pub lookups: Lookups,
 }
 
-// Implementation for CircuitSettings
-impl JsonSerialization for CircuitSettings {
-    fn to_json(&self) -> Result<String, LuminairError> {
-        serde_json::to_string_pretty(self).map_err(|e| {
+impl CircuitSettings {
+    // --- Serde Binary ---
+    pub fn to_bincode(&self) -> Result<Vec<u8>, LuminairError> {
+        bincode::serialize(self).map_err(|e| {
             LuminairError::SerializationError(format!(
-                "Failed to serialize circuit settings to JSON: {}",
+                "Failed to serialize proof to bincode: {}",
                 e
             ))
         })
     }
 
-    fn to_json_file<P: AsRef<Path>>(&self, path: P) -> Result<(), LuminairError> {
+    pub fn from_bincode(data: &[u8]) -> Result<Self, LuminairError> {
+        bincode::deserialize(data).map_err(|e| {
+            LuminairError::SerializationError(format!(
+                "Failed to deserialize proof from bincode: {}",
+                e
+            ))
+        })
+    }
+
+    pub fn to_bincode_file<P: AsRef<Path>>(&self, path: P) -> Result<(), LuminairError> {
+        let data = self.to_bincode()?;
+        std::fs::write(path, data).map_err(|e| {
+            LuminairError::SerializationError(format!("Failed to write bincode file: {}", e))
+        })
+    }
+
+    pub fn from_bincode_file<P: AsRef<Path>>(path: P) -> Result<Self, LuminairError> {
+        let data = std::fs::read(path).map_err(|e| {
+            LuminairError::SerializationError(format!("Failed to read bincode file: {}", e))
+        })?;
+        Self::from_bincode(&data)
+    }
+
+    // --- Serde JSON ---
+    pub fn to_json(&self) -> Result<String, LuminairError> {
+        serde_json::to_string_pretty(self).map_err(|e| {
+            LuminairError::SerializationError(format!("Failed to serialize proof to JSON: {}", e))
+        })
+    }
+
+    pub fn from_json(json: &str) -> Result<Self, LuminairError> {
+        serde_json::from_str(json).map_err(|e| {
+            LuminairError::SerializationError(format!(
+                "Failed to deserialize proof from JSON: {}",
+                e
+            ))
+        })
+    }
+
+    pub fn to_json_file<P: AsRef<Path>>(&self, path: P) -> Result<(), LuminairError> {
         let file = File::create(path).map_err(|e| {
             LuminairError::SerializationError(format!("Failed to create file: {}", e))
         })?;
         let mut writer = BufWriter::new(file);
 
         serde_json::to_writer_pretty(&mut writer, self).map_err(|e| {
-            LuminairError::SerializationError(format!(
-                "Failed to write circuit settings to JSON file: {}",
-                e
-            ))
+            LuminairError::SerializationError(format!("Failed to write proof to JSON file: {}", e))
         })?;
 
         writer.flush().map_err(|e| {
@@ -48,29 +84,15 @@ impl JsonSerialization for CircuitSettings {
 
         Ok(())
     }
-}
 
-impl JsonDeserialization for CircuitSettings {
-    fn from_json(json: &str) -> Result<Self, LuminairError> {
-        serde_json::from_str(json).map_err(|e| {
-            LuminairError::SerializationError(format!(
-                "Failed to deserialize circuit settings from JSON: {}",
-                e
-            ))
-        })
-    }
-
-    fn from_json_file<P: AsRef<Path>>(path: P) -> Result<Self, LuminairError> {
+    pub fn from_json_file<P: AsRef<Path>>(path: P) -> Result<Self, LuminairError> {
         let file = File::open(path).map_err(|e| {
             LuminairError::SerializationError(format!("Failed to open file: {}", e))
         })?;
         let reader = BufReader::new(file);
 
         serde_json::from_reader(reader).map_err(|e| {
-            LuminairError::SerializationError(format!(
-                "Failed to read circuit settings from JSON file: {}",
-                e
-            ))
+            LuminairError::SerializationError(format!("Failed to read proof from JSON file: {}", e))
         })
     }
 }

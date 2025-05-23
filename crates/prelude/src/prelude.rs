@@ -2,9 +2,6 @@
 pub use luminal::prelude::*;
 pub use luminal_nn::*;
 
-// --- luminair_utils ---
-pub use luminair_utils::{JsonDeserialization, JsonSerialization};
-
 // --- luminair_graph ---
 pub use luminair_graph::graph::LuminairGraph;
 pub use luminair_graph::StwoCompiler;

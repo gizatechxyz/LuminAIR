@@ -1,7 +1,6 @@
 use ::serde::{Deserialize, Serialize};
 use luminair_air::{LuminairClaim, LuminairInteractionClaim};
 use luminair_utils::LuminairError;
-pub use luminair_utils::{JsonDeserialization, JsonSerialization};
 use std::{
     fs::File,
     io::{BufReader, BufWriter, Write},
@@ -27,14 +26,57 @@ pub struct LuminairProof<H: MerkleHasher> {
     pub proof: StarkProof<H>,
 }
 
-impl JsonSerialization for LuminairProof<Blake2sMerkleHasher> {
-    fn to_json(&self) -> Result<String, LuminairError> {
+impl LuminairProof<Blake2sMerkleHasher> {
+    // --- Serde Binary ---
+    pub fn to_bincode(&self) -> Result<Vec<u8>, LuminairError> {
+        bincode::serialize(self).map_err(|e| {
+            LuminairError::SerializationError(format!(
+                "Failed to serialize proof to bincode: {}",
+                e
+            ))
+        })
+    }
+
+    pub fn from_bincode(data: &[u8]) -> Result<Self, LuminairError> {
+        bincode::deserialize(data).map_err(|e| {
+            LuminairError::SerializationError(format!(
+                "Failed to deserialize proof from bincode: {}",
+                e
+            ))
+        })
+    }
+
+    pub fn to_bincode_file<P: AsRef<Path>>(&self, path: P) -> Result<(), LuminairError> {
+        let data = self.to_bincode()?;
+        std::fs::write(path, data).map_err(|e| {
+            LuminairError::SerializationError(format!("Failed to write bincode file: {}", e))
+        })
+    }
+
+    pub fn from_bincode_file<P: AsRef<Path>>(path: P) -> Result<Self, LuminairError> {
+        let data = std::fs::read(path).map_err(|e| {
+            LuminairError::SerializationError(format!("Failed to read bincode file: {}", e))
+        })?;
+        Self::from_bincode(&data)
+    }
+
+    // --- Serde JSON ---
+    pub fn to_json(&self) -> Result<String, LuminairError> {
         serde_json::to_string_pretty(self).map_err(|e| {
             LuminairError::SerializationError(format!("Failed to serialize proof to JSON: {}", e))
         })
     }
 
-    fn to_json_file<P: AsRef<Path>>(&self, path: P) -> Result<(), LuminairError> {
+    pub fn from_json(json: &str) -> Result<Self, LuminairError> {
+        serde_json::from_str(json).map_err(|e| {
+            LuminairError::SerializationError(format!(
+                "Failed to deserialize proof from JSON: {}",
+                e
+            ))
+        })
+    }
+
+    pub fn to_json_file<P: AsRef<Path>>(&self, path: P) -> Result<(), LuminairError> {
         let file = File::create(path).map_err(|e| {
             LuminairError::SerializationError(format!("Failed to create file: {}", e))
         })?;
@@ -50,19 +92,8 @@ impl JsonSerialization for LuminairProof<Blake2sMerkleHasher> {
 
         Ok(())
     }
-}
 
-impl JsonDeserialization for LuminairProof<Blake2sMerkleHasher> {
-    fn from_json(json: &str) -> Result<Self, LuminairError> {
-        serde_json::from_str(json).map_err(|e| {
-            LuminairError::SerializationError(format!(
-                "Failed to deserialize proof from JSON: {}",
-                e
-            ))
-        })
-    }
-
-    fn from_json_file<P: AsRef<Path>>(path: P) -> Result<Self, LuminairError> {
+    pub fn from_json_file<P: AsRef<Path>>(path: P) -> Result<Self, LuminairError> {
         let file = File::open(path).map_err(|e| {
             LuminairError::SerializationError(format!("Failed to open file: {}", e))
         })?;
