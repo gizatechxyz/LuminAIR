@@ -12,3 +12,4 @@ luminair_graph = { path = "../graph" }
 luminair_prover = { path = "../prover" }
 luminair_verifier = { path = "../verifiers/rust" }
 luminair_air = { path = "../air" }
+luminair_utils = { path = "../utils" }
