@@ -13,8 +13,11 @@ luminal.workspace = true
 tracing.workspace = true
 numerair.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 thiserror.workspace = true
 num-traits.workspace = true
 typetag.workspace = true
 rayon.workspace = true
+bincode.workspace = true
+luminair_utils = { path = "../utils" }
 itertools = "0.12.0"

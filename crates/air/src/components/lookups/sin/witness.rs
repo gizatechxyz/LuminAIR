@@ -1,3 +1,4 @@
+use luminair_utils::TraceError;
 use num_traits::One;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use stwo_air_utils::trace::component_trace::ComponentTrace;
@@ -12,7 +13,7 @@ use stwo_prover::{
 };
 
 use crate::{
-    components::{InteractionClaim, SinLookupClaim, TraceError},
+    components::{InteractionClaim, SinLookupClaim},
     preprocessed::SinPreProcessed,
     utils::{pack_values, TreeBuilder},
 };

@@ -1,0 +1,13 @@
+[package]
+name = "luminair_verifier"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[dependencies]
+luminair_air = { path = "../../air" }
+stwo-prover.workspace = true
+luminair_utils = { path = "../../utils" }
+luminair_prover = { path = "../../prover" }
+tracing.workspace = true

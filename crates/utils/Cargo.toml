@@ -1,11 +1,10 @@
 [package]
-name = "simple"
+name = "luminair_utils"
 version.workspace = true
 edition.workspace = true
 repository.workspace = true
 license.workspace = true
 
 [dependencies]
+thiserror.workspace = true
 stwo-prover.workspace = true
-luminal.workspace = true
-luminair = {path = "../../crates/prelude"}

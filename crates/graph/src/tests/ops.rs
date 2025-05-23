@@ -2,6 +2,8 @@ use super::{assert_close, random_vec_rng};
 use crate::graph::LuminairGraph;
 use crate::StwoCompiler;
 use crate::{binary_test, unary_test};
+use luminair_prover::prover::prove;
+use luminair_verifier::verifier::verify;
 use luminal::prelude::*;
 use luminal_cpu::CPUCompiler;
 use rand::{rngs::StdRng, SeedableRng};
@@ -46,10 +48,8 @@ fn test_sum_reduce() {
     let trace = cx
         .gen_trace(&mut settings)
         .expect("Trace generation failed");
-    let proof = cx
-        .prove(trace, settings.clone())
-        .expect("Proof generation failed");
-    cx.verify(proof, settings)
+    let proof = prove(trace, settings.clone()).expect("Proof generation failed");
+    verify(proof, settings)
         .expect("Proof verification failed");
 
     // CPUCompiler comparison
@@ -94,10 +94,8 @@ fn test_max_reduce() {
     let trace = cx
         .gen_trace(&mut settings)
         .expect("Trace generation failed");
-    let proof = cx
-        .prove(trace, settings.clone())
-        .expect("Proof generation failed");
-    cx.verify(proof, settings)
+    let proof = prove(trace, settings.clone()).expect("Proof generation failed");
+    verify(proof, settings)
         .expect("Proof verification failed");
 
     // CPUCompiler comparison

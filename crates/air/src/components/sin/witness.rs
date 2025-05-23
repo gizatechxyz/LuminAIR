@@ -1,9 +1,10 @@
 use crate::{
     components::{
-        lookups::sin::SinLookupElements, InteractionClaim, NodeElements, SinClaim, TraceError,
+        lookups::sin::SinLookupElements, InteractionClaim, NodeElements, SinClaim,
     },
     utils::{pack_values, TreeBuilder},
 };
+use luminair_utils::TraceError;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use stwo_air_utils::trace::component_trace::ComponentTrace;
 use stwo_air_utils_derive::{IterMut, ParIterMut, Uninitialized};
