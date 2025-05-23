@@ -266,7 +266,7 @@ cat > pkg/example.html << 'EOF'
                     settingsFile = file;
                 }
                 
-                fileInfo.textContent = \`Selected: \${file.name} (\${(file.size / 1024).toFixed(1)} KB)\`;
+                fileInfo.textContent = `Selected: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
                 container.classList.add('has-file');
             } else {
                 if (type === 'proof') {
@@ -289,10 +289,10 @@ cat > pkg/example.html << 'EOF'
                 await initWasm();
                 const result = test_wasm_module();
                 document.getElementById('moduleResult').innerHTML = 
-                    \`<div class="container success">✅ \${result}</div>\`;
+                    `<div class="container success">✅ ${result}</div>`;
             } catch (error) {
                 document.getElementById('moduleResult').innerHTML = 
-                    \`<div class="container error">❌ Error: \${error.message}</div>\`;
+                    `<div class="container error">❌ Error: ${error.message}</div>`;
             }
         };
         
@@ -308,21 +308,21 @@ cat > pkg/example.html << 'EOF'
                 const proofBytes = new Uint8Array(await proofFile.arrayBuffer());
                 const settingsBytes = new Uint8Array(await settingsFile.arrayBuffer());
                 
-                console.log(\`Proof file size: \${proofBytes.length} bytes\`);
-                console.log(\`Settings file size: \${settingsBytes.length} bytes\`);
+                console.log(`Proof file size: ${proofBytes.length} bytes`);
+                console.log(`Settings file size: ${settingsBytes.length} bytes`);
                 
                 const result = verify_proof_wasm(proofBytes, settingsBytes);
                 
                 if (result.success) {
                     document.getElementById('verificationResult').innerHTML = 
-                        \`<div class="container success">✅ Proof verification successful!</div>\`;
+                        `<div class="container success">✅ Proof verification successful!</div>`;
                 } else {
                     document.getElementById('verificationResult').innerHTML = 
-                        \`<div class="container error">❌ Verification failed: \${result.error_message}</div>\`;
+                        `<div class="container error">❌ Verification failed: ${result.error_message}</div>`;
                 }
             } catch (error) {
                 document.getElementById('verificationResult').innerHTML = 
-                    \`<div class="container error">❌ Error: \${error.message}</div>\`;
+                    `<div class="container error">❌ Error: ${error.message}</div>`;
             }
         };
         
