@@ -23,7 +23,7 @@ rm -rf pkg/ || true
 
 # Build the WASM package
 echo "🔨 Building WASM package..."
-wasm-pack build --target web --out-dir pkg --scope luminair
+wasm-pack build --target web --out-dir pkg --scope luminair-giza
 
 # Copy additional files
 echo "📁 Copying additional files..."
@@ -39,7 +39,7 @@ if [ ! -f pkg/package.json ]; then
     echo "📦 Creating package.json..."
     cat > pkg/package.json << EOF
 {
-  "name": "@luminair/verifier",
+  "name": "@luminair-giza/luminair_verifier_wasm",
   "version": "0.0.1",
   "description": "LuminAIR WASM Verifier for browser-based proof verification",
   "main": "luminair_verifier_wasm.js",
@@ -77,13 +77,13 @@ Browser-based proof verifier for LuminAIR STARK proofs.
 ## Installation
 
 \`\`\`bash
-npm install @luminair/verifier
+npm install @luminair-giza/luminair_verifier_wasm
 \`\`\`
 
 ## Usage
 
 \`\`\`javascript
-import init, { verify, test_wasm_module } from '@luminair/verifier';
+import init, { verify, test_wasm_module } from '@luminair-giza/luminair_verifier_wasm';
 
 async function verifyProof() {
     // Initialize the WASM module

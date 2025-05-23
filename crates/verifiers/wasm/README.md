@@ -6,39 +6,12 @@ A WebAssembly-based verifier for LuminAIR STARK proofs, enabling proof verificat
 
 This WASM verifier provides the same verification capabilities as the Rust verifier but compiled to WebAssembly for browser environments. It allows users to verify LuminAIR proofs client-side without needing to trust a remote verification service.
 
-## Building
-
-### Prerequisites
-
-1. Install [wasm-pack](https://rustwasm.github.io/wasm-pack/installer/):
-
-   ```bash
-   curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-   ```
-
-2. Make sure you have the Rust toolchain installed with the `wasm32-unknown-unknown` target:
-   ```bash
-   rustup target add wasm32-unknown-unknown
-   ```
-
-### Build the WASM package
-
-```bash
-# Make the build script executable
-chmod +x build.sh
-
-# Run the build
-./build.sh
-```
-
-This will create a `pkg/` directory with the compiled WASM module and JavaScript bindings.
-
 ## Usage
 
 ### Installation
 
 ```bash
-npm install @luminair/verifier
+npm install @luminair-giza/luminair_verifier_wasm
 ```
 
 Or use the locally built package:
@@ -52,10 +25,7 @@ npm pack
 ### Basic Usage
 
 ```javascript
-import init, {
-  verify,
-  test_wasm_module,
-} from "@luminair/verifier";
+import init, { verify, test_wasm_module } from "@luminair-giza/luminair_verifier_wasm";
 
 async function main() {
   // Initialize the WASM module
@@ -67,7 +37,7 @@ async function main() {
   // Verify a proof
   const proofArray = new Uint8Array(proofBinaryData);
   const settingsArray = new Uint8Array(settingsBinaryData);
-  
+
   const result = verify(proofArray, settingsArray);
 
   if (result.success) {
@@ -83,7 +53,7 @@ main();
 ### Loading Binary Data from Files
 
 ```javascript
-import init, { verify } from "@luminair/verifier";
+import init, { verify } from "@luminair-giza/luminair_verifier_wasm";
 
 async function verifyFromFiles(proofFile, settingsFile) {
   await init();
@@ -97,13 +67,15 @@ async function verifyFromFiles(proofFile, settingsFile) {
 }
 
 // Usage with file input
-document.getElementById('fileInput').addEventListener('change', async (event) => {
-  const files = event.target.files;
-  if (files.length >= 2) {
-    const result = await verifyFromFiles(files[0], files[1]);
-    console.log('Verification result:', result);
-  }
-});
+document
+  .getElementById("fileInput")
+  .addEventListener("change", async (event) => {
+    const files = event.target.files;
+    if (files.length >= 2) {
+      const result = await verifyFromFiles(files[0], files[1]);
+      console.log("Verification result:", result);
+    }
+  });
 ```
 
 ### HTML Example
@@ -122,11 +94,13 @@ document.getElementById('fileInput').addEventListener('change', async (event) =>
         await init();
 
         // Load your binary proof and settings data
-        const proofResponse = await fetch('./proof.bin');
-        const settingsResponse = await fetch('./settings.bin');
-        
+        const proofResponse = await fetch("./proof.bin");
+        const settingsResponse = await fetch("./settings.bin");
+
         const proofBytes = new Uint8Array(await proofResponse.arrayBuffer());
-        const settingsBytes = new Uint8Array(await settingsResponse.arrayBuffer());
+        const settingsBytes = new Uint8Array(
+          await settingsResponse.arrayBuffer()
+        );
 
         const result = verify(proofBytes, settingsBytes);
 
@@ -186,6 +160,33 @@ interface VerificationResult {
 }
 ```
 
+## Building
+
+### Prerequisites
+
+1. Install [wasm-pack](https://rustwasm.github.io/wasm-pack/installer/):
+
+   ```bash
+   curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+   ```
+
+2. Make sure you have the Rust toolchain installed with the `wasm32-unknown-unknown` target:
+   ```bash
+   rustup target add wasm32-unknown-unknown
+   ```
+
+### Build the WASM package
+
+```bash
+# Make the build script executable
+chmod +x build.sh
+
+# Run the build
+./build.sh
+```
+
+This will create a `pkg/` directory with the compiled WASM module and JavaScript bindings.
+
 ## Testing
 
 After building, you can test the WASM module:
@@ -240,41 +241,6 @@ The WASM module includes console logging for debugging. Check your browser's dev
 - **Module initialization**: The WASM module only needs to be initialized once per page load
 - **Memory usage**: Large proofs may require significant memory; monitor browser memory usage
 - **File loading**: Use `fetch()` or `FileReader` API to load binary files efficiently
-
-## Browser Compatibility
-
-The WASM verifier works in all modern browsers that support:
-
-- WebAssembly (97%+ browser support)
-- ES6 modules (if using module imports)
-- Binary data handling (Uint8Array, ArrayBuffer)
-
-For older browsers, consider using a polyfill or the `no-modules` build target.
-
-## Binary File Format
-
-The verifier expects binary files serialized using the `bincode` format:
-
-- **Proof files**: Contains `LuminairProof<Blake2sMerkleHasher>` serialized with bincode
-- **Settings files**: Contains `CircuitSettings` serialized with bincode
-
-To generate compatible binary files from Rust:
-
-```rust
-use bincode;
-use std::fs::File;
-use std::io::Write;
-
-// Serialize proof to binary
-let proof_bytes = bincode::serialize(&proof)?;
-let mut proof_file = File::create("proof.bin")?;
-proof_file.write_all(&proof_bytes)?;
-
-// Serialize settings to binary
-let settings_bytes = bincode::serialize(&settings)?;
-let mut settings_file = File::create("settings.bin")?;
-settings_file.write_all(&settings_bytes)?;
-```
 
 ## Security Notes
 
