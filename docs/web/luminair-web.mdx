@@ -1,0 +1,165 @@
+---
+title: 'WASM Verifier'
+description: 'WebAssembly-based verifier for LuminAIR proofs'
+---
+
+LuminAIR Web is a WebAssembly-based verifier that allows you to verify LuminAIR proofs directly in the browser. This package provides a high-performance, secure way to verify proofs without needing a backend server.
+
+## Installation
+
+```bash
+npm install luminair-web
+# or
+yarn add luminair-web
+# or
+pnpm add luminair-web
+```
+
+## Usage
+
+Before using any verification functions, you need to initialize the WASM module:
+
+```typescript
+import init from 'luminair-web';
+
+// Initialize the WASM module
+await init();
+```
+
+### Basic Verification
+
+The simplest way to verify a proof is using the `verify` function:
+
+```typescript
+import { verify } from 'luminair-web';
+
+const result = verify(proofBytes, settingsBytes);
+if (result.success) {
+  console.log('Proof verified successfully!');
+} else {
+  console.error('Verification failed:', result.error_message);
+}
+```
+
+### Advanced Usage
+
+The package provides additional utilities and configuration options for more advanced use cases:
+
+```typescript
+import { verify, VerificationOptions, LuminairUtils } from 'luminair-web';
+
+// Configure verification options
+const options: VerificationOptions = {
+  timeoutMs: 30000, // 30 seconds timeout
+  config: {
+    enableDebugLogging: true,
+    maxMemoryMB: 1024 // 1GB memory limit
+  }
+};
+
+// Validate proof binary before verification
+if (LuminairUtils.isValidProofBinary(proofBytes)) {
+  const result = verify(proofBytes, settingsBytes);
+  console.log(`Proof size: ${LuminairUtils.getProofSize(proofBytes)} bytes`);
+}
+```
+
+## API Reference
+
+### Main Functions
+
+#### `init()`
+Initializes the WASM module. Must be called before using any verification functions.
+
+```typescript
+function init(module?: WebAssembly.Module | Promise<WebAssembly.Module>): Promise<void>
+```
+
+#### `verify()`
+Verifies a LuminAIR proof from binary data.
+
+```typescript
+function verify(proofBytes: Uint8Array, settingsBytes: Uint8Array): VerificationResult
+```
+
+#### `test_wasm_module()`
+Tests if the WASM module is working correctly.
+
+```typescript
+function test_wasm_module(): string
+```
+
+#### `get_version()`
+Returns the version of the verifier.
+
+```typescript
+function get_version(): string
+```
+
+### Utility Functions
+
+The `LuminairUtils` namespace provides several utility functions:
+
+- `isValidProofBinary(proofBytes: Uint8Array): boolean`
+- `isValidSettingsBinary(settingsBytes: Uint8Array): boolean`
+- `getProofSize(proofBytes: Uint8Array): number`
+
+### Types
+
+#### VerificationResult
+```typescript
+interface VerificationResult {
+  readonly success: boolean;
+  readonly error_message?: string;
+}
+```
+
+#### DetailedVerificationResult
+```typescript
+interface DetailedVerificationResult extends VerificationResult {
+  verificationTimeMs?: number;
+  memoryUsageMB?: number;
+}
+```
+
+#### VerificationOptions
+```typescript
+interface VerificationOptions {
+  timeoutMs?: number;
+  config?: VerifierConfig;
+}
+```
+
+#### VerifierConfig
+```typescript
+interface VerifierConfig {
+  enableDebugLogging?: boolean;
+  maxMemoryMB?: number;
+}
+```
+
+## Error Handling
+
+The package may throw `LuminairVerificationError` in case of verification failures:
+
+```typescript
+interface LuminairVerificationError extends Error {
+  name: "LuminairVerificationError";
+  message: string;
+  cause?: Error;
+}
+```
+
+It's recommended to wrap verification calls in try-catch blocks to handle potential errors gracefully:
+
+```typescript
+try {
+  const result = verify(proofBytes, settingsBytes);
+  // Handle successful verification
+} catch (error) {
+  if (error instanceof Error && error.name === "LuminairVerificationError") {
+    // Handle verification error
+  }
+  throw error;
+}
+``` 
