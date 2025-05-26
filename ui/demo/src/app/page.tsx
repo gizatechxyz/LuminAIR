@@ -54,7 +54,7 @@ export default function Home() {
 
       <div className="max-w-md w-full text-center space-y-8">
         <div className="pt-4">
-          <VerifyButton proofPath="/proof.bin" settingsPath="/settings.bin" />
+          <VerifyButton proofPath="/proof" settingsPath="/settings" />
         </div>
 
         <div className="pt-8 text-xs text-gray-400 dark:text-gray-500 font-mono">
