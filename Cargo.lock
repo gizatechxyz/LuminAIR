@@ -992,6 +992,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "luminair-web"
+version = "0.0.1"
+dependencies = [
+ "bincode",
+ "console_error_panic_hook",
+ "getrandom 0.2.16",
+ "js-sys",
+ "luminair_air",
+ "luminair_prover",
+ "luminair_verifier",
+ "serde",
+ "serde-wasm-bindgen",
+ "stwo-prover",
+ "tracing",
+ "tracing-wasm",
+ "uuid",
+ "wasm-bindgen",
+ "web-sys",
+ "wee_alloc",
+]
+
+[[package]]
 name = "luminair_air"
 version = "0.0.1"
 dependencies = [
@@ -1069,28 +1091,6 @@ dependencies = [
  "luminair_utils",
  "stwo-prover",
  "tracing",
-]
-
-[[package]]
-name = "luminair_verifier_wasm"
-version = "0.0.1"
-dependencies = [
- "bincode",
- "console_error_panic_hook",
- "getrandom 0.2.16",
- "js-sys",
- "luminair_air",
- "luminair_prover",
- "luminair_verifier",
- "serde",
- "serde-wasm-bindgen",
- "stwo-prover",
- "tracing",
- "tracing-wasm",
- "uuid",
- "wasm-bindgen",
- "web-sys",
- "wee_alloc",
 ]
 
 [[package]]
