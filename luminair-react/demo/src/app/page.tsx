@@ -54,15 +54,6 @@ export default function Home() {
       </button>
 
       <div className="max-w-md w-full text-center space-y-8">
-        <div className="space-y-4">
-          <h1 className="text-2xl font-bold text-black dark:text-white font-sans tracking-tight">
-            LuminAIR Verifier
-          </h1>
-          <p className="text-sm text-gray-600 dark:text-gray-300 font-sans leading-relaxed">
-            Verify the integrity of LuminAIR proofs with cryptographic
-            assurance. Don't trust, verify.
-          </p>
-        </div>
 
         <div className="pt-4">
           <VerifyButton proofPath="/proof.bin" settingsPath="/settings.bin" />

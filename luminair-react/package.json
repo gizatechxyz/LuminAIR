@@ -1,6 +1,6 @@
 {
   "name": "@gizatech/luminair-react",
-  "version": "1.0.40",
+  "version": "1.0.44",
   "type": "module",
   "description": "React UI component library for LuminAIR proof verification",
   "main": "dist/index.js",

@@ -512,7 +512,7 @@ export function VerifyButton({
               {state.result && (
                 <Button
                   variant="outline"
-                  className="text-sm font-mono border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 self-start"
+                  className="text-sm font-mono border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-200 self-start"
                   onClick={async () => {
                     try {
                       const zip = new JSZip();

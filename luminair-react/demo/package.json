@@ -9,7 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@gizatech/luminair-react": "^1.0.40",
+    "@gizatech/luminair-react": "^1.0.44",
     "next": "15.3.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
