@@ -98,7 +98,7 @@ You'll also need to implement the `trace_evaluation` method on `AddTraceTable`, 
 
 ```rust
 impl AddTraceTable {
-    /// Transforms the [`AddTraceTable`] into [`TraceEval`] to be commited
+    /// Transforms the [`AddTraceTable`] into [`TraceEval`] to be committed
     /// when generating a STARK proof.
     pub fn trace_evaluation(&self) -> Result<(TraceEval, AddClaim), TraceError> {
         let n_rows = self.table.len();
