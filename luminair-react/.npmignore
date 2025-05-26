@@ -1,0 +1,13 @@
+src/
+example/
+demo/
+node_modules/
+.git/
+.gitignore
+rollup.config.js
+tsconfig.json
+tailwind.config.js
+postcss.config.cjs
+*.log
+.DS_Store
+.env* 

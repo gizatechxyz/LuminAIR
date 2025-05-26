@@ -1,0 +1,78 @@
+{
+  "name": "@gizatech/luminair-react",
+  "version": "1.0.40",
+  "type": "module",
+  "description": "React UI component library for LuminAIR proof verification",
+  "main": "dist/index.js",
+  "module": "dist/index.esm.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.esm.js",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./styles.css": "./dist/styles.css"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "rollup -c",
+    "dev": "rollup -c -w",
+    "prepare": "npm run build",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "react",
+    "component",
+    "library",
+    "luminair",
+    "proof",
+    "verification",
+    "stark",
+    "giza"
+  ],
+  "author": "Giza",
+  "license": "MIT",
+  "peerDependencies": {
+    "react": ">=16.8.0",
+    "react-dom": ">=16.8.0"
+  },
+  "dependencies": {
+    "@gizatech/luminair-web": "^0.0.1",
+    "@radix-ui/react-dialog": "^1.1.14",
+    "@radix-ui/react-slot": "^1.2.3",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "jszip": "^3.10.1",
+    "lucide-react": "^0.511.0",
+    "tailwind-merge": "^3.3.0"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^28.0.1",
+    "@rollup/plugin-node-resolve": "^15.3.0",
+    "@rollup/plugin-typescript": "^12.1.1",
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "@types/jszip": "^3.4.0",
+    "rollup": "^4.28.1",
+    "rollup-plugin-dts": "^6.1.1",
+    "rollup-plugin-peer-deps-external": "^2.2.4",
+    "rollup-plugin-postcss": "^4.0.2",
+    "typescript": "^5.0.0",
+    "tailwindcss": "^3.4.1",
+    "tailwindcss-animate": "^1.0.7",
+    "postcss": "^8.0.0",
+    "autoprefixer": "^10.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gizatechxyz/luminair-react.git"
+  },
+  "homepage": "https://github.com/gizatechxyz/luminair-react#readme",
+  "bugs": {
+    "url": "https://github.com/gizatechxyz/luminair-react/issues"
+  }
+}
