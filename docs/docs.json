@@ -33,6 +33,13 @@
         ]
       },
       {
+        "group": "Web",
+        "pages": [
+          "web/luminair-web",
+          "web/luminair-react"
+        ]
+      },
+      {
         "group": "Contribute",
         "pages": ["contribute/guidelines", "contribute/add-ops"]
       },

@@ -1,0 +1,258 @@
+---
+title: 'UI Component'
+description: 'React components for LuminAIR proof verification'
+---
+
+LuminAIR React provides a set of React components for integrating LuminAIR proof verification into your web applications. The main component is the `VerifyButton`, which provides a beautiful, interactive interface for verifying proofs.
+
+[Demo App](https://demo-luminair-verifier-git-main-raphaeldkhns-projects.vercel.app/)
+
+```tsx
+// Example of the VerifyButton component
+<VerifyButton
+  proofPath="/demo/proof.bin"
+  settingsPath="/demo/settings.bin"
+  title="Demo Verification"
+  buttonText="Verify Demo Proof"
+  author="Giza"
+  modelDescription="Example AI Model"
+  authorUrl="https://giza.tech"
+/>
+```
+
+## Installation
+
+```bash
+npm install @gizatech/luminair-react
+# or
+yarn add @gizatech/luminair-react
+# or
+pnpm add @gizatech/luminair-react
+```
+
+## Setup
+
+### 1. Import Styles
+
+Import the component styles in your main CSS file or component:
+
+```tsx
+import '@gizatech/luminair-react/styles.css';
+```
+
+### 2. Configure Build System
+
+#### Next.js Configuration
+
+Create or update your `next.config.js`:
+
+```js
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  webpack: (config, { isServer }) => {
+    // Handle WASM files
+    config.experiments = {
+      ...config.experiments,
+      asyncWebAssembly: true,
+    };
+
+    config.module.rules.push({
+      test: /\.wasm$/,
+      type: 'webassembly/async',
+    });
+
+    // Fallback for Node.js modules
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        path: false,
+        crypto: false,
+      };
+    }
+
+    return config;
+  },
+};
+
+module.exports = nextConfig;
+```
+
+### 3. Tailwind CSS Setup (Recommended)
+
+The component is built with Tailwind CSS. Add our components to your content paths:
+
+```js
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: [
+    "./src/**/*.{js,ts,jsx,tsx}",
+    "./node_modules/@gizatech/luminair-react/dist/**/*.{js,ts,jsx,tsx}",
+  ],
+  theme: {
+    extend: {},
+  },
+  plugins: [],
+}
+```
+
+## Basic Usage
+
+```tsx
+import { VerifyButton } from '@gizatech/luminair-react';
+import '@gizatech/luminair-react/styles.css';
+
+function App() {
+  return (
+    <VerifyButton
+      proofPath="/path/to/your/proof.bin"
+      settingsPath="/path/to/your/settings.bin"
+    />
+  );
+}
+```
+
+## Component API
+
+### VerifyButton Props
+
+| Prop | Type | Required | Description |
+|------|------|----------|-------------|
+| `proofPath` | string | Yes | Path to the proof binary file |
+| `settingsPath` | string | Yes | Path to the settings binary file |
+| `title` | string | No | Custom title for the verification modal |
+| `buttonText` | string | No | Custom text for the verify button |
+| `author` | string | No | Name of the model/proof author |
+| `modelDescription` | string | No | Description of the AI model |
+| `authorUrl` | string | No | URL to the author's website/profile |
+| `className` | string | No | Additional CSS classes for the button |
+
+## Advanced Usage
+
+### Custom Styling
+
+The component can be customized using Tailwind classes or your own CSS:
+
+```tsx
+<VerifyButton
+  proofPath="/proof.bin"
+  settingsPath="/settings.bin"
+  title="Custom Verification Portal"
+  buttonText="VERIFY PROOF"
+  author="Your Organization"
+  modelDescription="Custom AI Model v2.0"
+  authorUrl="https://yourcompany.com"
+  className="bg-blue-600 hover:bg-blue-700 text-white"
+/>
+```
+
+### Multiple Instances
+
+You can use multiple verification buttons for different models:
+
+```tsx
+function ModelGallery() {
+  const models = [
+    {
+      name: "GPT-4 Compatible",
+      proofPath: "/models/gpt4/proof.bin",
+      settingsPath: "/models/gpt4/settings.bin",
+      description: "Large language model for text generation"
+    },
+    {
+      name: "Image Classifier",
+      proofPath: "/models/classifier/proof.bin",
+      settingsPath: "/models/classifier/settings.bin",
+      description: "Convolutional neural network for image classification"
+    }
+  ];
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {models.map((model, index) => (
+        <div key={index} className="p-6 border rounded-lg">
+          <h3 className="text-lg font-semibold mb-2">{model.name}</h3>
+          <p className="text-gray-600 mb-4">{model.description}</p>
+          <VerifyButton
+            proofPath={model.proofPath}
+            settingsPath={model.settingsPath}
+            title={`Verify ${model.name}`}
+            modelDescription={model.description}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+
+## Dark Mode Support
+
+The component automatically supports dark mode when the `dark` class is present on the HTML element:
+
+```tsx
+function ThemeToggle() {
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDark]);
+
+  return (
+    <button onClick={() => setIsDark(!isDark)}>
+      Toggle {isDark ? 'Light' : 'Dark'} Mode
+    </button>
+  );
+}
+```
+
+## File Requirements
+
+Your proof and settings files must be accessible via HTTP. Place them in your public directory:
+
+```
+public/
+  ├── proof.bin
+  └── settings.bin
+```
+
+## Error Handling
+
+The component handles common errors gracefully:
+
+- File not found errors
+- CORS issues
+- Invalid file formats
+- Verification failures
+
+Error messages are displayed in the verification modal with appropriate context and suggestions.
+
+## Browser Support
+
+- Chrome/Edge 88+
+- Firefox 78+
+- Safari 14+
+- Requires WebAssembly support
+
+## Troubleshooting
+
+### Component Styling Issues
+- Verify CSS import: `import '@gizatech/luminair-react/styles.css'`
+- Check Tailwind configuration
+- Ensure CSS variables are properly defined
+
+### Verification Failures
+- Check browser console for errors
+- Verify file paths are correct
+- Ensure files are valid LuminAIR proof files
+- Check network requests in browser dev tools
+
+### Build Issues
+- Verify build configuration (Next.js, webpack, etc.)
+- Check WASM support is properly configured
+- Ensure all dependencies are installed
+- Try clearing build cache and node_modules 

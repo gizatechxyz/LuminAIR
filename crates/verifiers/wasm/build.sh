@@ -23,15 +23,15 @@ rm -rf pkg/ || true
 
 # Build the WASM package
 echo "🔨 Building WASM package..."
-wasm-pack build --target web --out-dir pkg --scope luminair-giza
+wasm-pack build --target web --out-dir pkg --scope gizatech
 
 # Copy additional files
 echo "📁 Copying additional files..."
 
 # Copy custom TypeScript definitions
-if [ -f "luminair_verifier_wasm.d.ts" ]; then
+if [ -f "luminair-web.d.ts" ]; then
     echo "📝 Copying custom TypeScript definitions..."
-    cp luminair_verifier_wasm.d.ts pkg/luminair_verifier_wasm.d.ts
+    cp luminair-web.d.ts pkg/luminair-web.d.ts
 fi
 
 # Create a simple package.json if it doesn't exist
@@ -39,16 +39,16 @@ if [ ! -f pkg/package.json ]; then
     echo "📦 Creating package.json..."
     cat > pkg/package.json << EOF
 {
-  "name": "@luminair-giza/luminair_verifier_wasm",
+  "name": "@gizatech/luminair-web",
   "version": "0.0.1",
   "description": "LuminAIR WASM Verifier for browser-based proof verification",
-  "main": "luminair_verifier_wasm.js",
-  "module": "luminair_verifier_wasm.js",
-  "types": "luminair_verifier_wasm.d.ts",
+  "main": "luminair_web.js",
+  "module": "luminair_web.js",
+  "types": "luminair_web.d.ts",
   "files": [
-    "luminair_verifier_wasm_bg.wasm",
-    "luminair_verifier_wasm.js",
-    "luminair_verifier_wasm.d.ts"
+    "luminair_web_bg.wasm",
+    "luminair_web.js",
+    "luminair_web.d.ts"
   ],
   "keywords": [
     "wasm",
@@ -77,13 +77,13 @@ Browser-based proof verifier for LuminAIR STARK proofs.
 ## Installation
 
 \`\`\`bash
-npm install @luminair-giza/luminair_verifier_wasm
+npm install @gizatech/luminair-web
 \`\`\`
 
 ## Usage
 
 \`\`\`javascript
-import init, { verify, test_wasm_module } from '@luminair-giza/luminair_verifier_wasm';
+import init, { verify, test_wasm_module } from '@gizatech/luminair-web';
 
 async function verifyProof() {
     // Initialize the WASM module
@@ -238,7 +238,7 @@ cat > pkg/example.html << 'EOF'
     </div>
 
     <script type="module">
-        import init, { verify, test_wasm_module, get_version } from './luminair_verifier_wasm.js';
+        import init, { verify, test_wasm_module, get_version } from './luminair_web.js';
         
         let wasmInitialized = false;
         let proofFile = null;

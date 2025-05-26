@@ -11,7 +11,7 @@ This WASM verifier provides the same verification capabilities as the Rust verif
 ### Installation
 
 ```bash
-npm install @luminair-giza/luminair_verifier_wasm
+npm install @gizatech/luminair-web
 ```
 
 Or use the locally built package:
@@ -25,7 +25,7 @@ npm pack
 ### Basic Usage
 
 ```javascript
-import init, { verify, test_wasm_module } from "@luminair-giza/luminair_verifier_wasm";
+import init, { verify, test_wasm_module } from "@gizatech/luminair-web";
 
 async function main() {
   // Initialize the WASM module
@@ -53,7 +53,7 @@ main();
 ### Loading Binary Data from Files
 
 ```javascript
-import init, { verify } from "@luminair-giza/luminair_verifier_wasm";
+import init, { verify } from "@gizatech/luminair-web";
 
 async function verifyFromFiles(proofFile, settingsFile) {
   await init();
@@ -88,7 +88,7 @@ document
   </head>
   <body>
     <script type="module">
-      import init, { verify } from "./luminair_verifier_wasm.js";
+      import init, { verify } from "./luminair-web.js";
 
       async function verifyProof() {
         await init();

@@ -1,5 +1,5 @@
 [package]
-name = "luminair_verifier_wasm"
+name = "luminair-web"
 version.workspace = true
 edition.workspace = true
 repository.workspace = true
