@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { VerifyButton } from "@gizatech/luminair-react";
 import "@gizatech/luminair-react/styles.css";
 import { useState, useEffect } from "react";
@@ -54,7 +53,6 @@ export default function Home() {
       </button>
 
       <div className="max-w-md w-full text-center space-y-8">
-
         <div className="pt-4">
           <VerifyButton proofPath="/proof.bin" settingsPath="/settings.bin" />
         </div>
