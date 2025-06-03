@@ -6,16 +6,19 @@ use crate::{
     utils::compute_padded_range_from_srcs,
 };
 use luminair_air::{
+    DEFAULT_FP_SCALE,
     components::{
         add::table::{AddColumn, AddTraceTable},
         lookups::{
             sin::{table::SinLookupTraceTable, SinLookup},
+            exp2::{Exp2Lookup, Exp2LookupLayout},
             Lookups,
         },
         max_reduce::table::{MaxReduceColumn, MaxReduceTraceTable},
         mul::table::{MulColumn, MulTraceTable},
         recip::table::{RecipColumn, RecipTraceTable},
         sin::table::{SinColumn, SinTraceTable},
+        exp2::table::{Exp2Column, Exp2TraceTable},
         sqrt::table::{SqrtColumn, SqrtTraceTable},
         sum_reduce::table::{SumReduceColumn, SumReduceTraceTable},
     },
@@ -62,6 +65,7 @@ impl LuminairGraph for Graph {
 
         // Accumulate ranges per non-linear op
         let mut sin_ranges: Vec<Range> = Vec::new();
+        let mut has_exp2 = false;
 
         for (node, src_ids) in self.linearized_graph.as_ref().unwrap() {
             if self.tensors.contains_key(&(*node, 0)) {
@@ -76,10 +80,14 @@ impl LuminairGraph for Graph {
                 st.resolve_global_dyn_dims_stack(&self.dyn_map, &mut dim_stack);
             }
 
-            // Range
+            // Check for operators that need lookup tables
             let op = &*self.graph.node_weight(*node).unwrap();
             if <Box<dyn Operator> as HasProcessTrace<SinColumn, SinTraceTable, SinLookup>>::has_process_trace(op) {
                 sin_ranges.push(compute_padded_range_from_srcs(&srcs));
+            }
+            
+            if <Box<dyn Operator> as HasProcessTrace<Exp2Column, Exp2TraceTable, Exp2Lookup>>::has_process_trace(op) {
+                has_exp2 = true;
             }
 
             // Execute
@@ -103,8 +111,22 @@ impl LuminairGraph for Graph {
             None
         };
 
+        let exp2_lookup = if has_exp2 {
+            // Create a very generous range for test values (just like Sin does)
+            let layout = Exp2LookupLayout {
+                log_size: 10,  // 1024 entries for better precision
+                min: -5.0,     // Wider range to ensure all test values fit
+                max: 5.0,      // Wider range to ensure all test values fit
+                input_scale: (1 << DEFAULT_FP_SCALE) as f64,
+                output_scale: (1 << DEFAULT_FP_SCALE) as f64,
+            };
+            Some(Exp2Lookup::new(layout))
+        } else {
+            None
+        };
+        
         CircuitSettings {
-            lookups: Lookups { sin: sin_lookup },
+            lookups: Lookups { sin: sin_lookup, exp2: exp2_lookup },
         }
     }
 
@@ -134,6 +156,7 @@ impl LuminairGraph for Graph {
         let mut recip_table = RecipTraceTable::new();
         let mut sin_table = SinTraceTable::new();
         let mut sin_lookup_table = SinLookupTraceTable::new();
+        let mut exp2_table = Exp2TraceTable::new();
         let mut sum_reduce_table = SumReduceTraceTable::new();
         let mut max_reduce_table = MaxReduceTraceTable::new();
         let mut sqrt_table = SqrtTraceTable::new();
@@ -351,6 +374,29 @@ impl LuminairGraph for Graph {
                         node_op, srcs, &mut sqrt_table, &node_info, &mut ()
                     ).unwrap()
                     }
+                    _ if <Box<dyn Operator> as HasProcessTrace<
+                        Exp2Column,
+                        Exp2TraceTable,
+                        Exp2Lookup,
+                    >>::has_process_trace(node_op) =>
+                    {
+                        op_counter.exp2 += 1;
+                        match settings.lookups.exp2.as_mut() {
+                            Some(lookup) => <Box<dyn Operator> as HasProcessTrace<
+                                Exp2Column,
+                                Exp2TraceTable,
+                                Exp2Lookup,
+                            >>::call_process_trace(
+                                node_op,
+                                srcs,
+                                &mut exp2_table,
+                                &node_info,
+                                lookup,
+                            )
+                            .unwrap(),
+                            None => unreachable!("Exp2 lookup table must be initialised"),
+                        }
+                    }
                     _ => node_op.process(srcs),
                 };
 
@@ -411,6 +457,22 @@ impl LuminairGraph for Graph {
             let log_size = calculate_log_size(sqrt_table.table.len());
             max_log_size = max_log_size.max(log_size);
             trace_tables.push(TraceTable::from_sqrt(sqrt_table));
+        }
+        if !exp2_table.table.is_empty() {
+            let log_size = calculate_log_size(exp2_table.table.len());
+            max_log_size = max_log_size.max(log_size);
+            trace_tables.push(TraceTable::from_exp2(exp2_table));
+            
+            // Generate lookup table
+            if let Some(lookup) = settings.lookups.exp2.as_ref() {
+                // We don't have a direct method like add_multiplicities_to_table for Exp2Lookup
+                // as it handles its multiplicities internally in record_lookup
+                max_log_size = max_log_size.max(lookup.layout.log_size);
+                
+                if let Some(multiplicities) = &lookup.multiplicities {
+                    trace_tables.push(TraceTable::from_exp2_lookup(multiplicities.clone()));
+                }
+            }
         }
 
         Ok(LuminairPie {

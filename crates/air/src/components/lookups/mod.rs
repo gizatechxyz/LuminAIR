@@ -1,8 +1,10 @@
 use serde::{Deserialize, Serialize};
 use sin::{SinLookup, SinLookupElements};
+use exp2::Exp2Lookup;
 use stwo_prover::core::channel::Channel;
 
 pub mod sin;
+pub mod exp2;
 
 /// Container for configurations of all active lookup arguments in the AIR.
 ///
@@ -13,6 +15,8 @@ pub mod sin;
 pub struct Lookups {
     /// Configuration for the Sine lookup argument, if active.
     pub sin: Option<SinLookup>,
+    /// Configuration for the Exp2 lookup argument, if active.
+    pub exp2: Option<Exp2Lookup>,
 }
 
 /// Container for interaction elements specific to each lookup type.
@@ -23,6 +27,8 @@ pub struct Lookups {
 pub struct LookupElements {
     /// Interaction elements for the Sine lookup.
     pub sin: SinLookupElements,
+    /// Interaction elements for the Exp2 lookup.
+    pub exp2: exp2::Exp2LookupElements,
 }
 
 impl LookupElements {
@@ -30,6 +36,7 @@ impl LookupElements {
     pub fn draw(channel: &mut impl Channel) -> Self {
         Self {
             sin: SinLookupElements::draw(channel),
+            exp2: exp2::Exp2LookupElements::draw(channel),
         }
     }
 }

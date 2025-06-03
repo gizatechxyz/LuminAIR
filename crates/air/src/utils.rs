@@ -40,21 +40,31 @@ pub fn calculate_log_size(max_size: usize) -> u32 {
 /// Returns `true` if the sums balance to zero, `false` otherwise.
 pub fn log_sum_valid(interaction_claim: &LuminairInteractionClaim) -> bool {
     let mut sum = PackedSecureField::zero();
+    
+    // Debug print to diagnose LogUp issues
+    println!("LogUp validation:");
 
-    for claim_opt in [
-        &interaction_claim.add,
-        &interaction_claim.mul,
-        &interaction_claim.sum_reduce,
-        &interaction_claim.recip,
-        &interaction_claim.max_reduce,
-        &interaction_claim.sin,
-        &interaction_claim.sin_lookup,
-        &interaction_claim.sqrt,
+    for (name, claim_opt) in [
+        ("Add", &interaction_claim.add),
+        ("Mul", &interaction_claim.mul),
+        ("SumReduce", &interaction_claim.sum_reduce),
+        ("Recip", &interaction_claim.recip),
+        ("MaxReduce", &interaction_claim.max_reduce),
+        ("Sin", &interaction_claim.sin),
+        ("SinLookup", &interaction_claim.sin_lookup),
+        ("Sqrt", &interaction_claim.sqrt),
+        ("Exp2", &interaction_claim.exp2),
+        ("Exp2Lookup", &interaction_claim.exp2_lookup),
     ] {
         if let Some(ref int_cl) = claim_opt {
-            sum += int_cl.claimed_sum.into();
+            let claim_sum: PackedSecureField = int_cl.claimed_sum.into();
+            println!("{}: {:?}", name, claim_sum);
+            sum += claim_sum;
         }
     }
+    
+    println!("Final sum: {:?}", sum);
+    println!("Is zero: {}", sum.is_zero());
 
     sum.is_zero()
 }
