@@ -2,9 +2,17 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     components::{
-        add::table::AddTraceTable, lookups::sin::table::SinLookupTraceTable,
-        max_reduce::table::MaxReduceTraceTable, mul::table::MulTraceTable,
-        recip::table::RecipTraceTable, sin::table::SinTraceTable, sqrt::table::SqrtTraceTable,
+        add::table::AddTraceTable, 
+        lookups::{
+            sin::table::SinLookupTraceTable,
+            exp2::table::Exp2LookupTraceTable,
+        },
+        max_reduce::table::MaxReduceTraceTable, 
+        mul::table::MulTraceTable,
+        recip::table::RecipTraceTable, 
+        sin::table::SinTraceTable, 
+        exp2::table::Exp2TraceTable,
+        sqrt::table::SqrtTraceTable,
         sum_reduce::table::SumReduceTraceTable,
     },
     utils::AtomicMultiplicityColumn,
@@ -27,6 +35,10 @@ pub enum TraceTable {
     Sin { table: SinTraceTable },
     /// Trace table for Sin lookup operations.
     SinLookup { table: SinLookupTraceTable },
+    /// Trace table for Exp2 operations.
+    Exp2 { table: Exp2TraceTable },
+    /// Trace table for Exp2 lookup operations.
+    Exp2Lookup { table: Exp2LookupTraceTable },
     /// Trace table for SumReduce operations.
     SumReduce { table: SumReduceTraceTable },
     /// Trace table for MaxReduce operations.
@@ -68,6 +80,16 @@ impl TraceTable {
     pub fn from_sqrt(table: SqrtTraceTable) -> Self {
         Self::Sqrt { table }
     }
+    
+    /// Creates a `TraceTable::Exp2` variant.
+    pub fn from_exp2(table: Exp2TraceTable) -> Self {
+        Self::Exp2 { table }
+    }
+    
+    /// Creates a `TraceTable::Exp2Lookup` variant.
+    pub fn from_exp2_lookup(table: Exp2LookupTraceTable) -> Self {
+        Self::Exp2Lookup { table }
+    }
 }
 
 /// Primary container for the PIE generated during trace execution.
@@ -87,6 +109,7 @@ pub struct LuminairPie {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LUTMultiplicities {
     pub sin: AtomicMultiplicityColumn,
+    pub exp2: AtomicMultiplicityColumn,
 }
 
 /// Holds resource usage metadata gathered during graph execution.
@@ -118,6 +141,8 @@ pub struct OpCounter {
     pub max_reduce: usize,
     /// Number of Sqrt operations.
     pub sqrt: usize,
+    /// Number of Exp2 operations.
+    pub exp2: usize,
 }
 
 /// Metadata about a specific input to a graph node.
