@@ -37,7 +37,7 @@ export function ProofLabel({
   proofPath,
   settingsPath,
   title = "Can't be evil.",
-  labelText = "INTEGRITY VERIFIED",
+  labelText = "VERIFIED COMPUTATION",
   author = "Giza",
   modelDescription = "Demo model",
   authorUrl = "https://www.gizatech.xyz/",
@@ -276,9 +276,7 @@ export function ProofLabel({
           {status === "error" && (
             <X className="h-2.5 w-2.5 text-black dark:text-white" />
           )}
-          {status === "pending" && (
-            <div className="h-1.5 w-1.5 rounded-full border border-black dark:border-white" />
-          )}
+          
         </div>
       </div>
     );
@@ -304,8 +302,8 @@ export function ProofLabel({
       <div
         onClick={handleLabelClick}
         className={cn(
-          getSharedButtonStyles(),
-          "cursor-pointer flex items-center justify-between min-w-0 w-fit max-w-sm",
+          "relative bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200 transition-colors font-mono text-sm px-4 py-2 rounded-full border border-gray-200 dark:border-gray-700",
+          "cursor-pointer flex items-center justify-between min-w-0 w-fit max-w-xs shadow-sm hover:shadow-md",
           state.isVerifying && "opacity-75",
           className
         )}
@@ -314,7 +312,7 @@ export function ProofLabel({
           {getGizaLogoWithStatus()}
 
           <div className="flex flex-col items-start min-w-0 flex-1">
-            <span className="font-mono text-xs leading-tight">
+            <span className="font-mono text-sm leading-tight font-medium">
               {getStatusText()}
             </span>
           </div>
