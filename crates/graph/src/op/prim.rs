@@ -83,10 +83,15 @@ impl Operator for CopyFromStwo {
 /// Represents a constant value within the LuminAIR graph, stored as `StwoData`.
 ///
 /// Currently supports only float constants; dynamic expressions are not yet implemented.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct LuminairConstant {
     /// The constant value.
     pub value: ConstantValue,
+}
+impl core::fmt::Debug for LuminairConstant {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Constant({:?})", self.value)
+    }
 }
 
 impl LuminairConstant {
@@ -119,8 +124,13 @@ impl Operator for LuminairConstant {
 ///
 /// Implements both the standard `Operator` trait for graph execution and the
 /// `LuminairOperator` trait to generate trace entries for `RecipTraceTable`.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Clone, Default, PartialEq)]
 pub(crate) struct LuminairRecip {}
+impl core::fmt::Debug for LuminairRecip {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Recip")
+    }
+}
 
 impl LuminairRecip {
     /// Creates a new `LuminairRecip` operator instance.
@@ -236,8 +246,13 @@ impl Operator for LuminairRecip {
 /// `LuminairOperator` trait to generate trace entries for `SinTraceTable`.
 /// This operator interacts with the `SinLookup` component during trace generation
 /// to record input value occurrences for the lookup argument.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Clone, Default, PartialEq)]
 pub(crate) struct LuminairSin {}
+impl core::fmt::Debug for LuminairSin {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Sin")
+    }
+}
 
 impl LuminairSin {
     /// Creates a new `LuminairSin` operator instance.
@@ -352,8 +367,13 @@ impl Operator for LuminairSin {
 ///
 /// Implements both the standard `Operator` trait for graph execution and the
 /// `LuminairOperator` trait to generate trace entries for `SqrtTraceTable`.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Clone, Default, PartialEq)]
 pub(crate) struct LuminairSqrt {}
+impl core::fmt::Debug for LuminairSqrt {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Sqrt")
+    }
+}
 
 impl LuminairSqrt {
     /// Creates a new `LuminairSqrt` operator instance.
@@ -469,8 +489,13 @@ impl Operator for LuminairSqrt {
 ///
 /// Implements both the standard `Operator` trait for graph execution and the
 /// `LuminairOperator` trait to generate trace entries for `AddTraceTable`.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Clone, Default, PartialEq)]
 struct LuminairAdd {}
+impl core::fmt::Debug for LuminairAdd {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Add")
+    }
+}
 
 impl LuminairAdd {
     /// Creates a new `LuminairAdd` operator instance.
@@ -596,8 +621,13 @@ impl Operator for LuminairAdd {
 ///
 /// Implements both the standard `Operator` trait for graph execution and the
 /// `LuminairOperator` trait to generate trace entries for `MulTraceTable`.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Clone, Default, PartialEq)]
 struct LuminairMul {}
+impl core::fmt::Debug for LuminairMul {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Mul")
+    }
+}
 
 impl LuminairMul {
     /// Creates a new `LuminairMul` operator instance.
@@ -731,8 +761,13 @@ impl Operator for LuminairMul {
 /// Implements both the standard `Operator` trait for graph execution and the
 /// `LuminairOperator` trait to generate trace entries for `SumReduceTraceTable`,
 /// capturing the accumulation process step-by-step.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Clone, Default, PartialEq)]
 struct LuminairSumReduce(pub usize);
+impl core::fmt::Debug for LuminairSumReduce {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "SumReduce({:?})", self.0)
+    }
+}
 
 impl LuminairSumReduce {
     /// Creates a new `LuminairSumReduce` operator instance for the given reduction dimension.
@@ -875,9 +910,13 @@ impl Operator for LuminairSumReduce {
 /// Implements both the standard `Operator` trait for graph execution and the
 /// `LuminairOperator` trait to generate trace entries for `MaxReduceTraceTable`,
 /// capturing the comparison and update process step-by-step.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Clone, Default, PartialEq)]
 struct LuminairMaxReduce(pub usize);
-
+impl core::fmt::Debug for LuminairMaxReduce {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "MaxReduce({:?})", self.0)
+    }
+}
 impl LuminairMaxReduce {
     /// Creates a new `LuminairMaxReduce` operator instance for the given reduction dimension.
     pub fn new(value: usize) -> Self {

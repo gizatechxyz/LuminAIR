@@ -13,6 +13,7 @@ import { Check, Loader2, X, AlertCircle } from "lucide-react";
 import { cn } from "../lib/utils";
 import init, { verify } from "@gizatech/luminair-web";
 import JSZip from "jszip";
+import { GraphVisualizer } from "./GraphVisualizer";
 
 // Verification steps based on the actual console logs from WASM
 const VERIFICATION_STEPS = [
@@ -366,6 +367,30 @@ export function VerifyButton({
     }
   };
 
+  // Sample DOT graph - in the future this will come from metadata
+  const sampleDotGraph = `digraph {
+    0 [ label = "Tensor Load | 0" ]
+    1 [ label = "Tensor Load | 1" ]
+    2 [ label = "Tensor Load | 2" ]
+    3 [ label = "Mul | 3 | [2, 2] | [2, 2]" ]
+    4 [ label = "Add | 4 | [2, 2] | [2, 2]" ]
+    5 [ label = "Mul | 5 | [2, 2] | [2, 2]" ]
+    6 [ label = "CopyToStwo | 6" ]
+    7 [ label = "CopyToStwo | 7" ]
+    8 [ label = "CopyToStwo | 8" ]
+    9 [ label = "CopyFromStwo | 9 | [2, 2]" ]
+    0 -> 6 [  ]
+    1 -> 7 [  ]
+    2 -> 8 [  ]
+    3 -> 5 [  ]
+    3 -> 4 [  ]
+    4 -> 5 [  ]
+    5 -> 9 [  ]
+    6 -> 3 [  ]
+    7 -> 3 [  ]
+    8 -> 4 [  ]
+}`;
+
   return (
     <>
       <Button
@@ -409,7 +434,7 @@ export function VerifyButton({
           }
         }}
       >
-        <DialogContent className="sm:max-w-[900px] font-sans bg-white dark:bg-black border-gray-200 dark:border-gray-700">
+        <DialogContent className="sm:max-w-[1200px] font-sans bg-white dark:bg-black border-gray-200 dark:border-gray-700">
           <DialogHeader className="pb-3">
             <DialogTitle className="text-2xl font-bold text-left mb-2 text-gray-900 dark:text-gray-100">
               {title}
@@ -681,6 +706,14 @@ export function VerifyButton({
                       </a>
                     </span>
                   </div>
+                </div>
+
+                {/* Graph Visualizer */}
+                <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <GraphVisualizer 
+                    dotString={sampleDotGraph}
+                    className="max-h-80 overflow-y-auto"
+                  />
                 </div>
               </div>
             </div>

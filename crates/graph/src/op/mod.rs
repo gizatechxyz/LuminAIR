@@ -38,8 +38,8 @@ pub(crate) trait LuminairOperator<
 /// and to call its `process_trace` method if so.
 pub(crate) trait HasProcessTrace<
     C: TraceColumn + Debug + 'static, // The specific column structure for this op's trace
-    T: Debug + 'static,             // The table type to store trace entries
-    L: Debug + 'static,             // Auxiliary lookup data/helper
+    T: Debug + 'static,               // The table type to store trace entries
+    L: Debug + 'static,               // Auxiliary lookup data/helper
 >
 {
     /// Returns `true` if the operator implements `LuminairOperator` for the given `C`, `T`, `L`.
@@ -67,10 +67,16 @@ pub(crate) trait HasProcessTrace<
 ///
 /// The generic parameters `C`, `T`, and `L` correspond to the `TraceColumn` type,
 /// the trace table type, and the lookup helper type of the wrapped operator, respectively.
-#[derive(Debug)]
 struct LuminairWrapper<C: TraceColumn + Debug + 'static, T: Debug + 'static, L: Debug + 'static>(
     Box<dyn LuminairOperator<C, T, L>>,
 );
+impl<C: TraceColumn + Debug + 'static, T: Debug + 'static, L: Debug + 'static> core::fmt::Debug
+    for LuminairWrapper<C, T, L>
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.0)
+    }
+}
 
 impl<C: TraceColumn + Debug + 'static, T: Debug + 'static, L: Debug + 'static> Operator
     for LuminairWrapper<C, T, L>
@@ -141,8 +147,8 @@ impl<C: TraceColumn + Debug + 'static, T: Debug + 'static, L: Debug + 'static>
 /// trace generation signature of the operator being converted.
 pub(crate) trait IntoOperator<
     C: TraceColumn + Debug + 'static, // The specific column structure for the op's trace
-    T: Debug + 'static,             // The table type for trace entries
-    L: Debug + 'static,             // Auxiliary lookup data/helper
+    T: Debug + 'static,               // The table type for trace entries
+    L: Debug + 'static,               // Auxiliary lookup data/helper
 >
 {
     fn into_operator(self) -> Box<dyn Operator>;
