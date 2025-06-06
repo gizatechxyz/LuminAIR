@@ -434,24 +434,119 @@ export function VerifyButton({
           }
         }}
       >
-        <DialogContent className="sm:max-w-[1200px] font-sans bg-white dark:bg-black border-gray-200 dark:border-gray-700">
+        <DialogContent className="sm:max-w-[1200px] max-h-[90vh] font-sans bg-white dark:bg-black border-gray-200 dark:border-gray-700">
           <DialogHeader className="pb-3">
             <DialogTitle className="text-2xl font-bold text-left mb-2 text-gray-900 dark:text-gray-100">
               {title}
             </DialogTitle>
           </DialogHeader>
 
-          {/* Two-column layout with terminal design */}
-          <div className="flex flex-col md:flex-row gap-8 min-h-[400px]">
-            {/* Left column - Terminal and controls (second on mobile, first on desktop) */}
-            <div className="flex-1 flex flex-col space-y-4 order-2 md:order-1">
+          {/* Responsive layout */}
+          <div className="flex flex-col lg:flex-row gap-6 min-h-[500px] max-h-[75vh] overflow-auto">
+            {/* Left column */}
+            <div className="flex-1 flex flex-col space-y-4 order-2 lg:order-1">
+              {/* Graph Visualizer */}
+              <div className="flex-1 min-h-0">
+                <GraphVisualizer
+                  dotString={sampleDotGraph}
+                  className="h-full"
+                />
+              </div>
+
+              {/* Bottom section with download button and footer */}
+              <div className="flex flex-col space-y-3 mt-auto">
+                {/* Download button */}
+                {state.result && (
+                  <Button
+                    variant="outline"
+                    className="text-sm font-mono border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-200 self-start"
+                    onClick={async () => {
+                      try {
+                        const zip = new JSZip();
+
+                        // Fetch the files
+                        const [proofResp, settingsResp] = await Promise.all([
+                          fetch(proofPath),
+                          fetch(settingsPath),
+                        ]);
+
+                        if (proofResp.ok) {
+                          const proofBlob = await proofResp.blob();
+                          zip.file("proof.bin", proofBlob);
+                        }
+
+                        if (settingsResp.ok) {
+                          const settingsBlob = await settingsResp.blob();
+                          zip.file("settings.bin", settingsBlob);
+                        }
+
+                        // Generate and download the zip
+                        const zipBlob = await zip.generateAsync({ type: "blob" });
+                        const url = URL.createObjectURL(zipBlob);
+                        const a = document.createElement("a");
+                        a.href = url;
+                        a.download = "luminair-proof.zip";
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                      } catch (error) {
+                        console.error("Download failed:", error);
+                      }
+                    }}
+                  >
+                    Download proof
+                  </Button>
+                )}
+
+                {/* Footer information */}
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-1 text-xs text-gray-400 dark:text-gray-500">
+                    <svg
+                      className="h-3 w-3"
+                      viewBox="0 0 18 20"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        clipRule="evenodd"
+                        d="M8.65331 0L0 14.9659L8.65331 20L17.3132 14.9659L8.65331 0ZM7.2009 8.60339C8.12395 7.67922 8.6235 6.33476 8.65835 4.68359C8.72707 7.93945 10.6026 10.0027 13.9692 10.0027C12.3099 10.0027 11.0129 10.5039 10.1158 11.4021C9.19275 12.3263 8.6932 13.6707 8.65835 15.3219C8.58963 12.066 6.71409 10.0027 3.34753 10.0027C5.00678 10.0027 6.30384 9.50154 7.2009 8.60339Z"
+                        fill="currentColor"
+                      />
+                    </svg>
+                    <span>Made By Giza</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right column - Description, Terminal, and Status */}
+            <div className="flex-1 flex flex-col space-y-4 order-1 lg:order-2">
+              {/* Description */}
+              <DialogDescription className="text-sm text-gray-600 dark:text-gray-300">
+                You are verifying a{" "}
+                <a
+                  href="https://luminair.gizatech.xyz/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-green-600 dark:text-green-400 hover:underline"
+                >
+                  LuminAIR
+                </a>{" "}
+                Circle STARK proof entirely within your browser—no external
+                network requests are made during verification. This
+                cryptographic proof ensures the computational integrity of the
+                model inference.
+              </DialogDescription>
+
               {/* Terminal container */}
-              <div className="bg-white dark:bg-gray-950 rounded-lg p-4 font-mono text-sm min-h-[300px] border border-gray-800">
-                <div className="flex items-center mb-3 pb-2 border-b border-gray-700">
+              <div className="bg-white dark:bg-gray-950 rounded-lg p-3 font-mono text-xs border border-gray-200 dark:border-gray-700 h-56 flex flex-col">
+                <div className="flex items-center mb-2 pb-2 border-b border-gray-200 dark:border-gray-700">
                   <div className="text-gray-400 text-xs">verification logs</div>
                 </div>
 
-                <div className="space-y-1">
+                <div className="space-y-1 flex-1 overflow-y-auto">
                   {VERIFICATION_STEPS.map((step, index) => {
                     const stepState = state.steps[step.id];
                     const isActive = stepState.status === "in-progress";
@@ -462,7 +557,7 @@ export function VerifyButton({
                       <div
                         key={step.id}
                         className={cn(
-                          "flex items-center space-x-2 py-1 transition-all",
+                          "flex items-center space-x-2 py-0.5 transition-all",
                           isActive && "animate-pulse",
                           stepState.status === "pending" &&
                             !state.isVerifying &&
@@ -482,10 +577,10 @@ export function VerifyButton({
                         <span
                           className={cn(
                             "text-xs",
-                            stepState.status === "pending" && "text-gray-700",
+                            stepState.status === "pending" && "text-gray-700 dark:text-gray-400",
                             stepState.status === "in-progress" &&
-                              "text-gray-600",
-                            stepState.status === "completed" && "text-gray-500",
+                              "text-gray-600 dark:text-gray-300",
+                            stepState.status === "completed" && "text-gray-500 dark:text-gray-400",
                             stepState.status === "error" && "text-red-400"
                           )}
                         >
@@ -496,7 +591,7 @@ export function VerifyButton({
                   })}
 
                   {state.isVerifying && (
-                    <div className="flex items-center space-x-2 py-1">
+                    <div className="flex items-center space-x-2 py-0.5">
                       <Loader2 className="h-3 w-3 animate-spin text-blue-400" />
                       <span className="text-blue-400 text-xs">
                         Processing verification...
@@ -506,7 +601,7 @@ export function VerifyButton({
 
                   {(getOverallStatus() === "completed" ||
                     (state.result && !state.result.success)) && (
-                    <div className="flex items-center space-x-2 py-1 mt-2 pt-2 border-t border-gray-700">
+                    <div className="flex items-center space-x-2 py-0.5 mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
                       <span
                         className={cn(
                           state.result?.success
@@ -533,187 +628,93 @@ export function VerifyButton({
                 </div>
               </div>
 
-              {/* Download button */}
-              {state.result && (
-                <Button
-                  variant="outline"
-                  className="text-sm font-mono border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-200 self-start"
-                  onClick={async () => {
-                    try {
-                      const zip = new JSZip();
+              <div className="flex-1"></div>
 
-                      // Fetch the files
-                      const [proofResp, settingsResp] = await Promise.all([
-                        fetch(proofPath),
-                        fetch(settingsPath),
-                      ]);
-
-                      if (proofResp.ok) {
-                        const proofBlob = await proofResp.blob();
-                        zip.file("proof.bin", proofBlob);
-                      }
-
-                      if (settingsResp.ok) {
-                        const settingsBlob = await settingsResp.blob();
-                        zip.file("settings.bin", settingsBlob);
-                      }
-
-                      // Generate and download the zip
-                      const zipBlob = await zip.generateAsync({ type: "blob" });
-                      const url = URL.createObjectURL(zipBlob);
-                      const a = document.createElement("a");
-                      a.href = url;
-                      a.download = "luminair-proof.zip";
-                      document.body.appendChild(a);
-                      a.click();
-                      document.body.removeChild(a);
-                      URL.revokeObjectURL(url);
-                    } catch (error) {
-                      console.error("Download failed:", error);
-                    }
-                  }}
-                >
-                  Download proof
-                </Button>
-              )}
-
-              {/* Footer information */}
-              <div className="mt-auto space-y-2">
-                <div className="flex items-center space-x-1 text-xs text-gray-400 dark:text-gray-500">
-                  <svg
-                    className="h-3 w-3"
-                    viewBox="0 0 18 20"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
+              {/* Additional fields */}
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+                    Status:
+                  </span>
+                  <div
+                    className={cn(
+                      "inline-flex items-center px-2 py-1 rounded-full text-xs font-medium",
+                      getOverallStatus() === "completed" &&
+                        "bg-green-100 dark:bg-green-950/50 text-green-800 dark:text-green-300",
+                      getOverallStatus() === "in-progress" &&
+                        "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-300",
+                      getOverallStatus() === "error" &&
+                        "bg-red-100 dark:bg-red-950/50 text-red-800 dark:text-red-300",
+                      getOverallStatus() === "pending" &&
+                        "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-300"
+                    )}
                   >
-                    <path
-                      fillRule="evenodd"
-                      clipRule="evenodd"
-                      d="M8.65331 0L0 14.9659L8.65331 20L17.3132 14.9659L8.65331 0ZM7.2009 8.60339C8.12395 7.67922 8.6235 6.33476 8.65835 4.68359C8.72707 7.93945 10.6026 10.0027 13.9692 10.0027C12.3099 10.0027 11.0129 10.5039 10.1158 11.4021C9.19275 12.3263 8.6932 13.6707 8.65835 15.3219C8.58963 12.066 6.71409 10.0027 3.34753 10.0027C5.00678 10.0027 6.30384 9.50154 7.2009 8.60339Z"
-                      fill="currentColor"
-                    />
-                  </svg>
-                  <span>Made By Giza</span>
+                    {getOverallStatus() === "completed" && (
+                      <>
+                        <Check className="w-3 h-3 mr-1" />
+                        Verified
+                      </>
+                    )}
+                    {getOverallStatus() === "in-progress" && (
+                      <>
+                        <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                        Verifying
+                      </>
+                    )}
+                    {getOverallStatus() === "error" && (
+                      <>
+                        <X className="w-3 h-3 mr-1" />
+                        Failed
+                      </>
+                    )}
+                    {getOverallStatus() === "pending" && (
+                      <>
+                        <div className="w-3 h-3 mr-1 rounded-full border border-current" />
+                        Pending
+                      </>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </div>
 
-            {/* Vertical divider - hidden on mobile */}
-            <div className="hidden md:block w-px bg-gray-200 dark:bg-gray-700 my-4 order-1 md:order-2"></div>
-
-            {/* Right column - Status circle and description (first on mobile, last on desktop) */}
-            <div className="flex-1 flex flex-col items-center justify-start pt-8 order-1 md:order-3">
-              <div className="text-left space-y-3 w-full">
-                <DialogDescription className="text-sm text-gray-600 dark:text-gray-300">
-                  You are verifying a{" "}
-                  <a
-                    href="https://luminair.gizatech.xyz/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-green-600 dark:text-green-400 hover:underline"
-                  >
-                    LuminAIR
-                  </a>{" "}
-                  Circle STARK proof entirely within your browser—no external
-                  network requests are made during verification. This
-                  cryptographic proof ensures the computational integrity of the
-                  model inference.
-                </DialogDescription>
-
-                {/* Additional fields */}
-                <div className="space-y-2 pt-2 border-t border-gray-200 dark:border-gray-700">
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
-                      Status:
-                    </span>
-                    <div
-                      className={cn(
-                        "inline-flex items-center px-2 py-1 rounded-full text-xs font-medium",
-                        getOverallStatus() === "completed" &&
-                          "bg-green-100 dark:bg-green-950/50 text-green-800 dark:text-green-300",
-                        getOverallStatus() === "in-progress" &&
-                          "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-300",
-                        getOverallStatus() === "error" &&
-                          "bg-red-100 dark:bg-red-950/50 text-red-800 dark:text-red-300",
-                        getOverallStatus() === "pending" &&
-                          "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-300"
-                      )}
+                <div className="flex justify-between items-start">
+                  <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+                    Author:
+                  </span>
+                  <span className="text-xs text-gray-700 dark:text-gray-300 text-right max-w-[200px]">
+                    <a
+                      href={authorUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:underline"
                     >
-                      {getOverallStatus() === "completed" && (
-                        <>
-                          <Check className="w-3 h-3 mr-1" />
-                          Verified
-                        </>
-                      )}
-                      {getOverallStatus() === "in-progress" && (
-                        <>
-                          <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                          Verifying
-                        </>
-                      )}
-                      {getOverallStatus() === "error" && (
-                        <>
-                          <X className="w-3 h-3 mr-1" />
-                          Failed
-                        </>
-                      )}
-                      {getOverallStatus() === "pending" && (
-                        <>
-                          <div className="w-3 h-3 mr-1 rounded-full border border-current" />
-                          Pending
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex justify-between items-start">
-                    <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
-                      Author:
-                    </span>
-                    <span className="text-xs text-gray-700 dark:text-gray-300 text-right max-w-[200px]">
-                      <a
-                        href={authorUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="hover:underline"
-                      >
-                        {author}
-                      </a>
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between items-start">
-                    <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
-                      Model description:
-                    </span>
-                    <span className="text-xs text-gray-700 dark:text-gray-300 text-right max-w-[200px]">
-                      {modelDescription}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between items-start">
-                    <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
-                      Prover:
-                    </span>
-                    <span className="text-xs text-gray-700 dark:text-gray-300 text-right max-w-[200px]">
-                      <a
-                        href="https://github.com/gizatechxyz/LuminAIR"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="hover:underline"
-                      >
-                        LuminAIR STWO
-                      </a>
-                    </span>
-                  </div>
+                      {author}
+                    </a>
+                  </span>
                 </div>
 
-                {/* Graph Visualizer */}
-                <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                  <GraphVisualizer 
-                    dotString={sampleDotGraph}
-                    className="max-h-80 overflow-y-auto"
-                  />
+                <div className="flex justify-between items-start">
+                  <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+                    Model description:
+                  </span>
+                  <span className="text-xs text-gray-700 dark:text-gray-300 text-right max-w-[200px]">
+                    {modelDescription}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-start">
+                  <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+                    Prover:
+                  </span>
+                  <span className="text-xs text-gray-700 dark:text-gray-300 text-right max-w-[200px]">
+                    <a
+                      href="https://github.com/gizatechxyz/LuminAIR"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:underline"
+                    >
+                      LuminAIR STWO
+                    </a>
+                  </span>
                 </div>
               </div>
             </div>
