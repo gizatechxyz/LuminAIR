@@ -3,7 +3,7 @@ use luminair_air::{
         add, lookups, max_reduce, mul, recip, sin, sqrt, sum_reduce, LuminairComponents,
         LuminairInteractionElements,
     },
-    pie::{LuminairPie, TraceTable},
+    pie::{LuminairPie, Metadata, TraceTable},
     preprocessed::{lookups_to_preprocessed_column, PreProcessedTrace, SinPreProcessed},
     settings::CircuitSettings,
     LuminairClaim, LuminairInteractionClaim, LuminairInteractionClaimGenerator,
@@ -33,13 +33,13 @@ use crate::LuminairProof;
 pub fn prove(
     pie: LuminairPie,
     settings: CircuitSettings,
-) -> Result<LuminairProof<Blake2sMerkleHasher>, LuminairError> {
+) -> Result<(LuminairProof<Blake2sMerkleHasher>, Metadata), LuminairError> {
     // ┌──────────────────────────┐
     // │     Protocol Setup       │
     // └──────────────────────────┘
     tracing::info!("Protocol Setup");
     let config: PcsConfig = PcsConfig::default();
-    let max_log_size = pie.execution_resources.max_log_size;
+    let max_log_size = pie.metadata.execution_resources.max_log_size;
     let twiddles = SimdBackend::precompute_twiddles(
         CanonicCoset::new(max_log_size + config.fri_config.log_blowup_factor + 2)
             .circle_domain()
@@ -198,9 +198,15 @@ pub fn prove(
     let components = component_builder.provers();
     let proof = prover::prove::<SimdBackend, _>(&components, channel, commitment_scheme)?;
 
-    Ok(LuminairProof {
-        claim: main_claim,
-        interaction_claim,
-        proof,
-    })
+    Ok((
+        LuminairProof {
+            claim: main_claim,
+            interaction_claim,
+            proof,
+        },
+        Metadata {
+            execution_resources: pie.metadata.execution_resources,
+            graph_view: pie.metadata.graph_view,
+        },
+    ))
 }
