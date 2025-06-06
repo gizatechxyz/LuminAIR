@@ -2,6 +2,14 @@
 export { VerifyButton } from "./components/VerifyButton";
 export type { VerifyButtonProps } from "./components/VerifyButton";
 
+// Export the new ProofLabel component
+export { ProofLabel } from "./components/ProofLabel";
+export type { ProofLabelProps } from "./components/ProofLabel";
+
+// Export the shared VerificationModal component
+export { VerificationModal, VERIFICATION_STEPS } from "./components/VerificationModal";
+export type { VerificationState, StepState, StepStatus } from "./components/VerificationModal";
+
 // Export the graph visualizer component
 export { GraphVisualizer } from "./components/GraphVisualizer";
 
@@ -10,4 +18,5 @@ export { Button } from "./components/ui/button";
 export { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "./components/ui/dialog";
 
 // Export utilities
-export { cn } from "./lib/utils"; 
+export { cn } from "./lib/utils";
+export { getSharedButtonStyles, baseButtonStyles } from "./lib/shared-styles"; 

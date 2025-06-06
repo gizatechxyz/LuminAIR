@@ -1,8 +1,7 @@
 "use client";
 
 import React, { useState, useCallback, useEffect, useRef } from "react";
-import { Button } from "./ui/button";
-import { Check, Loader2, X, AlertCircle } from "lucide-react";
+import { Check, Loader2, X, ChevronRight } from "lucide-react";
 import { cn } from "../lib/utils";
 import { getSharedButtonStyles } from "../lib/shared-styles";
 import init, { verify } from "@gizatech/luminair-web";
@@ -13,35 +12,37 @@ import {
   type StepStatus,
 } from "./VerificationModal";
 
-export interface VerifyButtonProps {
+export interface ProofLabelProps {
   /** Path to the proof file (required) */
   proofPath: string;
   /** Path to the settings file (required) */
   settingsPath: string;
   /** Title displayed in the modal (default: "Can't be evil.") */
   title?: string;
-  /** Text displayed on the button (default: "VERIFY") */
-  buttonText?: string;
+  /** Text displayed on the label (default: "PROOF VERIFIED") */
+  labelText?: string;
+  /** Subtitle text on the label (default: "Computational Integrity") */
+  subtitleText?: string;
   /** Author name displayed in the modal (default: "Giza") */
   author?: string;
   /** Model description displayed in the modal (default: "Demo model") */
   modelDescription?: string;
   /** Author URL (default: "https://www.gizatech.xyz/") */
   authorUrl?: string;
-  /** Custom className for the button */
+  /** Custom className for the label */
   className?: string;
 }
 
-export function VerifyButton({
+export function ProofLabel({
   proofPath,
   settingsPath,
   title = "Can't be evil.",
-  buttonText = "VERIFY",
+  labelText = "INTEGRITY VERIFIED",
   author = "Giza",
   modelDescription = "Demo model",
   authorUrl = "https://www.gizatech.xyz/",
   className,
-}: VerifyButtonProps) {
+}: ProofLabelProps) {
   const [state, setState] = useState<VerificationState>({
     isOpen: false,
     isVerifying: false,
@@ -58,6 +59,7 @@ export function VerifyButton({
   const originalConsoleLog = useRef<any>(null);
   const originalConsoleInfo = useRef<any>(null);
   const stepTimestamps = useRef<Record<string, number>>({});
+  const verificationStarted = useRef(false);
 
   const updateStepStatus = useCallback(
     (stepId: string, status: StepStatus, message?: string) => {
@@ -159,25 +161,16 @@ export function VerifyButton({
     };
   }, [state.isVerifying, updateStepWithDelay]);
 
-  const resetVerification = useCallback(() => {
-    setState({
-      isOpen: false,
-      isVerifying: false,
-      allStepsCompleted: false,
-      steps: VERIFICATION_STEPS.reduce(
-        (acc, step) => ({
-          ...acc,
-          [step.id]: { status: "pending" as StepStatus },
-        }),
-        {}
-      ),
-      result: undefined,
-    });
+  // Auto-start verification on component mount
+  useEffect(() => {
+    if (!verificationStarted.current) {
+      verificationStarted.current = true;
+      startVerification();
+    }
   }, []);
 
-  const handleVerifyClick = async () => {
-    resetVerification();
-    setState((prev) => ({ ...prev, isOpen: true, isVerifying: true }));
+  const startVerification = async () => {
+    setState((prev) => ({ ...prev, isVerifying: true }));
 
     try {
       await init();
@@ -231,43 +224,111 @@ export function VerifyButton({
     }
   };
 
+  const handleLabelClick = () => {
+    setState((prev) => ({ ...prev, isOpen: true }));
+  };
+
+  const getOverallStatus = () => {
+    if (state.result && !state.result.success) {
+      return "error";
+    }
+
+    if (state.result && state.result.success && state.allStepsCompleted) {
+      return "completed";
+    }
+
+    if (
+      state.isVerifying ||
+      (state.result && state.result.success && !state.allStepsCompleted)
+    ) {
+      return "in-progress";
+    }
+
+    return "pending";
+  };
+
+  const getGizaLogoWithStatus = () => {
+    const status = getOverallStatus();
+
+    return (
+      <div className="relative mr-3">
+        {/* Filled Giza Logo */}
+        <svg
+          className="h-5 w-5"
+          viewBox="0 0 18 20"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M0 14.9659L8.65331 0L17.3132 14.9659L8.65331 20L0 14.9659Z"
+            fill="currentColor"
+          />
+        </svg>
+
+        {/* Status Indicator positioned slightly lower in the center of the logo */}
+        <div className="absolute inset-0 flex items-center justify-center translate-y-0.5">
+          {status === "completed" && (
+            <Check className="h-2.5 w-2.5 text-black dark:text-white" />
+          )}
+          {status === "in-progress" && (
+            <Loader2 className="h-2.5 w-2.5 animate-spin text-black dark:text-white" />
+          )}
+          {status === "error" && (
+            <X className="h-2.5 w-2.5 text-black dark:text-white" />
+          )}
+          {status === "pending" && (
+            <div className="h-1.5 w-1.5 rounded-full border border-black dark:border-white" />
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const getStatusText = () => {
+    const status = getOverallStatus();
+
+    switch (status) {
+      case "completed":
+        return labelText;
+      case "in-progress":
+        return "VERIFYING...";
+      case "error":
+        return "VERIFICATION FAILED";
+      default:
+        return "VERIFYING...";
+    }
+  };
+
   return (
     <>
-      <Button
-        onClick={handleVerifyClick}
-        disabled={state.isVerifying}
-        className={cn(getSharedButtonStyles(), className)}
-      >
-        {state.isVerifying ? (
-          <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            VERIFYING...
-          </>
-        ) : (
-          <>
-            {buttonText}
-            <svg
-              className="ml-2 h-4 w-4"
-              viewBox="0 0 18 20"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                fillRule="evenodd"
-                clipRule="evenodd"
-                d="M8.65331 0L0 14.9659L8.65331 20L17.3132 14.9659L8.65331 0ZM7.2009 8.60339C8.12395 7.67922 8.6235 6.33476 8.65835 4.68359C8.72707 7.93945 10.6026 10.0027 13.9692 10.0027C12.3099 10.0027 11.0129 10.5039 10.1158 11.4021C9.19275 12.3263 8.6932 13.6707 8.65835 15.3219C8.58963 12.066 6.71409 10.0027 3.34753 10.0027C5.00678 10.0027 6.30384 9.50154 7.2009 8.60339Z"
-                fill="currentColor"
-              />
-            </svg>
-          </>
+      <div
+        onClick={handleLabelClick}
+        className={cn(
+          getSharedButtonStyles(),
+          "cursor-pointer flex items-center justify-between min-w-0 w-fit max-w-sm",
+          state.isVerifying && "opacity-75",
+          className
         )}
-      </Button>
+      >
+        <div className="flex items-center min-w-0 flex-1">
+          {getGizaLogoWithStatus()}
+
+          <div className="flex flex-col items-start min-w-0 flex-1">
+            <span className="font-mono text-xs leading-tight">
+              {getStatusText()}
+            </span>
+          </div>
+        </div>
+
+        {/* Chevron indicator */}
+        <ChevronRight className="h-4 w-4 ml-2 flex-shrink-0" />
+      </div>
 
       <VerificationModal
         isOpen={state.isOpen}
         onOpenChange={(open) => {
           if (!open && !state.isVerifying) {
-            resetVerification();
+            setState((prev) => ({ ...prev, isOpen: false }));
           }
         }}
         verificationState={state}
