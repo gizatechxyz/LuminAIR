@@ -481,7 +481,9 @@ export function VerifyButton({
                         }
 
                         // Generate and download the zip
-                        const zipBlob = await zip.generateAsync({ type: "blob" });
+                        const zipBlob = await zip.generateAsync({
+                          type: "blob",
+                        });
                         const url = URL.createObjectURL(zipBlob);
                         const a = document.createElement("a");
                         a.href = url;
@@ -525,19 +527,10 @@ export function VerifyButton({
             <div className="flex-1 flex flex-col space-y-4 order-1 lg:order-2">
               {/* Description */}
               <DialogDescription className="text-sm text-gray-600 dark:text-gray-300">
-                You are verifying a{" "}
-                <a
-                  href="https://luminair.gizatech.xyz/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-green-600 dark:text-green-400 hover:underline"
-                >
-                  LuminAIR
-                </a>{" "}
-                Circle STARK proof entirely within your browser—no external
-                network requests are made during verification. This
-                cryptographic proof ensures the computational integrity of the
-                model inference.
+                This verification occurs entirely in your browser,
+                cryptographically verifying that the computational graph
+                executed precisely as intended. By leveraging zero-knowledge proofs,
+                we mathematically guarantee the integrity of the computation.
               </DialogDescription>
 
               {/* Terminal container */}
@@ -577,10 +570,12 @@ export function VerifyButton({
                         <span
                           className={cn(
                             "text-xs",
-                            stepState.status === "pending" && "text-gray-700 dark:text-gray-400",
+                            stepState.status === "pending" &&
+                              "text-gray-700 dark:text-gray-400",
                             stepState.status === "in-progress" &&
                               "text-gray-600 dark:text-gray-300",
-                            stepState.status === "completed" && "text-gray-500 dark:text-gray-400",
+                            stepState.status === "completed" &&
+                              "text-gray-500 dark:text-gray-400",
                             stepState.status === "error" && "text-red-400"
                           )}
                         >
