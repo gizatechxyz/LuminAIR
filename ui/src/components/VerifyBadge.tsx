@@ -269,13 +269,13 @@ export function VerifyBadge({
         {/* Status Indicator positioned slightly lower in the center of the logo */}
         <div className="absolute inset-0 flex items-center justify-center translate-y-0.5">
           {status === "completed" && (
-            <Check className="h-2.5 w-2.5 text-white dark:text-black" />
+            <Check className="h-2.5 w-2.5 text-black dark:text-white stroke-2" />
           )}
           {status === "in-progress" && (
-            <Loader2 className="h-2.5 w-2.5 animate-spin text-white dark:text-black" />
+            <Loader2 className="h-2.5 w-2.5 animate-spin text-black dark:text-white stroke-2" />
           )}
           {status === "error" && (
-            <X className="h-2.5 w-2.5 text-white dark:text-black" />
+            <X className="h-2.5 w-2.5 text-black dark:text-white stroke-2" />
           )}
         </div>
       </div>

@@ -324,7 +324,7 @@ export function GraphVisualizer({
                       textAnchor="middle"
                       fontSize="10"
                       fill="currentColor"
-                      className="text-gray-700 dark:text-gray-300"
+                      className="text-gray-700 dark:text-gray-700"
                       style={{ pointerEvents: "none" }}
                     >
                       {getDisplayText(node.label)}
