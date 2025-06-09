@@ -151,7 +151,8 @@ fn benchmark_add(c: &mut Criterion) {
                     let trace = graph
                         .gen_trace(&mut settings)
                         .expect("Trace generation failed");
-                    let proof = prove(trace, settings.clone()).expect("Proof generation failed");
+                    let (proof, _) =
+                        prove(trace, settings.clone()).expect("Proof generation failed");
                     (settings, proof)
                 },
                 |(settings, proof)| {
@@ -227,7 +228,8 @@ fn benchmark_mul(c: &mut Criterion) {
                     let trace = graph
                         .gen_trace(&mut settings)
                         .expect("Trace generation failed");
-                    let proof = prove(trace, settings.clone()).expect("Proof generation failed");
+                    let (proof, _) =
+                        prove(trace, settings.clone()).expect("Proof generation failed");
                     (settings, proof)
                 },
                 |(settings, proof)| {
@@ -303,7 +305,8 @@ fn benchmark_recip(c: &mut Criterion) {
                     let trace = graph
                         .gen_trace(&mut settings)
                         .expect("Trace generation failed");
-                    let proof = prove(trace, settings.clone()).expect("Proof generation failed");
+                    let (proof, _) =
+                        prove(trace, settings.clone()).expect("Proof generation failed");
                     (settings, proof)
                 },
                 |(settings, proof)| {
@@ -382,7 +385,8 @@ fn benchmark_sum_reduce(c: &mut Criterion) {
                     let trace = graph
                         .gen_trace(&mut settings)
                         .expect("Trace generation failed");
-                    let proof = prove(trace, settings.clone()).expect("Proof generation failed");
+                    let (proof, _) =
+                        prove(trace, settings.clone()).expect("Proof generation failed");
                     (settings, proof)
                 },
                 |(settings, proof)| {
@@ -461,7 +465,8 @@ fn benchmark_max_reduce(c: &mut Criterion) {
                     let trace = graph
                         .gen_trace(&mut settings)
                         .expect("Trace generation failed");
-                    let proof = prove(trace, settings.clone()).expect("Proof generation failed");
+                    let (proof, _) =
+                        prove(trace, settings.clone()).expect("Proof generation failed");
                     (settings, proof)
                 },
                 |(settings, proof)| {
@@ -537,7 +542,8 @@ fn benchmark_sin(c: &mut Criterion) {
                     let trace = graph
                         .gen_trace(&mut settings)
                         .expect("Trace generation failed");
-                    let proof = prove(trace, settings.clone()).expect("Proof generation failed");
+                    let (proof, _) =
+                        prove(trace, settings.clone()).expect("Proof generation failed");
                     (settings, proof)
                 },
                 |(settings, proof)| {
@@ -613,7 +619,8 @@ fn benchmark_sqrt(c: &mut Criterion) {
                     let trace = graph
                         .gen_trace(&mut settings)
                         .expect("Trace generation failed");
-                    let proof = prove(trace, settings.clone()).expect("Proof generation failed");
+                    let (proof, _) =
+                        prove(trace, settings.clone()).expect("Proof generation failed");
                     (settings, proof)
                 },
                 |(settings, proof)| {

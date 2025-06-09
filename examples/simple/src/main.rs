@@ -31,7 +31,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // ======= Prove & Verify =======
     println!("Generating proof for execution trace...");
-    let proof = prove(trace, settings.clone())?;
+    let (proof, _) = prove(trace, settings.clone())?;
     println!("Proof generated successfully. ✅");
 
     settings.to_bincode_file("./settings.bin")?;

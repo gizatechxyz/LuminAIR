@@ -102,7 +102,16 @@ pub struct LuminairPie {
     /// A collection of trace tables, one entry for each AIR component instance used.
     pub trace_tables: Vec<TraceTable>,
     /// Metadata about the execution, such as trace dimensions and operation counts.
+    pub metadata: Metadata,
+}
+
+/// Metadata of the computational graph being proved.
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Metadata {
+    /// Metadata about the execution, such as trace dimensions and operation counts.
     pub execution_resources: ExecutionResources,
+    /// A view of the computational graph
+    pub graph_view: String,
 }
 
 /// Struct for all LUT multiplicities
