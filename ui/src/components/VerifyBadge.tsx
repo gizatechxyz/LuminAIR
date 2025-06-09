@@ -251,11 +251,42 @@ export function VerifyBadge({
   const getGizaLogoWithStatus = () => {
     const status = getOverallStatus();
 
+    // Get logo color based on status - light blue but darker than background
+    const getLogoColor = () => {
+      switch (status) {
+        case "completed":
+          return "text-blue-300 dark:text-blue-300";
+        case "error":
+          return "text-red-300 dark:text-red-300";
+        case "in-progress":
+          return "text-amber-300 dark:text-amber-300";
+        default:
+          return "text-amber-300 dark:text-amber-300";
+      }
+    };
+
+    // Get status indicator color - same as border color
+    const getIndicatorColor = () => {
+      switch (status) {
+        case "completed":
+          return "text-blue-800 dark:text-blue-800";
+        case "error":
+          return "text-red-800 dark:text-red-800";
+        case "in-progress":
+          return "text-amber-800 dark:text-amber-800";
+        default:
+          return "text-amber-800 dark:text-amber-800";
+      }
+    };
+
+    const logoColorClass = getLogoColor();
+    const indicatorColorClass = getIndicatorColor();
+
     return (
       <div className="relative mr-3">
         {/* Filled Giza Logo */}
         <svg
-          className="h-5 w-5"
+          className={cn("h-5 w-5", logoColorClass)}
           viewBox="0 0 18 20"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
@@ -269,13 +300,13 @@ export function VerifyBadge({
         {/* Status Indicator positioned slightly lower in the center of the logo */}
         <div className="absolute inset-0 flex items-center justify-center translate-y-0.5">
           {status === "completed" && (
-            <Check className="h-2.5 w-2.5 text-black dark:text-white stroke-2" />
+            <Check className={cn("h-2.5 w-2.5 stroke-2", indicatorColorClass)} />
           )}
           {status === "in-progress" && (
-            <Loader2 className="h-2.5 w-2.5 animate-spin text-black dark:text-white stroke-2" />
+            <Loader2 className={cn("h-2.5 w-2.5 animate-spin stroke-2", indicatorColorClass)} />
           )}
           {status === "error" && (
-            <X className="h-2.5 w-2.5 text-black dark:text-white stroke-2" />
+            <X className={cn("h-2.5 w-2.5 stroke-2", indicatorColorClass)} />
           )}
         </div>
       </div>
@@ -299,7 +330,7 @@ export function VerifyBadge({
 
   const getBadgeVariant = () => {
     const status = getOverallStatus();
-
+    
     switch (status) {
       case "completed":
         return variant;
@@ -312,6 +343,22 @@ export function VerifyBadge({
     }
   };
 
+  // Get badge colors based on status
+  const getBadgeColors = () => {
+    const status = getOverallStatus();
+    
+    switch (status) {
+      case "completed":
+        return "bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-500 border-blue-600 dark:border-blue-500 hover:bg-blue-100 dark:hover:bg-blue-900";
+      case "error":
+        return "bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-500 border-red-600 dark:border-red-500 hover:bg-red-100 dark:hover:bg-red-900";
+      case "in-progress":
+        return "bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-500 border-amber-600 dark:border-amber-500 hover:bg-amber-100 dark:hover:bg-amber-900";
+      default:
+        return "bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-500 border-amber-600 dark:border-amber-500 hover:bg-amber-100 dark:hover:bg-amber-900";
+    }
+  };
+
   return (
     <>
       <Badge
@@ -319,9 +366,8 @@ export function VerifyBadge({
         variant={getBadgeVariant()}
         className={cn(
           "cursor-pointer hover:shadow-md transition-all duration-200 px-4 py-2 text-sm font-mono",
-          "flex items-center justify-between min-w-0 w-fit max-w-xs",
-          "bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200",
-          "border border-gray-200 dark:border-gray-700",
+          "flex items-center justify-between min-w-0 w-fit max-w-xs border",
+          getBadgeColors(),
           state.isVerifying && "opacity-75",
           className
         )}
