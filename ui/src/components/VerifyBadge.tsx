@@ -255,7 +255,7 @@ export function VerifyBadge({
     const getLogoColor = () => {
       switch (status) {
         case "completed":
-          return "text-[#BDEE63] dark:text-[#BDEE63]";
+          return "text-green-800 dark:text-green-300";
         case "error":
           return "text-red-300 dark:text-red-300";
         case "in-progress":
@@ -322,7 +322,7 @@ export function VerifyBadge({
 
     switch (status) {
       case "completed":
-        return "bg-[#BDEE63]/10 dark:bg-[#BDEE63]/20 text-[#9ACD32] dark:text-[#BDEE63] border-[#BDEE63] dark:border-[#BDEE63] hover:bg-[#BDEE63]/20 dark:hover:bg-[#BDEE63]/30";
+        return "bg-green-100 dark:bg-green-950/50 text-green-800 dark:text-green-300 border-green-800 dark:border-green-300 hover:bg-green-200 dark:hover:bg-green-900";
       case "error":
         return "bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-500 border-red-600 dark:border-red-500 hover:bg-red-100 dark:hover:bg-red-900";
       case "in-progress":
