@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useCallback, useEffect, useRef } from "react";
-import { Check, Loader2, X, ChevronRight } from "lucide-react";
+import { useState, useCallback, useEffect, useRef } from "react";
+import { ChevronRight } from "lucide-react";
 import { cn } from "../lib/utils";
 import { Badge } from "./ui/badge";
 import init, { verify } from "@gizatech/luminair-web";
@@ -265,26 +265,10 @@ export function VerifyBadge({
       }
     };
 
-    // Get status indicator color - same as border color
-    const getIndicatorColor = () => {
-      switch (status) {
-        case "completed":
-          return "text-[#9ACD32] dark:text-[#BDEE63]";
-        case "error":
-          return "text-red-800 dark:text-red-800";
-        case "in-progress":
-          return "text-amber-800 dark:text-amber-800";
-        default:
-          return "text-amber-800 dark:text-amber-800";
-      }
-    };
-
     const logoColorClass = getLogoColor();
-    const indicatorColorClass = getIndicatorColor();
 
     return (
       <div className="relative mr-2">
-        {/* Filled Giza Logo */}
         <svg
           className={cn("h-4 w-4", logoColorClass)}
           viewBox="0 0 18 20"
@@ -292,23 +276,12 @@ export function VerifyBadge({
           xmlns="http://www.w3.org/2000/svg"
         >
           <path
-            d="M0 14.9659L8.65331 0L17.3132 14.9659L8.65331 20L0 14.9659Z"
+            fillRule="evenodd"
+            clipRule="evenodd"
+            d="M8.65331 0L0 14.9659L8.65331 20L17.3132 14.9659L8.65331 0ZM7.2009 8.60339C8.12395 7.67922 8.6235 6.33476 8.65835 4.68359C8.72707 7.93945 10.6026 10.0027 13.9692 10.0027C12.3099 10.0027 11.0129 10.5039 10.1158 11.4021C9.19275 12.3263 8.6932 13.6707 8.65835 15.3219C8.58963 12.066 6.71409 10.0027 3.34753 10.0027C5.00678 10.0027 6.30384 9.50154 7.2009 8.60339Z"
             fill="currentColor"
           />
         </svg>
-
-        {/* Status Indicator positioned slightly lower in the center of the logo */}
-        <div className="absolute inset-0 flex items-center justify-center translate-y-0.5">
-          {status === "completed" && (
-            <Check className={cn("h-2 w-2 stroke-2", indicatorColorClass)} />
-          )}
-          {status === "in-progress" && (
-            <Loader2 className={cn("h-2 w-2 animate-spin stroke-2", indicatorColorClass)} />
-          )}
-          {status === "error" && (
-            <X className={cn("h-2 w-2 stroke-2", indicatorColorClass)} />
-          )}
-        </div>
       </div>
     );
   };
@@ -330,7 +303,7 @@ export function VerifyBadge({
 
   const getBadgeVariant = () => {
     const status = getOverallStatus();
-    
+
     switch (status) {
       case "completed":
         return variant;
@@ -346,7 +319,7 @@ export function VerifyBadge({
   // Get badge colors based on status
   const getBadgeColors = () => {
     const status = getOverallStatus();
-    
+
     switch (status) {
       case "completed":
         return "bg-[#BDEE63]/10 dark:bg-[#BDEE63]/20 text-[#9ACD32] dark:text-[#BDEE63] border-[#BDEE63] dark:border-[#BDEE63] hover:bg-[#BDEE63]/20 dark:hover:bg-[#BDEE63]/30";
