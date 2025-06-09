@@ -13,14 +13,15 @@ use stwo_prover::{
 };
 
 use crate::{
-    components::{InteractionClaim, Claim},
+    components::{Claim, InteractionClaim},
     preprocessed::PreProcessedColumn,
     utils::{pack_values, TreeBuilder},
 };
 
 use super::{
     table::{
-        PackedExp2LookupTraceTableRow, Exp2LookupColumn, Exp2LookupTraceTable, Exp2LookupTraceTableRow,
+        Exp2LookupColumn, Exp2LookupTraceTable, Exp2LookupTraceTableRow,
+        PackedExp2LookupTraceTableRow,
     },
     Exp2LookupElements,
 };
@@ -152,30 +153,21 @@ impl Exp2LookupInteractionClaimGenerator {
     pub fn write_interaction_trace(
         self,
         tree_builder: &mut impl TreeBuilder<SimdBackend>,
-        elements: &Exp2LookupElements,          // Randomness for Exp2 LUT (input, output) combination
-        lut: &Vec<&dyn PreProcessedColumn>,     // References to the two preprocessed Exp2 LUT columns
+        elements: &Exp2LookupElements, // Randomness for Exp2 LUT (input, output) combination
+        lut: &Vec<&dyn PreProcessedColumn>, // References to the two preprocessed Exp2 LUT columns
     ) -> InteractionClaim {
         let mut logup_gen = LogupTraceGenerator::new(self.log_size);
 
         let mut col_gen = logup_gen.new_col();
-        // Downcast to get the evaluation data
         let lut_col_0 = &lut.get(0).expect("missing exp2 col 0").gen_column().data;
         let lut_col_1 = &lut.get(1).expect("missing exp2 col 1").gen_column().data;
-        
         for row in 0..1 << (self.log_size - LOG_N_LANES) {
-            // Follow the exact pattern used in the Sin lookup implementation
             let multiplicity: PackedQM31 = self.lookup_data.multiplicities[row].into();
-            let input = lut_col_0[row]; 
+            let input = lut_col_0[row];
             let output = lut_col_1[row];
 
-            // Make sure the input/output types exactly match what combine expects
             let denom: PackedQM31 = elements.combine(&[input, output]);
-            
-            // Explicitly print the values for debugging
-            // println!("Table side: row={}, multiplicity={:?}, input={:?}, output={:?}", row, multiplicity, input, output);
-            
-            // Critical: Use negative multiplicity for table side to balance with positive from user side
-            let num: PackedQM31 = -multiplicity;
+            let num: PackedQM31 = -PackedQM31::one() * multiplicity;
 
             col_gen.write_frac(row, num, denom);
         }

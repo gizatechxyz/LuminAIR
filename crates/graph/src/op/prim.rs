@@ -1,15 +1,12 @@
 use luminair_air::{
     components::{
         add::table::{AddColumn, AddTraceTable, AddTraceTableRow},
-        lookups::{
-            sin::SinLookup,
-            exp2::Exp2Lookup,
-        },
+        exp2::table::{Exp2Column, Exp2TraceTable, Exp2TraceTableRow},
+        lookups::{exp2::Exp2Lookup, sin::SinLookup},
         max_reduce::table::{MaxReduceColumn, MaxReduceTraceTable, MaxReduceTraceTableRow},
         mul::table::{MulColumn, MulTraceTable, MulTraceTableRow},
         recip::table::{RecipColumn, RecipTraceTable, RecipTraceTableRow},
         sin::table::{SinColumn, SinTraceTable, SinTraceTableRow},
-        exp2::table::{Exp2Column, Exp2TraceTable, Exp2TraceTableRow},
         sqrt::table::{SqrtColumn, SqrtTraceTable, SqrtTraceTableRow},
         sum_reduce::table::{SumReduceColumn, SumReduceTraceTable, SumReduceTraceTableRow},
     },
@@ -435,6 +432,9 @@ impl LuminairOperator<Exp2Column, Exp2TraceTable, Exp2Lookup> for LuminairExp2 {
         for (idx, (input_val, out_val)) in intermediate_values.into_iter().enumerate() {
             let is_last_idx: u32 = if idx == (output_size - 1) { 1 } else { 0 };
 
+            // Record lookup access and get the exact table values for LogUp consistency
+            let (table_input, table_output) = lookup.record_lookup(input_val, out_val);
+
             table.add_row(Exp2TraceTableRow {
                 node_id,
                 input_id,
@@ -443,15 +443,12 @@ impl LuminairOperator<Exp2Column, Exp2TraceTable, Exp2Lookup> for LuminairExp2 {
                 next_idx: (idx + 1).into(),
                 next_node_id: node_id,
                 next_input_id: input_id,
-                input: input_val.to_m31(),
-                out: out_val.to_m31(),
+                input: table_input.to_m31(), // Use table values for LogUp consistency
+                out: table_output.to_m31(),  // Use table values for LogUp consistency
                 input_mult,
                 out_mult,
                 lookup_mult: M31::one(),
             });
-
-            // Record lookup access directly, Exp2Lookup handles the multiplicity tracking internally
-            lookup.record_lookup(input_val, out_val);
         }
 
         vec![Tensor::new(StwoData(Arc::new(out_data)))]

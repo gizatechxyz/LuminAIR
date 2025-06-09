@@ -194,11 +194,15 @@ pub fn lookups_to_preprocessed_column(lookups: &Lookups) -> Vec<Box<dyn PreProce
     }
     if let Some(exp2_lookup) = &lookups.exp2 {
         // Convert Exp2LookupLayout to LookupLayout
+        // Use proper Fixed-point conversion instead of truncating to integers
         let layout = LookupLayout {
-            ranges: vec![Range(Fixed(exp2_lookup.layout.min as i64), Fixed(exp2_lookup.layout.max as i64))],
+            ranges: vec![Range(
+                Fixed::<DEFAULT_FP_SCALE>::from_f64(exp2_lookup.layout.min),
+                Fixed::<DEFAULT_FP_SCALE>::from_f64(exp2_lookup.layout.max),
+            )],
             log_size: exp2_lookup.layout.log_size,
         };
-        
+
         let col_0 = Exp2PreProcessed::new(layout.clone(), 0);
         let col_1 = Exp2PreProcessed::new(layout.clone(), 1);
         lut_cols.push(Box::new(col_0));
@@ -228,10 +232,7 @@ impl SinPreProcessed {
     pub fn new(layout: LookupLayout, col_index: usize) -> Self {
         assert!(col_index < 2, "Sin LUT must have 2 columns");
 
-        Self {
-            layout,
-            col_index,
-        }
+        Self { layout, col_index }
     }
 
     /// Returns a reference to the generated `CircleEvaluation` for this column.
@@ -405,10 +406,7 @@ impl Exp2PreProcessed {
     pub fn new(layout: LookupLayout, col_index: usize) -> Self {
         assert!(col_index < 2, "Exp2 LUT must have 2 columns");
 
-        Self {
-            layout,
-            col_index,
-        }
+        Self { layout, col_index }
     }
 
     /// Returns a reference to the generated `CircleEvaluation` for this column.
@@ -437,7 +435,7 @@ impl PreProcessedColumn for Exp2PreProcessed {
 
     /// Generates the `CircleEvaluation` for this specific column (input or output).
     ///
-    /// It iterates through all unique integer values covered by the `layout` ranges,
+    /// It generates evenly spaced values from the min to max range,
     /// calculates the corresponding `Fixed` point value (`x` or `2^x`),
     /// converts it to `BaseField` (`M31`), and places it in the evaluation column.
     /// The column is padded with zeros to the power-of-two size defined by `log_size`.
@@ -446,28 +444,39 @@ impl PreProcessedColumn for Exp2PreProcessed {
         let domain = CanonicCoset::new(log_size).circle_domain();
         let trace_size = 1 << log_size;
         let mut column = BaseColumn::zeros(trace_size);
-        
-        // For Exp2, use evenly spaced values rather than just integers
-        // This gives better coverage of the function domain
+
+        // For Exp2, we need to work with the Exp2LookupLayout ranges
+        // Extract the min/max from the layout ranges
         if !self.layout.ranges.is_empty() {
-            let min_val = self.layout.ranges.iter().map(|r| r.0.0).min().unwrap();
-            let max_val = self.layout.ranges.iter().map(|r| r.1.0).max().unwrap();
-            
+            let min_val = self
+                .layout
+                .ranges
+                .iter()
+                .map(|r| r.0.to_f64())
+                .min_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap();
+            let max_val = self
+                .layout
+                .ranges
+                .iter()
+                .map(|r| r.1.to_f64())
+                .max_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap();
+
             // IMPORTANT: This must match exactly the formula in record_lookup and preprocessed
             let num_entries = 1 << self.log_size();
-            let step = (max_val - min_val) as f64 / (num_entries - 1) as f64;
-            
+            let step = (max_val - min_val) / (num_entries - 1) as f64;
+
             for i in 0..num_entries {
-                let float_value = min_val as f64 + step * i as f64;
-                let fixed_value = Fixed::<DEFAULT_FP_SCALE>::from_f64(float_value);
-                
+                let x = min_val + step * i as f64;
+
                 match self.col_index {
-                    0 => column.set(i, fixed_value.to_m31()),
+                    0 => column.set(i, Fixed::<DEFAULT_FP_SCALE>::from_f64(x).to_m31()),
                     1 => {
                         // Calculate 2^x and store it in the output column
-                        let exp2_value = 2.0_f64.powf(float_value);
+                        let exp2_value = 2.0_f64.powf(x);
                         column.set(i, Fixed::<DEFAULT_FP_SCALE>::from_f64(exp2_value).to_m31())
-                    },
+                    }
                     _ => unreachable!(),
                 }
             }

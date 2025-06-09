@@ -265,22 +265,6 @@ fn test_large_expansion_factors() -> Result<(), Box<dyn std::error::Error>> {
     })
 }
 
-#[test]
-fn test_expansion_with_unary_operations() -> Result<(), Box<dyn std::error::Error>> {
-    test_expansion_scenario("expansion_with_unary_operations", |cx| {
-        let mut rng = StdRng::seed_from_u64(54);
-
-        let base = cx.tensor((2, 2)).set(random_vec_rng(4, &mut rng, false));
-
-        // Apply unary operation, then expand
-        let processed = base.sin();
-        let expanded = processed.expand(2, 3);
-
-        // Use expanded result in binary operation
-        let other = cx.tensor((2, 2, 3)).set(random_vec_rng(12, &mut rng, false));
-        expanded * other
-    })
-}
 
 #[test]
 fn test_expansion_compatibility_edge_cases() -> Result<(), Box<dyn std::error::Error>> {

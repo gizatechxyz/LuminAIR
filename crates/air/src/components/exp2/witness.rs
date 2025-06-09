@@ -1,7 +1,5 @@
 use crate::{
-    components::{
-        lookups::exp2, InteractionClaim, NodeElements, Exp2Claim,
-    },
+    components::{lookups::exp2, Exp2Claim, InteractionClaim, NodeElements},
     utils::{pack_values, TreeBuilder},
 };
 use luminair_utils::TraceError;
@@ -17,7 +15,7 @@ use stwo_prover::{
     },
 };
 
-use super::table::{PackedExp2TraceTableRow, Exp2Column, Exp2TraceTable, Exp2TraceTableRow};
+use super::table::{Exp2Column, Exp2TraceTable, Exp2TraceTableRow, PackedExp2TraceTableRow};
 
 /// Number of main trace columns for the Exp2 component.
 pub(crate) const N_TRACE_COLUMNS: usize = 12;
@@ -194,24 +192,11 @@ impl Exp2InteractionClaimGenerator {
 
         let mut col_gen = logup_gen.new_col();
         for row in 0..1 << (self.log_size - LOG_N_LANES) {
-            let input = self.lookup_data.input[row][0].to_array();
-            let output = self.lookup_data.out[row][0].to_array();
+            let input = self.lookup_data.input[row][0];
+            let output = self.lookup_data.out[row][0];
             let multiplicity = self.lookup_data.lookup_mult[row];
 
-            // Follow the pattern from the Sin implementation
-            // PackedQM31 can only combine PackedM31 values, not individual M31 values
-            // So we need to create packed values first
-            let input_packed = PackedM31::from_array([input[0]; N_LANES]);
-            let output_packed = PackedM31::from_array([output[0]; N_LANES]);
-            
-            // Create the denominator using the lookup elements
-            let denom: PackedQM31 = lookup_elements.combine(&[input_packed, output_packed]);
-            
-            // For debugging
-            // println!("User side: row={}, multiplicity={:?}, input={:?}, output={:?}", 
-            //     row, multiplicity, input_packed, output_packed);
-            
-            // For the user side we use positive multiplicity (to balance with negative from table side)
+            let denom: PackedQM31 = lookup_elements.combine(&[input, output]);
             col_gen.write_frac(row, multiplicity.into(), denom);
         }
         col_gen.finalize_col();

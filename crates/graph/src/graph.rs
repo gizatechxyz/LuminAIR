@@ -6,19 +6,18 @@ use crate::{
     utils::compute_padded_range_from_srcs,
 };
 use luminair_air::{
-    DEFAULT_FP_SCALE,
     components::{
         add::table::{AddColumn, AddTraceTable},
+        exp2::table::{Exp2Column, Exp2TraceTable},
         lookups::{
-            sin::{table::SinLookupTraceTable, SinLookup},
             exp2::{Exp2Lookup, Exp2LookupLayout},
+            sin::{table::SinLookupTraceTable, SinLookup},
             Lookups,
         },
         max_reduce::table::{MaxReduceColumn, MaxReduceTraceTable},
         mul::table::{MulColumn, MulTraceTable},
         recip::table::{RecipColumn, RecipTraceTable},
         sin::table::{SinColumn, SinTraceTable},
-        exp2::table::{Exp2Column, Exp2TraceTable},
         sqrt::table::{SqrtColumn, SqrtTraceTable},
         sum_reduce::table::{SumReduceColumn, SumReduceTraceTable},
     },
@@ -28,6 +27,7 @@ use luminair_air::{
     preprocessed::{LookupLayout, Range},
     settings::CircuitSettings,
     utils::calculate_log_size,
+    DEFAULT_FP_SCALE,
 };
 use luminair_utils::LuminairError;
 use luminal::{
@@ -65,7 +65,7 @@ impl LuminairGraph for Graph {
 
         // Accumulate ranges per non-linear op
         let mut sin_ranges: Vec<Range> = Vec::new();
-        let mut has_exp2 = false;
+        let mut exp2_ranges: Vec<Range> = Vec::new();
 
         for (node, src_ids) in self.linearized_graph.as_ref().unwrap() {
             if self.tensors.contains_key(&(*node, 0)) {
@@ -85,9 +85,9 @@ impl LuminairGraph for Graph {
             if <Box<dyn Operator> as HasProcessTrace<SinColumn, SinTraceTable, SinLookup>>::has_process_trace(op) {
                 sin_ranges.push(compute_padded_range_from_srcs(&srcs));
             }
-            
+
             if <Box<dyn Operator> as HasProcessTrace<Exp2Column, Exp2TraceTable, Exp2Lookup>>::has_process_trace(op) {
-                has_exp2 = true;
+                exp2_ranges.push(compute_padded_range_from_srcs(&srcs));
             }
 
             // Execute
@@ -111,22 +111,35 @@ impl LuminairGraph for Graph {
             None
         };
 
-        let exp2_lookup = if has_exp2 {
-            // Create a very generous range for test values (just like Sin does)
-            let layout = Exp2LookupLayout {
-                log_size: 10,  // 1024 entries for better precision
-                min: -5.0,     // Wider range to ensure all test values fit
-                max: 5.0,      // Wider range to ensure all test values fit
+        let exp2_lookup = if !exp2_ranges.is_empty() {
+            let layout = LookupLayout::new(coalesce_ranges(exp2_ranges));
+            let exp2_layout = Exp2LookupLayout {
+                log_size: layout.log_size,
+                min: layout
+                    .ranges
+                    .iter()
+                    .map(|r| r.0.to_f64())
+                    .min_by(|a, b| a.partial_cmp(b).unwrap())
+                    .unwrap(),
+                max: layout
+                    .ranges
+                    .iter()
+                    .map(|r| r.1.to_f64())
+                    .max_by(|a, b| a.partial_cmp(b).unwrap())
+                    .unwrap(),
                 input_scale: (1 << DEFAULT_FP_SCALE) as f64,
                 output_scale: (1 << DEFAULT_FP_SCALE) as f64,
             };
-            Some(Exp2Lookup::new(layout))
+            Some(Exp2Lookup::new(exp2_layout))
         } else {
             None
         };
-        
+
         CircuitSettings {
-            lookups: Lookups { sin: sin_lookup, exp2: exp2_lookup },
+            lookups: Lookups {
+                sin: sin_lookup,
+                exp2: exp2_lookup,
+            },
         }
     }
 
@@ -462,13 +475,13 @@ impl LuminairGraph for Graph {
             let log_size = calculate_log_size(exp2_table.table.len());
             max_log_size = max_log_size.max(log_size);
             trace_tables.push(TraceTable::from_exp2(exp2_table));
-            
+
             // Generate lookup table
             if let Some(lookup) = settings.lookups.exp2.as_ref() {
                 // We don't have a direct method like add_multiplicities_to_table for Exp2Lookup
                 // as it handles its multiplicities internally in record_lookup
                 max_log_size = max_log_size.max(lookup.layout.log_size);
-                
+
                 if let Some(multiplicities) = &lookup.multiplicities {
                     trace_tables.push(TraceTable::from_exp2_lookup(multiplicities.clone()));
                 }
