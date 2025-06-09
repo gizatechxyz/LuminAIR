@@ -192,6 +192,22 @@ pub fn lookups_to_preprocessed_column(lookups: &Lookups) -> Vec<Box<dyn PreProce
         lut_cols.push(Box::new(col_0));
         lut_cols.push(Box::new(col_1));
     }
+    if let Some(exp2_lookup) = &lookups.exp2 {
+        // Convert Exp2LookupLayout to LookupLayout
+        // Use proper Fixed-point conversion instead of truncating to integers
+        let layout = LookupLayout {
+            ranges: vec![Range(
+                Fixed::<DEFAULT_FP_SCALE>::from_f64(exp2_lookup.layout.min),
+                Fixed::<DEFAULT_FP_SCALE>::from_f64(exp2_lookup.layout.max),
+            )],
+            log_size: exp2_lookup.layout.log_size,
+        };
+
+        let col_0 = Exp2PreProcessed::new(layout.clone(), 0);
+        let col_1 = Exp2PreProcessed::new(layout.clone(), 1);
+        lut_cols.push(Box::new(col_0));
+        lut_cols.push(Box::new(col_1));
+    }
     lut_cols
 }
 
@@ -216,10 +232,7 @@ impl SinPreProcessed {
     pub fn new(layout: LookupLayout, col_index: usize) -> Self {
         assert!(col_index < 2, "Sin LUT must have 2 columns");
 
-        Self {
-            layout,
-            col_index,
-        }
+        Self { layout, col_index }
     }
 
     /// Returns a reference to the generated `CircleEvaluation` for this column.
@@ -369,5 +382,111 @@ mod range_tests {
             None,
             "Value 199 should not be in the LUT"
         );
+    }
+}
+
+// ================== EXP2 ==================
+
+/// Concrete implementation of `PreProcessedColumn` for the Exp2 Lookup Table (LUT).
+///
+/// Stores the layout (`LookupLayout`) and generates two columns:
+/// - Column 0: Input values `x` (as `Fixed` point `M31` elements).
+/// - Column 1: Output values `2^x` (as `Fixed` point `M31` elements).
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct Exp2PreProcessed {
+    /// The layout defining the ranges and size of the LUT.
+    pub layout: LookupLayout,
+    /// The index of the column (0 for input `x`, 1 for output `2^x`).
+    pub col_index: usize,
+}
+
+impl Exp2PreProcessed {
+    /// Creates a new `Exp2PreProcessed` column instance.
+    /// Panics if `col_index` is not 0 or 1.
+    pub fn new(layout: LookupLayout, col_index: usize) -> Self {
+        assert!(col_index < 2, "Exp2 LUT must have 2 columns");
+
+        Self { layout, col_index }
+    }
+
+    /// Returns a reference to the generated `CircleEvaluation` for this column.
+    pub fn evaluation(&self) -> CircleEvaluation<SimdBackend, BaseField, BitReversedOrder> {
+        self.gen_column()
+    }
+}
+
+impl PreProcessedColumn for Exp2PreProcessed {
+    /// Returns the log_size defined by the layout.
+    fn log_size(&self) -> u32 {
+        self.layout.log_size
+    }
+
+    /// Returns the ID string `exp2_lut_0` or `exp2_lut_1`.
+    fn id(&self) -> PreProcessedColumnId {
+        PreProcessedColumnId {
+            id: format!("exp2_lut_{}", self.col_index),
+        }
+    }
+
+    /// Creates a boxed clone of this `Exp2PreProcessed` instance.
+    fn clone_box(&self) -> Box<dyn PreProcessedColumn> {
+        Box::new(self.clone())
+    }
+
+    /// Generates the `CircleEvaluation` for this specific column (input or output).
+    ///
+    /// It generates evenly spaced values from the min to max range,
+    /// calculates the corresponding `Fixed` point value (`x` or `2^x`),
+    /// converts it to `BaseField` (`M31`), and places it in the evaluation column.
+    /// The column is padded with zeros to the power-of-two size defined by `log_size`.
+    fn gen_column(&self) -> CircleEvaluation<SimdBackend, BaseField, BitReversedOrder> {
+        let log_size = self.log_size();
+        let domain = CanonicCoset::new(log_size).circle_domain();
+        let trace_size = 1 << log_size;
+        let mut column = BaseColumn::zeros(trace_size);
+
+        // For Exp2, we need to work with the Exp2LookupLayout ranges
+        // Extract the min/max from the layout ranges
+        if !self.layout.ranges.is_empty() {
+            let min_val = self
+                .layout
+                .ranges
+                .iter()
+                .map(|r| r.0.to_f64())
+                .min_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap();
+            let max_val = self
+                .layout
+                .ranges
+                .iter()
+                .map(|r| r.1.to_f64())
+                .max_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap();
+
+            // IMPORTANT: This must match exactly the formula in record_lookup and preprocessed
+            let num_entries = 1 << self.log_size();
+            let step = (max_val - min_val) / (num_entries - 1) as f64;
+
+            for i in 0..num_entries {
+                let x = min_val + step * i as f64;
+
+                match self.col_index {
+                    0 => column.set(i, Fixed::<DEFAULT_FP_SCALE>::from_f64(x).to_m31()),
+                    1 => {
+                        // Calculate 2^x and store it in the output column
+                        let exp2_value = 2.0_f64.powf(x);
+                        column.set(i, Fixed::<DEFAULT_FP_SCALE>::from_f64(exp2_value).to_m31())
+                    }
+                    _ => unreachable!(),
+                }
+            }
+        }
+
+        CircleEvaluation::new(domain, column)
+    }
+
+    /// Returns this instance as `&dyn Any` for downcasting.
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }
