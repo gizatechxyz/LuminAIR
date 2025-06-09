@@ -251,11 +251,11 @@ export function VerifyBadge({
   const getGizaLogoWithStatus = () => {
     const status = getOverallStatus();
 
-    // Get logo color based on status - light blue but darker than background
+    // Get logo color based on status - light green but darker than background
     const getLogoColor = () => {
       switch (status) {
         case "completed":
-          return "text-blue-300 dark:text-blue-300";
+          return "text-[#BDEE63] dark:text-[#BDEE63]";
         case "error":
           return "text-red-300 dark:text-red-300";
         case "in-progress":
@@ -269,7 +269,7 @@ export function VerifyBadge({
     const getIndicatorColor = () => {
       switch (status) {
         case "completed":
-          return "text-blue-800 dark:text-blue-800";
+          return "text-[#9ACD32] dark:text-[#BDEE63]";
         case "error":
           return "text-red-800 dark:text-red-800";
         case "in-progress":
@@ -283,10 +283,10 @@ export function VerifyBadge({
     const indicatorColorClass = getIndicatorColor();
 
     return (
-      <div className="relative mr-3">
+      <div className="relative mr-2">
         {/* Filled Giza Logo */}
         <svg
-          className={cn("h-5 w-5", logoColorClass)}
+          className={cn("h-4 w-4", logoColorClass)}
           viewBox="0 0 18 20"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
@@ -300,13 +300,13 @@ export function VerifyBadge({
         {/* Status Indicator positioned slightly lower in the center of the logo */}
         <div className="absolute inset-0 flex items-center justify-center translate-y-0.5">
           {status === "completed" && (
-            <Check className={cn("h-2.5 w-2.5 stroke-2", indicatorColorClass)} />
+            <Check className={cn("h-2 w-2 stroke-2", indicatorColorClass)} />
           )}
           {status === "in-progress" && (
-            <Loader2 className={cn("h-2.5 w-2.5 animate-spin stroke-2", indicatorColorClass)} />
+            <Loader2 className={cn("h-2 w-2 animate-spin stroke-2", indicatorColorClass)} />
           )}
           {status === "error" && (
-            <X className={cn("h-2.5 w-2.5 stroke-2", indicatorColorClass)} />
+            <X className={cn("h-2 w-2 stroke-2", indicatorColorClass)} />
           )}
         </div>
       </div>
@@ -349,7 +349,7 @@ export function VerifyBadge({
     
     switch (status) {
       case "completed":
-        return "bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-500 border-blue-600 dark:border-blue-500 hover:bg-blue-100 dark:hover:bg-blue-900";
+        return "bg-[#BDEE63]/10 dark:bg-[#BDEE63]/20 text-[#9ACD32] dark:text-[#BDEE63] border-[#BDEE63] dark:border-[#BDEE63] hover:bg-[#BDEE63]/20 dark:hover:bg-[#BDEE63]/30";
       case "error":
         return "bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-500 border-red-600 dark:border-red-500 hover:bg-red-100 dark:hover:bg-red-900";
       case "in-progress":
@@ -365,7 +365,7 @@ export function VerifyBadge({
         onClick={handleLabelClick}
         variant={getBadgeVariant()}
         className={cn(
-          "cursor-pointer hover:shadow-md transition-all duration-200 px-4 py-2 text-sm font-mono",
+          "cursor-pointer hover:shadow-md transition-all duration-200 px-3 py-1 text-xs font-mono rounded-md",
           "flex items-center justify-between min-w-0 w-fit max-w-xs border",
           getBadgeColors(),
           state.isVerifying && "opacity-75",
@@ -376,14 +376,14 @@ export function VerifyBadge({
           {getGizaLogoWithStatus()}
 
           <div className="flex flex-col items-start min-w-0 flex-1">
-            <span className="font-mono text-sm leading-tight font-medium">
+            <span className="font-mono text-xs leading-tight font-medium">
               {getStatusText()}
             </span>
           </div>
         </div>
 
         {/* Chevron indicator */}
-        <ChevronRight className="h-4 w-4 ml-2 flex-shrink-0" />
+        <ChevronRight className="h-3 w-3 ml-2 flex-shrink-0" />
       </Badge>
 
       <VerificationModal
