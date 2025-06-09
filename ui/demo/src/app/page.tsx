@@ -61,7 +61,7 @@ export default function Home() {
           <ProofLabel
             proofPath="/proof"
             settingsPath="/settings"
-            labelText="VERIFIED COMPUTATION"
+            labelText="VERIFIED COMPUTE"
           />
         </div>
 
