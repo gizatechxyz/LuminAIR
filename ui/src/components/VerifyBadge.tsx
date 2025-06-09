@@ -3,7 +3,7 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
 import { Check, Loader2, X, ChevronRight } from "lucide-react";
 import { cn } from "../lib/utils";
-import { getSharedButtonStyles } from "../lib/shared-styles";
+import { Badge } from "./ui/badge";
 import init, { verify } from "@gizatech/luminair-web";
 import {
   VerificationModal,
@@ -12,37 +12,38 @@ import {
   type StepStatus,
 } from "./VerificationModal";
 
-export interface ProofLabelProps {
+export interface VerifyBadgeProps {
   /** Path to the proof file (required) */
   proofPath: string;
   /** Path to the settings file (required) */
   settingsPath: string;
   /** Title displayed in the modal (default: "Can't be evil.") */
   title?: string;
-  /** Text displayed on the label (default: "PROOF VERIFIED") */
+  /** Text displayed on the badge (default: "VERIFIED COMPUTE") */
   labelText?: string;
-  /** Subtitle text on the label (default: "Computational Integrity") */
-  subtitleText?: string;
   /** Author name displayed in the modal (default: "Giza") */
   author?: string;
   /** Model description displayed in the modal (default: "Demo model") */
   modelDescription?: string;
   /** Author URL (default: "https://www.gizatech.xyz/") */
   authorUrl?: string;
-  /** Custom className for the label */
+  /** Custom className for the badge */
   className?: string;
+  /** Badge variant (default: "default") */
+  variant?: "default" | "secondary" | "destructive" | "outline";
 }
 
-export function ProofLabel({
+export function VerifyBadge({
   proofPath,
   settingsPath,
   title = "Can't be evil.",
   labelText = "VERIFIED COMPUTE",
-  author = "Giza", 
+  author = "Giza",
   modelDescription = "Demo model",
   authorUrl = "https://www.gizatech.xyz/",
   className,
-}: ProofLabelProps) {
+  variant = "default",
+}: VerifyBadgeProps) {
   const [state, setState] = useState<VerificationState>({
     isOpen: false,
     isVerifying: false,
@@ -268,15 +269,14 @@ export function ProofLabel({
         {/* Status Indicator positioned slightly lower in the center of the logo */}
         <div className="absolute inset-0 flex items-center justify-center translate-y-0.5">
           {status === "completed" && (
-            <Check className="h-2.5 w-2.5 text-black dark:text-white" />
+            <Check className="h-2.5 w-2.5 text-white dark:text-black" />
           )}
           {status === "in-progress" && (
-            <Loader2 className="h-2.5 w-2.5 animate-spin text-black dark:text-white" />
+            <Loader2 className="h-2.5 w-2.5 animate-spin text-white dark:text-black" />
           )}
           {status === "error" && (
-            <X className="h-2.5 w-2.5 text-black dark:text-white" />
+            <X className="h-2.5 w-2.5 text-white dark:text-black" />
           )}
-          
         </div>
       </div>
     );
@@ -297,13 +297,31 @@ export function ProofLabel({
     }
   };
 
+  const getBadgeVariant = () => {
+    const status = getOverallStatus();
+
+    switch (status) {
+      case "completed":
+        return variant;
+      case "error":
+        return "destructive";
+      case "in-progress":
+        return "default";
+      default:
+        return "default";
+    }
+  };
+
   return (
     <>
-      <div
+      <Badge
         onClick={handleLabelClick}
+        variant={getBadgeVariant()}
         className={cn(
-          "relative bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200 transition-colors font-mono text-sm px-4 py-2 rounded-full border border-gray-200 dark:border-gray-700",
-          "cursor-pointer flex items-center justify-between min-w-0 w-fit max-w-xs shadow-sm hover:shadow-md",
+          "cursor-pointer hover:shadow-md transition-all duration-200 px-4 py-2 text-sm font-mono",
+          "flex items-center justify-between min-w-0 w-fit max-w-xs",
+          "bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200",
+          "border border-gray-200 dark:border-gray-700",
           state.isVerifying && "opacity-75",
           className
         )}
@@ -320,7 +338,7 @@ export function ProofLabel({
 
         {/* Chevron indicator */}
         <ChevronRight className="h-4 w-4 ml-2 flex-shrink-0" />
-      </div>
+      </Badge>
 
       <VerificationModal
         isOpen={state.isOpen}

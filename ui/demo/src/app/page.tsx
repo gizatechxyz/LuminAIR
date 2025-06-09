@@ -1,6 +1,6 @@
 "use client";
 
-import { VerifyButton, ProofLabel } from "@gizatech/luminair-react";
+import { VerifyButton, VerifyBadge } from "@gizatech/luminair-react";
 import "@gizatech/luminair-react/styles.css";
 import { useState, useEffect } from "react";
 import { Sun, Moon } from "lucide-react";
@@ -57,14 +57,13 @@ export default function Home() {
           <VerifyButton proofPath="/proof" settingsPath="/settings" />
         </div>
 
-        <div className="pt-6 flex justify-center">
-          <ProofLabel
+        <div className="pt-6 flex justify-center space-x-4">
+          <VerifyBadge
             proofPath="/proof"
             settingsPath="/settings"
             labelText="VERIFIED COMPUTE"
           />
         </div>
-
         <div className="pt-8 text-xs text-gray-400 dark:text-gray-500 font-mono">
           Built with LuminAIR & STWO
         </div>
