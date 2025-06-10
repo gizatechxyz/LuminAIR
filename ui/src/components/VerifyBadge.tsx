@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { ChevronRight } from "lucide-react";
+import { Info } from "lucide-react";
 import { cn } from "../lib/utils";
 import { Badge } from "./ui/badge";
 import init, { verify } from "@gizatech/luminair-web";
@@ -358,8 +358,8 @@ export function VerifyBadge({
           </div>
         </div>
 
-        {/* Chevron indicator */}
-        <ChevronRight className="h-3 w-3 ml-2 flex-shrink-0" />
+        {/* Info indicator */}
+        <Info className="h-3 w-3 ml-2 flex-shrink-0" />
       </Badge>
 
       <VerificationModal

@@ -222,7 +222,14 @@ export function VerificationModal({
                       fill="currentColor"
                     />
                   </svg>
-                  <span>Made By Giza</span>
+                  <a
+                    href="https://www.gizatech.xyz/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:underline hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                  >
+                    Made By Giza
+                  </a>
                 </div>
               </div>
             </div>
