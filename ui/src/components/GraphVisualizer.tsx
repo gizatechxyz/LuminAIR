@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef, useCallback } from "react";
+import React, { useMemo, useState, useRef, useCallback, useEffect } from "react";
 import { Plus, Minus, RotateCcw } from "lucide-react";
 
 interface Node {
@@ -12,19 +12,46 @@ interface Edge {
 }
 
 interface GraphVisualizerProps {
-  dotString: string;
+  graphPath: string;
   className?: string;
 }
 
 export function GraphVisualizer({
-  dotString,
+  graphPath,
   className,
 }: GraphVisualizerProps) {
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [dotString, setDotString] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+
+  // Load graph data from file
+  useEffect(() => {
+    const loadGraphData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await fetch(graphPath);
+        if (!response.ok) {
+          throw new Error(`Failed to load graph data: ${response.statusText}`);
+        }
+        const data = await response.text();
+        setDotString(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load graph data");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (graphPath) {
+      loadGraphData();
+    }
+  }, [graphPath]);
 
   const { nodes, edges } = useMemo(() => {
     const nodes: Node[] = [];
@@ -176,6 +203,30 @@ export function GraphVisualizer({
     setZoom((prev) => Math.max(0.3, Math.min(3, prev * delta)));
   }, []);
 
+  if (loading) {
+    return (
+      <div className={`w-full h-full overflow-hidden ${className}`}>
+        <div className="pl-0 pr-4 pt-4 pb-4">
+          <div className="flex items-center justify-center h-80 bg-white dark:bg-gray-950 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div className="text-gray-500 dark:text-gray-400">Loading graph...</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className={`w-full h-full overflow-hidden ${className}`}>
+        <div className="pl-0 pr-4 pt-4 pb-4">
+          <div className="flex items-center justify-center h-80 bg-white dark:bg-gray-950 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div className="text-red-500 dark:text-red-400">Error: {error}</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`w-full h-full overflow-hidden ${className}`}>
       <div className="pl-0 pr-4 pt-4 pb-4">
@@ -265,26 +316,9 @@ export function GraphVisualizer({
                 const isLoad = node.label.includes("Load");
                 const isCopy = node.label.includes("Copy");
 
-                // Truncation that preserves tensor shapes
+                // Truncate if too long
                 const getDisplayText = (label: string) => {
-                  if (label.length <= 24) return label;
-                  
-                  // If there's a tensor shape (brackets), try to preserve it
-                  const lastBracket = label.lastIndexOf('[');
-                  const closingBracket = label.lastIndexOf(']');
-                  
-                  if (lastBracket > 10 && closingBracket > lastBracket && label.length > 24) {
-                    // Truncate before the tensor shape
-                    const beforeShape = label.substring(0, lastBracket - 1);
-                    const shape = label.substring(lastBracket);
-                    if (beforeShape.length > 15) {
-                      return beforeShape.substring(0, 12) + "..." + shape;
-                    }
-                    return beforeShape + shape;
-                  }
-                  
-                  // Default truncation
-                  return label.substring(0, 21) + "...";
+                  return label.length <= 20 ? label : label.substring(0, 17) + "...";
                 };
 
                 return (
