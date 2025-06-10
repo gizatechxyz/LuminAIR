@@ -1,8 +1,8 @@
 use crate::{graph::LuminairGraph, StwoCompiler};
 use luminair_prover::prover::prove;
 use luminair_verifier::verifier::verify;
-use luminal_cpu::CPUCompiler;
 use luminal::prelude::*;
+use luminal_cpu::CPUCompiler;
 use rand::{rngs::StdRng, SeedableRng};
 
 use super::random_vec_rng;
@@ -44,7 +44,7 @@ where
     let trace = cx
         .gen_trace(&mut settings)
         .map_err(|e| format!("Trace generation failed for {}: {:?}", name, e))?;
-     let (proof, _) = prove(trace, settings.clone())
+    let proof = prove(trace, settings.clone())
         .map_err(|e| format!("Proof generation failed for {}: {:?}", name, e))?;
     verify(proof, settings)
         .map_err(|e| format!("Proof verification failed for {}: {:?}", name, e))?;
@@ -80,7 +80,9 @@ fn test_single_dimension_expansion() -> Result<(), Box<dyn std::error::Error>> {
 fn test_multiple_dimension_expansion() -> Result<(), Box<dyn std::error::Error>> {
     test_expansion_scenario("multiple_dimension_expansion", |cx| {
         let mut rng = StdRng::seed_from_u64(43);
-        let a = cx.tensor((3, 4, 2)).set(random_vec_rng(24, &mut rng, false));
+        let a = cx
+            .tensor((3, 4, 2))
+            .set(random_vec_rng(24, &mut rng, false));
         let b = cx.tensor((1, 1, 2)).set(random_vec_rng(2, &mut rng, false));
 
         // Expand b along multiple dimensions
@@ -128,12 +130,16 @@ fn test_multiple_consumers_different_expansions() -> Result<(), Box<dyn std::err
 
         // Consumer 1: expand to (2, 2, 3)
         let consumer1 = base.expand(2, 3);
-        let a = cx.tensor((2, 2, 3)).set(random_vec_rng(12, &mut rng, false));
+        let a = cx
+            .tensor((2, 2, 3))
+            .set(random_vec_rng(12, &mut rng, false));
         let result1 = consumer1 * a;
 
         // Consumer 2: expand to (2, 2, 4)
         let consumer2 = base.expand(2, 4);
-        let b = cx.tensor((2, 2, 4)).set(random_vec_rng(16, &mut rng, false));
+        let b = cx
+            .tensor((2, 2, 4))
+            .set(random_vec_rng(16, &mut rng, false));
         let result2 = consumer2 + b;
 
         // Combine results (sum reduce to make compatible)
@@ -147,8 +153,12 @@ fn test_multiple_consumers_different_expansions() -> Result<(), Box<dyn std::err
 fn test_mixed_real_fake_dimensions() -> Result<(), Box<dyn std::error::Error>> {
     test_expansion_scenario("mixed_real_fake_dimensions", |cx| {
         let mut rng = StdRng::seed_from_u64(47);
-        let a = cx.tensor((3, 2, 4)).set(random_vec_rng(24, &mut rng, false));
-        let b = cx.tensor((3, 1, 4)).set(random_vec_rng(12, &mut rng, false));
+        let a = cx
+            .tensor((3, 2, 4))
+            .set(random_vec_rng(24, &mut rng, false));
+        let b = cx
+            .tensor((3, 1, 4))
+            .set(random_vec_rng(12, &mut rng, false));
 
         // Expand only middle dimension (fake), keeping others real
         let b_expanded = b.expand(1, 2);
@@ -205,7 +215,9 @@ fn test_complex_expansion_chain() -> Result<(), Box<dyn std::error::Error>> {
 
         // Further expand result for more operations
         let step3_exp = step3.expand(2, 4); // (2,3) -> (2,3,4)
-        let e = cx.tensor((2, 3, 4)).set(random_vec_rng(24, &mut rng, false));
+        let e = cx
+            .tensor((2, 3, 4))
+            .set(random_vec_rng(24, &mut rng, false));
 
         step3_exp * e
     })
@@ -277,7 +289,9 @@ fn test_expansion_with_unary_operations() -> Result<(), Box<dyn std::error::Erro
         let expanded = processed.expand(2, 3);
 
         // Use expanded result in binary operation
-        let other = cx.tensor((2, 2, 3)).set(random_vec_rng(12, &mut rng, false));
+        let other = cx
+            .tensor((2, 2, 3))
+            .set(random_vec_rng(12, &mut rng, false));
         expanded * other
     })
 }
@@ -338,7 +352,9 @@ fn test_expansion_integration_scenarios() -> Result<(), Box<dyn std::error::Erro
         let intermediate3_sin = intermediate3.sin(); // Unary op preserves shape
         let intermediate3_exp = intermediate3_sin.expand(2, 4); // (2,3) -> (2,3,4)
 
-        let filter = cx.tensor((2, 3, 4)).set(random_vec_rng(24, &mut rng, false));
+        let filter = cx
+            .tensor((2, 3, 4))
+            .set(random_vec_rng(24, &mut rng, false));
         let filtered = intermediate3_exp * filter;
 
         // Layer 4: Reduction and final operations

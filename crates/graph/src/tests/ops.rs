@@ -48,9 +48,8 @@ fn test_sum_reduce() {
     let trace = cx
         .gen_trace(&mut settings)
         .expect("Trace generation failed");
-     let (proof, _) = prove(trace, settings.clone()).expect("Proof generation failed");
-    verify(proof, settings)
-        .expect("Proof verification failed");
+    let proof = prove(trace, settings.clone()).expect("Proof generation failed");
+    verify(proof, settings).expect("Proof verification failed");
 
     // CPUCompiler comparison
     let mut cx_cpu = Graph::new();
@@ -94,9 +93,8 @@ fn test_max_reduce() {
     let trace = cx
         .gen_trace(&mut settings)
         .expect("Trace generation failed");
-    let (proof, _) = prove(trace, settings.clone()).expect("Proof generation failed");
-    verify(proof, settings)
-        .expect("Proof verification failed");
+    let proof = prove(trace, settings.clone()).expect("Proof generation failed");
+    verify(proof, settings).expect("Proof verification failed");
 
     // CPUCompiler comparison
     let mut cx_cpu = Graph::new();

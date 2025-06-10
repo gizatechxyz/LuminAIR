@@ -88,8 +88,6 @@ pub struct LuminairPie {
 pub struct Metadata {
     /// Metadata about the execution, such as trace dimensions and operation counts.
     pub execution_resources: ExecutionResources,
-    /// A view of the computational graph
-    pub graph_view: String,
 }
 
 /// Struct for all LUT multiplicities
