@@ -9,7 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
-import { Check, Loader2, X } from "lucide-react";
+import { Check, Loader2, X, Download } from "lucide-react";
 import { cn } from "../lib/utils";
 import JSZip from "jszip";
 import { GraphVisualizer } from "./GraphVisualizer";
@@ -164,7 +164,8 @@ export function VerificationModal({
               {verificationState.result && (
                 <Button
                   variant="outline"
-                  className="text-sm font-mono border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-200 self-start"
+                  size="sm"
+                  className="text-xs font-mono border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 self-start px-3 py-1.5 h-auto"
                   onClick={async () => {
                     try {
                       const zip = new JSZip();
@@ -200,6 +201,7 @@ export function VerificationModal({
                     }
                   }}
                 >
+                  <Download className="h-3 w-3 mr-1.5" />
                   Download proof
                 </Button>
               )}
