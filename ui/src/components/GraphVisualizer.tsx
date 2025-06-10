@@ -53,7 +53,6 @@ export function GraphVisualizer({
     return { nodes, edges };
   }, [dotString]);
 
-  // Simple layout algorithm - arrange nodes in layers
   const layout = useMemo(() => {
     const nodeMap = new Map<string, { x: number; y: number; level: number }>();
     const inDegree = new Map<string, number>();
@@ -111,9 +110,7 @@ export function GraphVisualizer({
     });
 
     // Position nodes
-    const nodeWidth = 160;
-    const nodeHeight = 40;
-    const levelHeight = 80;
+   const levelHeight = 80;
     const nodeSpacing = 180;
 
     levelGroups.forEach((nodesInLevel, level) => {
@@ -268,7 +265,7 @@ export function GraphVisualizer({
                 const isLoad = node.label.includes("Load");
                 const isCopy = node.label.includes("Copy");
 
-                // Smart truncation that preserves tensor shapes
+                // Truncation that preserves tensor shapes
                 const getDisplayText = (label: string) => {
                   if (label.length <= 24) return label;
                   

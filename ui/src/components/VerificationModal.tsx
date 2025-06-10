@@ -14,7 +14,7 @@ import { cn } from "../lib/utils";
 import JSZip from "jszip";
 import { GraphVisualizer } from "./GraphVisualizer";
 
-// Verification steps based on the actual console logs from WASM
+// Verification steps based on the actual console logs from WASM Verifier
 const VERIFICATION_STEPS = [
   {
     id: "setup",
