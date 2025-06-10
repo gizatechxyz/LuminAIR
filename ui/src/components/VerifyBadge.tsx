@@ -17,6 +17,8 @@ export interface VerifyBadgeProps {
   proofPath: string;
   /** Path to the settings file (required) */
   settingsPath: string;
+  /** Path to the graph visualization file (required) */
+  graphPath: string;
   /** Title displayed in the modal (default: "Can't be evil.") */
   title?: string;
   /** Text displayed on the badge (default: "VERIFIED COMPUTE") */
@@ -36,6 +38,7 @@ export interface VerifyBadgeProps {
 export function VerifyBadge({
   proofPath,
   settingsPath,
+  graphPath,
   title = "Can't be evil.",
   labelText = "VERIFIED COMPUTE",
   author = "Giza",
@@ -369,6 +372,7 @@ export function VerifyBadge({
         verificationState={state}
         proofPath={proofPath}
         settingsPath={settingsPath}
+        graphPath={graphPath}
         title={title}
         author={author}
         modelDescription={modelDescription}

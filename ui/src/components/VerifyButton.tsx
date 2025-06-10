@@ -18,6 +18,8 @@ export interface VerifyButtonProps {
   proofPath: string;
   /** Path to the settings file (required) */
   settingsPath: string;
+  /** Path to the graph visualization file (required) */
+  graphPath: string;
   /** Title displayed in the modal (default: "Can't be evil.") */
   title?: string;
   /** Text displayed on the button (default: "VERIFY") */
@@ -35,6 +37,7 @@ export interface VerifyButtonProps {
 export function VerifyButton({
   proofPath,
   settingsPath,
+  graphPath,
   title = "Can't be evil.",
   buttonText = "VERIFY",
   author = "Giza",
@@ -273,6 +276,7 @@ export function VerifyButton({
         verificationState={state}
         proofPath={proofPath}
         settingsPath={settingsPath}
+        graphPath={graphPath}
         title={title}
         author={author}
         modelDescription={modelDescription}

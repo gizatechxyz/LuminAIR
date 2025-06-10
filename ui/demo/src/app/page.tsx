@@ -54,13 +54,18 @@ export default function Home() {
 
       <div className="max-w-4xl w-full text-center space-y-12">
         <div className="pt-4 flex justify-center">
-          <VerifyButton proofPath="/proof" settingsPath="/settings" />
+          <VerifyButton
+            graphPath="/graph.dot"
+            proofPath="/proof"
+            settingsPath="/settings"
+          />
         </div>
 
         <div className="pt-6 flex justify-center space-x-4">
           <VerifyBadge
             proofPath="/proof"
             settingsPath="/settings"
+            graphPath="/graph.dot"
             labelText="VERIFIED COMPUTE"
           />
         </div>

@@ -93,6 +93,8 @@ interface VerificationModalProps {
   proofPath: string;
   /** Path to the settings file */
   settingsPath: string;
+  /** Path to the graph visualization file */
+  graphPath: string;
   /** Title displayed in the modal (default: "Can't be evil.") */
   title?: string;
   /** Author name displayed in the modal (default: "Giza") */
@@ -109,6 +111,7 @@ export function VerificationModal({
   verificationState,
   proofPath,
   settingsPath,
+  graphPath,
   title = "Can't be evil.",
   author = "Giza",
   modelDescription = "Demo model",
@@ -133,29 +136,7 @@ export function VerificationModal({
     return "pending";
   };
 
-  // Sample DOT graph - in the future this will come from metadata
-  const sampleDotGraph = `digraph {
-    0 [ label = "Tensor Load | 0" ]
-    1 [ label = "Tensor Load | 1" ]
-    2 [ label = "Tensor Load | 2" ]
-    3 [ label = "Mul | 3 | [2, 2] | [2, 2]" ]
-    4 [ label = "Add | 4 | [2, 2] | [2, 2]" ]
-    5 [ label = "Mul | 5 | [2, 2] | [2, 2]" ]
-    6 [ label = "CopyToStwo | 6" ]
-    7 [ label = "CopyToStwo | 7" ]
-    8 [ label = "CopyToStwo | 8" ]
-    9 [ label = "CopyFromStwo | 9 | [2, 2]" ]
-    0 -> 6 [  ]
-    1 -> 7 [  ]
-    2 -> 8 [  ]
-    3 -> 5 [  ]
-    3 -> 4 [  ]
-    4 -> 5 [  ]
-    5 -> 9 [  ]
-    6 -> 3 [  ]
-    7 -> 3 [  ]
-    8 -> 4 [  ]
-}`;
+
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -172,7 +153,7 @@ export function VerificationModal({
             {/* Graph Visualizer */}
             <div className="flex-1 min-h-0">
               <GraphVisualizer
-                dotString={sampleDotGraph}
+                graphPath={graphPath}
                 className="h-full"
               />
             </div>
