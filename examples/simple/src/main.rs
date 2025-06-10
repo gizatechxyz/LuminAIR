@@ -17,7 +17,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Compiling computation graph...");
     cx.compile(<(GenericCompiler, StwoCompiler)>::default(), &mut e);
     println!("Graph compiled successfully. ✅");
-    
+
+    println!("{:?}", cx.graph_viz());
+
     // ======= Generate circuit settings =======
     println!("Generating circuits settings...");
     let mut settings = cx.gen_circuit_settings();

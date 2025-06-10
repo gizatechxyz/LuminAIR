@@ -47,7 +47,7 @@ pub trait LuminairGraph {
     fn gen_trace(&mut self, settings: &mut CircuitSettings) -> Result<LuminairPie, LuminairError>;
 
     /// View the graph
-    fn graph_view(&self) -> String;
+    fn graph_viz(&self) -> String;
 }
 
 /// Implementation of `LuminairGraph` for the `luminal::Graph` struct.
@@ -429,7 +429,7 @@ impl LuminairGraph for Graph {
         })
     }
 
-    fn graph_view(&self) -> String {
+    fn graph_viz(&self) -> String {
         let mut new_graph: StableGraph<String, u8> = StableGraph::default();
         let mut id_map = FxHashMap::default();
         for (id, node) in self.graph.node_indices().zip(self.graph.node_weights()) {
