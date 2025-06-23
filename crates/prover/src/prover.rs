@@ -204,7 +204,7 @@ pub fn prove(
     if let Some(claim_gen) = interaction_claim_gen.exp2_lookup {
         let mut exp2_luts = preprocessed_trace.columns_of::<Exp2PreProcessed>();
         exp2_luts.sort_by_key(|c| c.col_index);
-
+        
         let claim =
             claim_gen.write_interaction_trace(&mut tree_builder, &lookup_elements.exp2, &exp2_luts);
         interaction_claim.exp2_lookup = Some(claim)

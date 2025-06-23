@@ -192,6 +192,12 @@ pub fn lookups_to_preprocessed_column(lookups: &Lookups) -> Vec<Box<dyn PreProce
         lut_cols.push(Box::new(col_0));
         lut_cols.push(Box::new(col_1));
     }
+    if let Some(exp2_lookup) = &lookups.exp2 {
+        let col_0 = Exp2PreProcessed::new(exp2_lookup.layout.clone(), 0);
+        let col_1 = Exp2PreProcessed::new(exp2_lookup.layout.clone(), 1);
+        lut_cols.push(Box::new(col_0));
+        lut_cols.push(Box::new(col_1));
+    }
     lut_cols
 }
 
