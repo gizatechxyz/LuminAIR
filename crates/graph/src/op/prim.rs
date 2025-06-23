@@ -1,7 +1,8 @@
 use luminair_air::{
     components::{
         add::table::{AddColumn, AddTraceTable, AddTraceTableRow},
-        lookups::sin::SinLookup,
+        exp2::table::{Exp2Column, Exp2TraceTable, Exp2TraceTableRow},
+        lookups::{exp2::Exp2Lookup, sin::SinLookup},
         max_reduce::table::{MaxReduceColumn, MaxReduceTraceTable, MaxReduceTraceTableRow},
         mul::table::{MulColumn, MulTraceTable, MulTraceTableRow},
         recip::table::{RecipColumn, RecipTraceTable, RecipTraceTableRow},
@@ -477,6 +478,129 @@ impl LuminairOperator<SqrtColumn, SqrtTraceTable, ()> for LuminairSqrt {
 }
 
 impl Operator for LuminairSqrt {
+    fn process(&mut self, inp: Vec<(InputTensor, ShapeTracker)>) -> Vec<Tensor> {
+        let (out_data, _) = self.compute(&inp, false);
+        vec![Tensor::new(StwoData(Arc::new(out_data)))]
+    }
+}
+
+/// LuminAIR operator for element-wise Exp2 (`exp2(x)`).
+///
+/// Implements both the standard `Operator` trait for graph execution and the
+/// `LuminairOperator` trait to generate trace entries for `Exp2TraceTable`.
+/// This operator interacts with the `Exp2Lookup` component during trace generation
+/// to record input value occurrences for the lookup argument.
+#[derive(Clone, Default, PartialEq)]
+pub(crate) struct LuminairExp2 {}
+impl core::fmt::Debug for LuminairExp2 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Exp2")
+    }
+}
+
+impl LuminairExp2 {
+    /// Creates a new `LuminairExp2` operator instance.
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl LuminairExp2 {
+    fn compute(
+        &self,
+        inp: &[(InputTensor, ShapeTracker)],
+        trace_mode: bool,
+    ) -> (
+        Vec<Fixed<DEFAULT_FP_SCALE>>,
+        Option<Vec<(Fixed<DEFAULT_FP_SCALE>, Fixed<DEFAULT_FP_SCALE>)>>,
+    ) {
+        let input = get_buffer_from_tensor(&inp[0].0).unwrap();
+        let expr = (inp[0].1.index_expression(), inp[0].1.valid_expression());
+
+        let mut stack: Vec<i64> = vec![];
+        let output_size = inp[0].1.n_elements().to_usize().unwrap();
+        let mut out_data = vec![Fixed::<DEFAULT_FP_SCALE>::zero(); output_size];
+
+        // Only allocate for intermediate values if in trace mode
+        let mut intermediate_values = if trace_mode {
+            Some(Vec::with_capacity(output_size))
+        } else {
+            None
+        };
+
+        for (idx, out) in out_data.iter_mut().enumerate() {
+            let input_val = get_index(input, &expr, &mut stack, idx);
+            let out_val = Fixed::<DEFAULT_FP_SCALE>::from_f64(input_val.to_f64().exp2());
+            *out = out_val;
+
+            // Only collect intermediate values if in trace mode
+            if let Some(values) = &mut intermediate_values {
+                values.push((input_val, out_val));
+            }
+        }
+
+        (out_data, intermediate_values)
+    }
+}
+
+impl LuminairOperator<Exp2Column, Exp2TraceTable, Exp2Lookup> for LuminairExp2 {
+    fn process_trace(
+        &mut self,
+        inp: Vec<(InputTensor, ShapeTracker)>,
+        table: &mut Exp2TraceTable,
+        node_info: &NodeInfo,
+        lookup: &mut Exp2Lookup,
+    ) -> Vec<Tensor> {
+        let (out_data, intermediate_values) = self.compute(&inp, true);
+        let intermediate_values = intermediate_values.unwrap();
+
+        let node_id: BaseField = node_info.id.into();
+        let input_id: BaseField = node_info.inputs[0].id.into();
+        let output_size = inp[0].1.n_elements().to_usize().unwrap();
+
+        let input_mult = if node_info.inputs[0].is_initializer {
+            BaseField::zero()
+        } else {
+            -BaseField::one()
+        };
+        let out_mult = if node_info.output.is_final_output {
+            BaseField::zero()
+        } else {
+            BaseField::one() * BaseField::from_u32_unchecked(node_info.num_consumers)
+        };
+
+        for (idx, (input_val, out_val)) in intermediate_values.into_iter().enumerate() {
+            let is_last_idx: u32 = if idx == (output_size - 1) { 1 } else { 0 };
+
+            table.add_row(Exp2TraceTableRow {
+                node_id,
+                input_id,
+                idx: idx.into(),
+                is_last_idx: (is_last_idx).into(),
+                next_idx: (idx + 1).into(),
+                next_node_id: node_id,
+                next_input_id: input_id,
+                input: input_val.to_m31(),
+                out: out_val.to_m31(),
+                input_mult,
+                out_mult,
+                lookup_mult: M31::one(),
+            });
+
+            // Update multiplicities of the lookup.
+            // Allows you to track the occurrence of a specific Exp2 operation.
+            let mult_address = lookup
+                .layout
+                .find_index(input_val.0)
+                .expect("Value should fit in range.");
+            lookup.multiplicities.increase_at(mult_address);
+        }
+
+        vec![Tensor::new(StwoData(Arc::new(out_data)))]
+    }
+}
+
+impl Operator for LuminairExp2 {
     fn process(&mut self, inp: Vec<(InputTensor, ShapeTracker)>) -> Vec<Tensor> {
         let (out_data, _) = self.compute(&inp, false);
         vec![Tensor::new(StwoData(Arc::new(out_data)))]
@@ -1219,6 +1343,8 @@ impl Compiler for PrimitiveCompiler {
                 *op_ref = LuminairMaxReduce::new(dim_index).into_operator()
             } else if is::<luminal::op::Sqrt>(op) {
                 *op_ref = LuminairSqrt::new().into_operator()
+            } else if is::<luminal::op::Exp2>(op) {
+                *op_ref = LuminairExp2::new().into_operator()
             }
         }
     }

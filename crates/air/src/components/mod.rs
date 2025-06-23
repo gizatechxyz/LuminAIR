@@ -51,9 +51,23 @@ use sum_reduce::{
     table::SumReduceColumn,
 };
 
-use crate::{preprocessed::PreProcessedTrace, LuminairClaim, LuminairInteractionClaim};
+use crate::{
+    components::{
+        exp2::{
+            component::{Exp2Component, Exp2Eval},
+            table::Exp2Column,
+        },
+        lookups::exp2::{
+            component::{Exp2LookupComponent, Exp2LookupEval},
+            table::Exp2LookupColumn,
+        },
+    },
+    preprocessed::PreProcessedTrace,
+    LuminairClaim, LuminairInteractionClaim,
+};
 
 pub mod add;
+pub mod exp2;
 pub mod lookups;
 pub mod max_reduce;
 pub mod mul;
@@ -82,6 +96,10 @@ pub type SumReduceClaim = Claim<SumReduceColumn>;
 pub type MaxReduceClaim = Claim<MaxReduceColumn>;
 /// Type alias for the claim associated with the Sqrt component's trace.
 pub type SqrtClaim = Claim<SqrtColumn>;
+/// Type alias for the claim associated with the Exp2 component's trace.
+pub type Exp2Claim = Claim<SinColumn>;
+/// Type alias for the claim associated with the Exp2Lookup component's trace.
+pub type Exp2LookupClaim = Claim<Exp2LookupColumn>;
 
 /// Trait implemented by trace column definitions (e.g., `AddColumn`).
 /// Provides metadata about the number of columns used by the component.
@@ -150,6 +168,10 @@ pub enum ClaimType {
     MaxReduce(Claim<MaxReduceColumn>),
     /// Claim for a Sqrt component trace.
     Sqrt(Claim<SqrtColumn>),
+    /// Claim for a Exp2 component trace.
+    Exp2(Claim<Exp2Column>),
+    /// Claim for a Exp2Lookup component trace.
+    Exp2Lookup(Claim<Exp2LookupColumn>),
 }
 
 /// Represents the claim resulting from the interaction phase (e.g., LogUp protocol).
@@ -221,6 +243,10 @@ pub struct LuminairComponents {
     max_reduce: Option<MaxReduceComponent>,
     /// Optional Sqrt component instance.
     sqrt: Option<SqrtComponent>,
+    /// Optional Exp2 component instance.
+    exp2: Option<Exp2Component>,
+    /// Optional Exp2Lookup component instance.
+    exp2_lookup: Option<Exp2LookupComponent>,
 }
 
 impl LuminairComponents {
@@ -341,6 +367,35 @@ impl LuminairComponents {
             None
         };
 
+        let exp2 = if let Some(ref exp2_claim) = claim.exp2 {
+            let lut_log_size = lookups.exp2.as_ref().map(|s| s.layout.log_size).unwrap();
+            Some(Exp2Component::new(
+                tree_span_provider,
+                Exp2Eval::new(
+                    &exp2_claim,
+                    interaction_elements.node_elements.clone(),
+                    interaction_elements.lookup_elements.exp2.clone(),
+                    lut_log_size,
+                ),
+                interaction_claim.exp2.as_ref().unwrap().claimed_sum,
+            ))
+        } else {
+            None
+        };
+
+        let exp2_lookup = if let Some(ref exp2_lookup_claim) = claim.exp2_lookup {
+            Some(Exp2LookupComponent::new(
+                tree_span_provider,
+                Exp2LookupEval::new(
+                    &exp2_lookup_claim,
+                    interaction_elements.lookup_elements.exp2.clone(),
+                ),
+                interaction_claim.exp2_lookup.as_ref().unwrap().claimed_sum,
+            ))
+        } else {
+            None
+        };
+
         Self {
             add,
             mul,
@@ -350,6 +405,8 @@ impl LuminairComponents {
             sum_reduce,
             max_reduce,
             sqrt,
+            exp2,
+            exp2_lookup,
         }
     }
 
@@ -389,6 +446,15 @@ impl LuminairComponents {
         if let Some(ref component) = self.sqrt {
             components.push(component);
         }
+
+        if let Some(ref component) = self.exp2 {
+            components.push(component);
+        }
+
+        if let Some(ref component) = self.exp2_lookup {
+            components.push(component);
+        }
+
         components
     }
 

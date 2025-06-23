@@ -1,5 +1,5 @@
+use tracing::{error, info, warn};
 use wasm_bindgen::prelude::*;
-use tracing::{info, warn, error};
 
 /// Set up better panic messages for debugging in the browser
 pub fn set_panic_hook() {
@@ -33,6 +33,7 @@ pub fn console_info(message: &str) {
 }
 
 /// Log a warning to the browser console and tracing system
+#[allow(dead_code)]
 pub fn console_warn(message: &str) {
     web_sys::console::warn_1(&message.into());
     warn!("{}", message);
@@ -46,25 +47,30 @@ pub fn set_tracing_level(level: &str) -> bool {
         "trace" => {
             console_info("🔧 Tracing level set to TRACE - all verification steps will be logged");
             true
-        },
+        }
         "debug" => {
-            console_info("🔧 Tracing level set to DEBUG - detailed verification info will be logged");
+            console_info(
+                "🔧 Tracing level set to DEBUG - detailed verification info will be logged",
+            );
             true
-        },
+        }
         "info" => {
             console_info("🔧 Tracing level set to INFO - verification phases will be logged");
             true
-        },
+        }
         "warn" => {
             console_info("🔧 Tracing level set to WARN - only warnings and errors will be logged");
             true
-        },
+        }
         "error" => {
             console_info("🔧 Tracing level set to ERROR - only errors will be logged");
             true
-        },
+        }
         _ => {
-            console_error(&format!("❌ Invalid tracing level: {}. Valid levels: trace, debug, info, warn, error", level));
+            console_error(&format!(
+                "❌ Invalid tracing level: {}. Valid levels: trace, debug, info, warn, error",
+                level
+            ));
             false
         }
     }
@@ -99,5 +105,6 @@ pub fn get_verification_phases() -> String {
         }
     ]
 }
-"#.to_string()
+"#
+    .to_string()
 }
