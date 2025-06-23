@@ -216,10 +216,7 @@ impl SinPreProcessed {
     pub fn new(layout: LookupLayout, col_index: usize) -> Self {
         assert!(col_index < 2, "Sin LUT must have 2 columns");
 
-        Self {
-            layout,
-            col_index,
-        }
+        Self { layout, col_index }
     }
 
     /// Returns a reference to the generated `CircleEvaluation` for this column.
@@ -276,6 +273,100 @@ impl PreProcessedColumn for SinPreProcessed {
                     i,
                     Fixed::<DEFAULT_FP_SCALE>::from_f64(
                         Fixed::<DEFAULT_FP_SCALE>(*value).to_f64().sin(),
+                    )
+                    .to_m31(),
+                ),
+                _ => unreachable!(),
+            }
+        }
+
+        CircleEvaluation::new(domain, column)
+    }
+
+    /// Returns this instance as `&dyn Any` for downcasting.
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+// ================== EXP2 ==================
+
+/// Concrete implementation of `PreProcessedColumn` for the Exp2 Lookup Table (LUT).
+///
+/// Stores the layout (`LookupLayout`) and generates two columns:
+/// - Column 0: Input values `x` (as `Fixed` point `M31` elements).
+/// - Column 1: Output values `exp2(x)` (as `Fixed` point `M31` elements).
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct Exp2PreProcessed {
+    /// The layout defining the ranges and size of the LUT.
+    pub layout: LookupLayout,
+    /// The index of the column (0 for input `x`, 1 for output `exp2(x)`).
+    pub col_index: usize,
+}
+
+impl Exp2PreProcessed {
+    /// Creates a new `Exp2PreProcessed` column instance.
+    /// Panics if `col_index` is not 0 or 1.
+    pub fn new(layout: LookupLayout, col_index: usize) -> Self {
+        assert!(col_index < 2, "Exp2 LUT must have 2 columns");
+
+        Self { layout, col_index }
+    }
+
+    /// Returns a reference to the generated `CircleEvaluation` for this column.
+    pub fn evaluation(&self) -> CircleEvaluation<SimdBackend, BaseField, BitReversedOrder> {
+        self.gen_column()
+    }
+}
+
+impl PreProcessedColumn for Exp2PreProcessed {
+    /// Returns the log_size defined by the layout.
+    fn log_size(&self) -> u32 {
+        self.layout.log_size
+    }
+
+    /// Returns the ID string `exp2_lut_0` or `exp2_lut_1`.
+    fn id(&self) -> PreProcessedColumnId {
+        PreProcessedColumnId {
+            id: format!("exp2_lut_{}", self.col_index),
+        }
+    }
+
+    /// Creates a boxed clone of this `Exp2PreProcessed` instance.
+    fn clone_box(&self) -> Box<dyn PreProcessedColumn> {
+        Box::new(self.clone())
+    }
+
+    /// Generates the `CircleEvaluation` for this specific column (input or output).
+    ///
+    /// It iterates through all unique integer values covered by the `layout` ranges,
+    /// calculates the corresponding `Fixed` point value (`x` or `exp2(x)`),
+    /// converts it to `BaseField` (`M31`), and places it in the evaluation column.
+    /// The column is padded with zeros to the power-of-two size defined by `log_size`.
+    fn gen_column(&self) -> CircleEvaluation<SimdBackend, BaseField, BitReversedOrder> {
+        let log_size = self.log_size();
+        let domain = CanonicCoset::new(log_size).circle_domain();
+
+        // Enumerate all values from ranges
+        let mut all_values: Vec<i64> = self
+            .layout
+            .ranges
+            .iter()
+            .flat_map(|r| (r.0 .0..=r.1 .0))
+            .collect();
+        all_values.sort_unstable();
+        all_values.dedup();
+
+        let trace_size = 1 << log_size;
+        let mut column = BaseColumn::zeros(trace_size);
+
+        for (i, value) in all_values.iter().enumerate() {
+            match self.col_index {
+                0 => column.set(i, Fixed::<DEFAULT_FP_SCALE>(*value).to_m31()),
+                1 => column.set(
+                    i,
+                    Fixed::<DEFAULT_FP_SCALE>::from_f64(
+                        Fixed::<DEFAULT_FP_SCALE>(*value).to_f64().exp2(),
                     )
                     .to_m31(),
                 ),
