@@ -3,7 +3,7 @@ use luminair_air::{
         add, lookups, max_reduce, mul, recip, sin, sqrt, sum_reduce, LuminairComponents,
         LuminairInteractionElements,
     },
-    pie::{LuminairPie, Metadata, TraceTable},
+    pie::{LuminairPie, TraceTable},
     preprocessed::{lookups_to_preprocessed_column, PreProcessedTrace, SinPreProcessed},
     settings::CircuitSettings,
     LuminairClaim, LuminairInteractionClaim, LuminairInteractionClaimGenerator,
@@ -33,7 +33,7 @@ use crate::LuminairProof;
 pub fn prove(
     pie: LuminairPie,
     settings: CircuitSettings,
-) -> Result<(LuminairProof<Blake2sMerkleHasher>, Metadata), LuminairError> {
+) -> Result<LuminairProof<Blake2sMerkleHasher>, LuminairError> {
     // ┌──────────────────────────┐
     // │     Protocol Setup       │
     // └──────────────────────────┘
@@ -198,15 +198,9 @@ pub fn prove(
     let components = component_builder.provers();
     let proof = prover::prove::<SimdBackend, _>(&components, channel, commitment_scheme)?;
 
-    Ok((
-        LuminairProof {
-            claim: main_claim,
-            interaction_claim,
-            proof,
-        },
-        Metadata {
-            execution_resources: pie.metadata.execution_resources,
-            graph_view: pie.metadata.graph_view,
-        },
-    ))
+    Ok(LuminairProof {
+        claim: main_claim,
+        interaction_claim,
+        proof,
+    })
 }

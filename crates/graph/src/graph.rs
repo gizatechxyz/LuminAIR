@@ -31,11 +31,7 @@ use luminair_air::{
 use luminair_utils::LuminairError;
 use luminal::{op::*, prelude::*};
 use numerair::Fixed;
-use petgraph::{
-    stable_graph::{EdgeIndex, StableGraph},
-    visit::EdgeRef,
-    Direction,
-};
+use petgraph::{stable_graph::StableGraph, visit::EdgeRef, Direction};
 use regex::Regex;
 use rustc_hash::FxHashMap;
 
@@ -51,7 +47,7 @@ pub trait LuminairGraph {
     fn gen_trace(&mut self, settings: &mut CircuitSettings) -> Result<LuminairPie, LuminairError>;
 
     /// View the graph
-    fn graph_view(&self) -> String;
+    fn graph_viz(&self) -> String;
 }
 
 /// Implementation of `LuminairGraph` for the `luminal::Graph` struct.
@@ -429,16 +425,15 @@ impl LuminairGraph for Graph {
                     op_counter,
                     max_log_size,
                 },
-                graph_view: self.graph_view(),
             },
         })
     }
 
-    fn graph_view(&self) -> String {
+    fn graph_viz(&self) -> String {
         let mut new_graph: StableGraph<String, u8> = StableGraph::default();
         let mut id_map = FxHashMap::default();
         for (id, node) in self.graph.node_indices().zip(self.graph.node_weights()) {
-            id_map.insert(id, new_graph.add_node(format!("{node:?} | {}", id.index())));
+            id_map.insert(id, new_graph.add_node(format!("{node:?}")));
         }
 
         let mut schedule_edges = vec![];
@@ -466,21 +461,6 @@ impl LuminairGraph for Graph {
                 if edge.weight().is_schedule() {
                     schedule_edges.push(new_edge);
                 }
-                if new_graph.contains_node(id_map[&edge.target()])
-                    && edge
-                        .weight()
-                        .as_data()
-                        .map(|d| !d.2.is_empty())
-                        .unwrap_or_default()
-                {
-                    new_graph
-                        .node_weight_mut(id_map[&edge.target()])
-                        .unwrap()
-                        .push_str(&format!(
-                            " | {:?}",
-                            edge.weight().as_data().unwrap().2.dims()
-                        ));
-                }
             }
         }
 
@@ -488,13 +468,11 @@ impl LuminairGraph for Graph {
             petgraph::dot::Dot::with_config(&new_graph, &[petgraph::dot::Config::EdgeIndexLabel])
                 .to_string();
         let re = Regex::new(r#"label\s*=\s*"\d+""#).unwrap();
-        let schedule_edges: &[EdgeIndex] = &schedule_edges;
         for e in schedule_edges {
             graph_string =
                 graph_string.replace(&format!("label = \"{}\"", e.index()), "color=\"green\"");
         }
         graph_string = re.replace_all(&graph_string, "").to_string();
-
         let mark_nodes: &[NodeIndex] = &[];
         for n in mark_nodes {
             graph_string = graph_string.replace(

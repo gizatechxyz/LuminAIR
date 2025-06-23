@@ -18,6 +18,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     cx.compile(<(GenericCompiler, StwoCompiler)>::default(), &mut e);
     println!("Graph compiled successfully. ✅");
 
+    println!("{:?}", cx.graph_viz());
+
     // ======= Generate circuit settings =======
     println!("Generating circuits settings...");
     let mut settings = cx.gen_circuit_settings();
@@ -31,7 +33,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // ======= Prove & Verify =======
     println!("Generating proof for execution trace...");
-    let (proof, _) = prove(trace, settings.clone())?;
+    let proof = prove(trace, settings.clone())?;
     println!("Proof generated successfully. ✅");
 
     settings.to_bincode_file("./settings.bin")?;

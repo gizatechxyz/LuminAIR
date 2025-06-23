@@ -1,6 +1,6 @@
 {
   "name": "@gizatech/luminair-react",
-  "version": "1.0.44",
+  "version": "1.0.45",
   "type": "module",
   "description": "React UI component library for LuminAIR proof verification",
   "main": "dist/index.js",
@@ -74,5 +74,8 @@
   "homepage": "https://github.com/gizatechxyz/luminair-react#readme",
   "bugs": {
     "url": "https://github.com/gizatechxyz/luminair-react/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
