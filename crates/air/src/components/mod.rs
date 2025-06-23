@@ -51,9 +51,13 @@ use sum_reduce::{
     table::SumReduceColumn,
 };
 
-use crate::{preprocessed::PreProcessedTrace, LuminairClaim, LuminairInteractionClaim};
+use crate::{
+    components::lookups::exp2::table::Exp2LookupColumn, preprocessed::PreProcessedTrace,
+    LuminairClaim, LuminairInteractionClaim,
+};
 
 pub mod add;
+pub mod exp2;
 pub mod lookups;
 pub mod max_reduce;
 pub mod mul;
@@ -82,6 +86,10 @@ pub type SumReduceClaim = Claim<SumReduceColumn>;
 pub type MaxReduceClaim = Claim<MaxReduceColumn>;
 /// Type alias for the claim associated with the Sqrt component's trace.
 pub type SqrtClaim = Claim<SqrtColumn>;
+/// Type alias for the claim associated with the Exp2 component's trace.
+pub type Exp2Claim = Claim<SinColumn>;
+/// Type alias for the claim associated with the Exp2Lookup component's trace.
+pub type Exp2LookupClaim = Claim<Exp2LookupColumn>;
 
 /// Trait implemented by trace column definitions (e.g., `AddColumn`).
 /// Provides metadata about the number of columns used by the component.
