@@ -51,6 +51,11 @@ use sum_reduce::{
     table::SumReduceColumn,
 };
 
+use rem::{
+    component::{RemComponent, RemEval},
+    table::RemColumn,
+};
+
 use crate::{preprocessed::PreProcessedTrace, LuminairClaim, LuminairInteractionClaim};
 
 pub mod add;
@@ -83,6 +88,8 @@ pub type SumReduceClaim = Claim<SumReduceColumn>;
 pub type MaxReduceClaim = Claim<MaxReduceColumn>;
 /// Type alias for the claim associated with the Sqrt component's trace.
 pub type SqrtClaim = Claim<SqrtColumn>;
+/// Type alias for the claim associated with the Sqrt component's trace.
+pub type RemClaim = Claim<RemColumn>;
 
 /// Trait implemented by trace column definitions (e.g., `AddColumn`).
 /// Provides metadata about the number of columns used by the component.
