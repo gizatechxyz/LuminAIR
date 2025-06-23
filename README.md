@@ -104,6 +104,9 @@ Check performance benchmarks for LuminAIR operators [here](https://luminair.giza
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/hakymulla"><img src="https://avatars.githubusercontent.com/u/25408889?v=4?s=100" width="100px;" alt="Kazeem Hakeem"/><br /><sub><b>Kazeem Hakeem</b></sub></a><br /><a href="https://github.com/gizatechxyz/LuminAIR/commits?author=hakymulla" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/guha-rahul"><img src="https://avatars.githubusercontent.com/u/52607971?v=4?s=100" width="100px;" alt="guha-rahul"/><br /><sub><b>guha-rahul</b></sub></a><br /><a href="https://github.com/gizatechxyz/LuminAIR/commits?author=guha-rahul" title="Code">💻</a></td>
     </tr>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/bruhhgnik"><img src="https://avatars.githubusercontent.com/u/146652064?v=4?s=100" width="100px;" alt="Agnik"/><br /><sub><b>Agnik</b></sub></a><br /><a href="https://github.com/gizatechxyz/LuminAIR/commits?author=bruhhgnik" title="Code">💻</a></td>
+    </tr>
   </tbody>
 </table>
 
