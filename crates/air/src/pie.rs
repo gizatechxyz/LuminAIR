@@ -5,7 +5,7 @@ use crate::{
         add::table::AddTraceTable, lookups::sin::table::SinLookupTraceTable,
         max_reduce::table::MaxReduceTraceTable, mul::table::MulTraceTable,
         recip::table::RecipTraceTable, sin::table::SinTraceTable, sqrt::table::SqrtTraceTable,
-        sum_reduce::table::SumReduceTraceTable,
+        sum_reduce::table::SumReduceTraceTable, rem::table::RemTraceTable,
     },
     utils::AtomicMultiplicityColumn,
 };
@@ -33,6 +33,8 @@ pub enum TraceTable {
     MaxReduce { table: MaxReduceTraceTable },
     /// Trace table for Sqrt operations.
     Sqrt { table: SqrtTraceTable },
+    /// Trace table for Rem operations.
+    Rem { table: RemTraceTable },
 }
 
 impl TraceTable {
@@ -67,6 +69,10 @@ impl TraceTable {
     /// Creates a `TraceTable::Sqrt` variant.
     pub fn from_sqrt(table: SqrtTraceTable) -> Self {
         Self::Sqrt { table }
+    }
+    /// Creates a `TraceTable::Sqrt` variant.
+    pub fn from_rem(table: RemTraceTable) -> Self {
+        Self::Rem { table }
     }
 }
 
@@ -118,6 +124,8 @@ pub struct OpCounter {
     pub max_reduce: usize,
     /// Number of Sqrt operations.
     pub sqrt: usize,
+    /// Number of Rem operations.
+    pub rem: usize,
 }
 
 /// Metadata about a specific input to a graph node.
