@@ -61,6 +61,7 @@ impl RemTraceTableRow {
 }
 
 
+#[derive(Debug, Copy, Clone)]
 pub struct PackedRemTraceTableRow {
     /// Packed `node_id` values.
     pub node_id: PackedM31,

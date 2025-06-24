@@ -2,8 +2,8 @@
 
 use ::serde::{Deserialize, Serialize};
 use components::{
-    add, lookups, max_reduce, mul, recip, sin, sqrt, sum_reduce, AddClaim, InteractionClaim,
-    MaxReduceClaim, MulClaim, RecipClaim, SinClaim, SinLookupClaim, SqrtClaim, SumReduceClaim,
+    add, lookups, max_reduce, mul, recip, sin, sqrt, sum_reduce, rem, AddClaim, InteractionClaim,
+    MaxReduceClaim, MulClaim, RecipClaim, SinClaim, SinLookupClaim, SqrtClaim, SumReduceClaim, RemClaim,
 };
 use stwo_prover::core::{channel::Channel, pcs::TreeVec};
 
@@ -39,6 +39,9 @@ pub struct LuminairClaim {
     pub max_reduce: Option<MaxReduceClaim>,
     /// Claim for the Sqrt component's trace.
     pub sqrt: Option<SqrtClaim>,
+    /// Claim for the Sqrt component's trace.
+    pub rem: Option<RemClaim>,
+
 }
 
 impl LuminairClaim {
@@ -129,6 +132,8 @@ pub struct LuminairInteractionClaimGenerator {
     pub max_reduce: Option<max_reduce::witness::InteractionClaimGenerator>,
     /// Generator for the Sqrt component's interaction claim.
     pub sqrt: Option<sqrt::witness::InteractionClaimGenerator>,
+    /// Generator for the Sqrt component's interaction claim.
+    pub rem: Option<rem::witness::InteractionClaimGenerator>,
 }
 
 /// Container for claims related to the interaction trace of LuminAIR components.
@@ -155,6 +160,8 @@ pub struct LuminairInteractionClaim {
     pub max_reduce: Option<InteractionClaim>,
     /// Interaction claim for the Sqrt component.
     pub sqrt: Option<InteractionClaim>,
+    /// Interaction claim for the Rem component.
+    pub rem: Option<InteractionClaim>,
 }
 
 impl LuminairInteractionClaim {
@@ -183,6 +190,9 @@ impl LuminairInteractionClaim {
             claim.mix_into(channel);
         }
         if let Some(ref claim) = self.sqrt {
+            claim.mix_into(channel);
+        }
+        if let Some(ref claim) = self.rem {
             claim.mix_into(channel);
         }
     }

@@ -158,6 +158,8 @@ pub enum ClaimType {
     MaxReduce(Claim<MaxReduceColumn>),
     /// Claim for a Sqrt component trace.
     Sqrt(Claim<SqrtColumn>),
+    /// Claim for a Sqrt component trace.
+    Rem(Claim<RemColumn>),
 }
 
 /// Represents the claim resulting from the interaction phase (e.g., LogUp protocol).
@@ -229,6 +231,8 @@ pub struct LuminairComponents {
     max_reduce: Option<MaxReduceComponent>,
     /// Optional Sqrt component instance.
     sqrt: Option<SqrtComponent>,
+    /// Optional Rem component instance.
+    rem: Option<RemComponent>,
 }
 
 impl LuminairComponents {
@@ -349,6 +353,16 @@ impl LuminairComponents {
             None
         };
 
+        let rem = if let Some(ref rem_claim) = claim.rem {
+            Some(RemComponent::new(
+                tree_span_provider,
+                RemEval::new(&rem_claim, interaction_elements.node_elements.clone()),
+                interaction_claim.rem.as_ref().unwrap().claimed_sum,
+            ))
+        } else {
+            None
+        };
+
         Self {
             add,
             mul,
@@ -358,6 +372,7 @@ impl LuminairComponents {
             sum_reduce,
             max_reduce,
             sqrt,
+            rem,
         }
     }
 
@@ -395,6 +410,10 @@ impl LuminairComponents {
         }
 
         if let Some(ref component) = self.sqrt {
+            components.push(component);
+        }
+
+        if let Some(ref component) = self.rem {
             components.push(component);
         }
         components

@@ -1,5 +1,4 @@
-use crate::components::{add::component::NodeElements, RemClaim};
-use luminal::prelude::petgraph::adj::OutgoingEdgeIndices;
+use crate::components::{NodeElements, RemClaim};
 use num_traits::One;
 use numerair::eval::EvalFixedPoint;
 use stwo_prover::constraint_framework::{
@@ -84,7 +83,7 @@ impl FrameworkEval for RemEval {
 
         // Same Tensor IDs
         eval.add_constraint(not_last.clone() * (next_lhs_id - lhs_id.clone()));
-        eval.add_constraint(not_last.clone() * (next_lhs_id - lhs_id.clone()));
+        eval.add_constraint(not_last.clone() * (next_rhs_id - rhs_id.clone()));
 
         // Index increment by 1 
         eval.add_constraint(not_last * (next_idx - idx - E::F::one()));
