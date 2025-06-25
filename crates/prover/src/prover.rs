@@ -1,6 +1,6 @@
 use luminair_air::{
     components::{
-        add, lookups, max_reduce, mul, recip, sin, sqrt, sum_reduce, LuminairComponents,
+        add, lookups, max_reduce, mul, recip, sin, sqrt, sum_reduce, rem, LuminairComponents,
         LuminairInteractionElements,
     },
     pie::{LuminairPie, TraceTable},
@@ -122,6 +122,12 @@ pub fn prove(
                 main_claim.sqrt = Some(cl.clone());
                 interaction_claim_gen.sqrt = Some(in_cl_gen);
             }
+            TraceTable::Rem { table } => {
+                let claim_gen = rem::witness::ClaimGenerator::new(table);
+                let (cl, in_cl_gen) = claim_gen.write_trace(&mut tree_builder)?;
+                main_claim.rem = Some(cl.clone());
+                interaction_claim_gen.mul = Some(in_cl_gen);
+            }
         }
     }
     // Mix the claim into the Fiat-Shamir channel.
@@ -178,6 +184,10 @@ pub fn prove(
     if let Some(claim_gen) = interaction_claim_gen.sqrt {
         let claim = claim_gen.write_interaction_trace(&mut tree_builder, node_elements);
         interaction_claim.sqrt = Some(claim)
+    }
+    if let Some(claim_gen) = interaction_claim_gen.rem {
+        let claim = claim_gen.write_interaction_trace(&mut tree_builder, node_elements);
+        interaction_claim.rem = Some(claim)
     }
     // Mix the interaction claim into the Fiat-Shamir channel.
     interaction_claim.mix_into(channel);
