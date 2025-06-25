@@ -1051,6 +1051,7 @@ impl Operator for LuminairMaxReduce {
 /// Implements both the standard `Operator` trait for graph execution and the
 /// `LuminairOperator` trait to generate trace entries for `RemTraceTable`,
 /// capturing the accumulation process step-by-step.
+#[derive(Debug, Clone, Default, PartialEq)]
 struct LuminairRem {}
 
 impl LuminairRem {
@@ -1113,7 +1114,7 @@ impl LuminairOperator<RemColumn, RemTraceTable, ()> for LuminairRem {
     fn process_trace(
         &mut self,
         inp: Vec<(InputTensor, ShapeTracker)>,
-        table: &mut MulTraceTable,
+        table: &mut RemTraceTable,
         node_info: &NodeInfo,
         _lookup: &mut (),
     ) -> Vec<Tensor> {
@@ -1146,7 +1147,7 @@ impl LuminairOperator<RemColumn, RemTraceTable, ()> for LuminairRem {
         {
             let is_last_idx: u32 = if idx == (output_size - 1) { 1 } else { 0 };
 
-            table.add_row(MulTraceTableRow {
+            table.add_row(RemTraceTableRow {
                 node_id,
                 lhs_id,
                 rhs_id,
@@ -1314,6 +1315,8 @@ impl Compiler for PrimitiveCompiler {
                 *op_ref = LuminairMaxReduce::new(dim_index).into_operator()
             } else if is::<luminal::op::Sqrt>(op) {
                 *op_ref = LuminairSqrt::new().into_operator()
+            } else if is::<luminal::op::Mod>(op) {
+                *op_ref = LuminairRem::new().into_operator()
             }
         }
     }
