@@ -429,7 +429,7 @@ impl LuminairGraph for Graph {
         if !rem_table.table.is_empty() {
             let log_size = calculate_log_size(rem_table.table.len());
             max_log_size = max_log_size.max(log_size);
-            trace_tables.push(TraceTable::from_mul(rem_table));
+            trace_tables.push(TraceTable::from_rem(rem_table));
         }
 
         Ok(LuminairPie {

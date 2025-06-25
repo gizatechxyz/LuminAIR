@@ -126,7 +126,7 @@ pub fn prove(
                 let claim_gen = rem::witness::ClaimGenerator::new(table);
                 let (cl, in_cl_gen) = claim_gen.write_trace(&mut tree_builder)?;
                 main_claim.rem = Some(cl.clone());
-                interaction_claim_gen.mul = Some(in_cl_gen);
+                interaction_claim_gen.rem = Some(in_cl_gen);
             }
         }
     }
