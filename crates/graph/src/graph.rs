@@ -18,6 +18,7 @@ use luminair_air::{
         sin::table::{SinColumn, SinTraceTable},
         sqrt::table::{SqrtColumn, SqrtTraceTable},
         sum_reduce::table::{SumReduceColumn, SumReduceTraceTable},
+        rem::table::{RemColumn, RemTraceTable},
     },
     pie::{
         ExecutionResources, InputInfo, LuminairPie, NodeInfo, OpCounter, OutputInfo, TraceTable,
@@ -137,6 +138,7 @@ impl LuminairGraph for Graph {
         let mut sum_reduce_table = SumReduceTraceTable::new();
         let mut max_reduce_table = MaxReduceTraceTable::new();
         let mut sqrt_table = SqrtTraceTable::new();
+        let mut rem_table = RemTraceTable::new();
 
         for (node, src_ids) in self.linearized_graph.as_ref().unwrap() {
             if self.tensors.contains_key(&(*node, 0)) {
@@ -351,6 +353,18 @@ impl LuminairGraph for Graph {
                         node_op, srcs, &mut sqrt_table, &node_info, &mut ()
                     ).unwrap()
                     }
+                    _
+                        if <Box<dyn Operator> as HasProcessTrace<
+                            RemColumn,
+                            RemTraceTable,
+                            (),
+                        >>::has_process_trace(node_op) =>
+                    {
+                        op_counter.mul += 1;
+                        <Box<dyn Operator> as HasProcessTrace<RemColumn, RemTraceTable, ()>>::call_process_trace(
+                        node_op, srcs, &mut rem_table, &node_info, &mut ()
+                    ).unwrap()
+                    }
                     _ => node_op.process(srcs),
                 };
 
@@ -411,6 +425,11 @@ impl LuminairGraph for Graph {
             let log_size = calculate_log_size(sqrt_table.table.len());
             max_log_size = max_log_size.max(log_size);
             trace_tables.push(TraceTable::from_sqrt(sqrt_table));
+        }
+        if !rem_table.table.is_empty() {
+            let log_size = calculate_log_size(rem_table.table.len());
+            max_log_size = max_log_size.max(log_size);
+            trace_tables.push(TraceTable::from_mul(rem_table));
         }
 
         Ok(LuminairPie {
