@@ -8,6 +8,7 @@ use luminair_air::{
         sin::table::{SinColumn, SinTraceTable, SinTraceTableRow},
         sqrt::table::{SqrtColumn, SqrtTraceTable, SqrtTraceTableRow},
         sum_reduce::table::{SumReduceColumn, SumReduceTraceTable, SumReduceTraceTableRow},
+        rem::table::{RemColumn, RemTraceTable, RemTraceTableRow},
     },
     pie::NodeInfo,
     DEFAULT_FP_SCALE,
@@ -1037,6 +1038,139 @@ impl LuminairOperator<MaxReduceColumn, MaxReduceTraceTable, ()> for LuminairMaxR
 }
 
 impl Operator for LuminairMaxReduce {
+    fn process(&mut self, inp: Vec<(InputTensor, ShapeTracker)>) -> Vec<Tensor> {
+        let (out_data, _) = self.compute(&inp, false);
+        vec![Tensor::new(StwoData(Arc::new(out_data)))]
+    }
+}
+
+// ================== Rem ==================
+
+/// LuminAIR operator for Rem
+///
+/// Implements both the standard `Operator` trait for graph execution and the
+/// `LuminairOperator` trait to generate trace entries for `RemTraceTable`,
+/// capturing the accumulation process step-by-step.
+struct LuminairRem {}
+
+impl LuminairRem {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl LuminairRem {
+    fn compute(
+        &self,
+        inp: &[(InputTensor, ShapeTracker)],
+        trace_mode: bool,
+    ) -> (
+        Vec<Fixed<DEFAULT_FP_SCALE>>,
+        Option<
+        Vec<(
+            Fixed<DEFAULT_FP_SCALE>,
+            Fixed<DEFAULT_FP_SCALE>,
+            Fixed<DEFAULT_FP_SCALE>,
+            Fixed<DEFAULT_FP_SCALE>,
+        )>,
+        >,
+    ) {
+        let (lhs, rhs) = (
+            get_buffer_from_tensor(&inp[0].0).unwrap(),
+            get_buffer_from_tensor(&inp[1].0).unwrap(),
+        );
+        let lexpr = (inp[0].1.index_expression(), inp[0].1.valid_expression());
+        let rexpr = (inp[1].1.index_expression(), inp[1].1.valid_expression());
+
+        let mut stack: Vec<i64> = vec![];
+        let output_size = inp[0].1.n_elements().to_usize().unwrap();
+        let mut out_data = vec![Fixed::<DEFAULT_FP_SCALE>::zero(); output_size];
+
+        // Only allocate for intermediate values if in trace mode
+        let mut intermediate_values = if trace_mode {
+            Some(Vec::with_capacity(output_size))
+        } else {
+            None
+        };
+
+        for (idx, out) in out_data.iter_mut().enumerate() {
+            let lhs_val = get_index(lhs, &lexpr, &mut stack, idx);
+            let rhs_val = get_index(rhs, &rexpr, &mut stack, idx);
+            let (out_val, rem_val) = lhs_val * rhs_val;
+            *out = out_val;
+
+            // Only collect intermediate values if in trace mode
+            if let Some(values) = &mut intermediate_values {
+                values.push((lhs_val, rhs_val, out_val, rem_val));
+            }
+        }
+
+        (out_data, intermediate_values)
+    }
+}
+
+impl LuminairOperator<RemColumn, RemTraceTable, ()> for LuminairRem {
+    fn process_trace(
+        &mut self,
+        inp: Vec<(InputTensor, ShapeTracker)>,
+        table: &mut MulTraceTable,
+        node_info: &NodeInfo,
+        _lookup: &mut (),
+    ) -> Vec<Tensor> {
+        let (out_data, intermediate_values) = self.compute(&inp, true);
+        let intermediate_values = intermediate_values.unwrap();
+
+        let output_size = inp[0].1.n_elements().to_usize().unwrap();
+        let node_id: BaseField = node_info.id.into();
+        let lhs_id: BaseField = node_info.inputs[0].id.into();
+        let rhs_id: BaseField = node_info.inputs[1].id.into();
+
+        let lhs_mult = if node_info.inputs[0].is_initializer {
+            BaseField::zero()
+        } else {
+            -BaseField::one()
+        };
+        let rhs_mult = if node_info.inputs[1].is_initializer {
+            BaseField::zero()
+        } else {
+            -BaseField::one()
+        };
+        let out_mult = if node_info.output.is_final_output {
+            BaseField::zero()
+        } else {
+            BaseField::one() * BaseField::from_u32_unchecked(node_info.num_consumers)
+        };
+
+        for (idx, (lhs_val, rhs_val, out_val, rem_val)) in
+            intermediate_values.into_iter().enumerate()
+        {
+            let is_last_idx: u32 = if idx == (output_size - 1) { 1 } else { 0 };
+
+            table.add_row(MulTraceTableRow {
+                node_id,
+                lhs_id,
+                rhs_id,
+                idx: idx.into(),
+                is_last_idx: (is_last_idx).into(),
+                next_idx: (idx + 1).into(),
+                next_node_id: node_id,
+                next_lhs_id: lhs_id,
+                next_rhs_id: rhs_id,
+                lhs: lhs_val.to_m31(),
+                rhs: rhs_val.to_m31(),
+                out: out_val.to_m31(),
+                rem: rem_val.to_m31(),
+                lhs_mult,
+                rhs_mult,
+                out_mult,
+            })
+        }
+
+        vec![Tensor::new(StwoData(Arc::new(out_data)))]
+    }
+}
+
+impl Operator for LuminairRem {
     fn process(&mut self, inp: Vec<(InputTensor, ShapeTracker)>) -> Vec<Tensor> {
         let (out_data, _) = self.compute(&inp, false);
         vec![Tensor::new(StwoData(Arc::new(out_data)))]
