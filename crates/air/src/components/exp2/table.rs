@@ -12,9 +12,6 @@ use super::witness::N_TRACE_COLUMNS;
 use crate::components::TraceColumn;
 
 /// Represents the raw trace data collected for Exp2 (`exp2(x)`) operations.
-///
-/// Stores rows capturing inputs, outputs, and metadata for each Exp2 operation,
-/// including multiplicities for LogUp and the Exp2 Lookup Table interaction.
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct Exp2TraceTable {
     /// Vector containing all rows of the Exp2 trace.

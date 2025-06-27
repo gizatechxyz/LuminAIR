@@ -75,6 +75,7 @@ pub mod recip;
 pub mod sin;
 pub mod sqrt;
 pub mod sum_reduce;
+pub mod less_than;
 
 /// Type alias for a vector of circle evaluations representing trace columns.
 /// Used commonly as the format for trace data passed to the STWO prover/verifier.

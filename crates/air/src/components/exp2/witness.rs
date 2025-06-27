@@ -167,7 +167,7 @@ impl InteractionClaimGenerator {
         self,
         tree_builder: &mut impl TreeBuilder<SimdBackend>,
         node_elements: &NodeElements,
-        lookup_elements: &Exp2LookupElements, // Specific randomness for Exp2 LUT
+        lookup_elements: &Exp2LookupElements,
     ) -> InteractionClaim {
         let mut logup_gen = LogupTraceGenerator::new(self.log_size);
 

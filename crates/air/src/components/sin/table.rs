@@ -13,9 +13,6 @@ use crate::components::TraceColumn;
 use super::witness::N_TRACE_COLUMNS;
 
 /// Represents the raw trace data collected for Sine (`sin(x)`) operations.
-///
-/// Stores rows capturing inputs, outputs, and metadata for each Sin operation,
-/// including multiplicities for LogUp and the Sine Lookup Table interaction.
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct SinTraceTable {
     /// Vector containing all rows of the Sin trace.
