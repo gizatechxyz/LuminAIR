@@ -3,7 +3,7 @@ use std::{any::Any, cmp::Reverse, iter::zip, simd::Simd};
 use crate::{
     components::{
         //lookups::Lookups,
-        lookups::Lookups,
+        lookups::{range_check::RangeCheckLayout, Lookups},
         TraceEval,
     },
     utils::calculate_log_size,
@@ -248,17 +248,17 @@ pub fn generate_partitioned_enumeration<const N: usize>(
     res
 }
 
-#[derive(Clone, Debug)]
-pub struct RangeCheck<const N: usize> {
-    ranges: [u32; N],
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct RangeCheckPreProcessed<const N: usize> {
+    layout: RangeCheckLayout<N>,
     column_idx: usize,
 }
 
-impl<const N: usize> RangeCheck<N> {
-    pub fn new(ranges: [u32; N], column_idx: usize) -> Self {
-        assert!(ranges.iter().all(|&r| r > 0));
+impl<const N: usize> RangeCheckPreProcessed<N> {
+    pub fn new(layout: RangeCheckLayout<N>, column_idx: usize) -> Self {
+        assert!(layout.ranges.iter().all(|&r| r > 0));
         assert!(column_idx < N);
-        Self { ranges, column_idx }
+        Self { layout, column_idx }
     }
 
     pub fn evaluation(&self) -> CircleEvaluation<SimdBackend, BaseField, BitReversedOrder> {
@@ -266,20 +266,20 @@ impl<const N: usize> RangeCheck<N> {
     }
 }
 
-impl<const N: usize> PreProcessedColumn for RangeCheck<N> {
+impl<const N: usize> PreProcessedColumn for RangeCheckPreProcessed<N> {
     fn log_size(&self) -> u32 {
-        self.ranges.iter().sum()
+        self.layout.log_size
     }
 
     fn id(&self) -> PreProcessedColumnId {
-        let ranges = self.ranges.iter().join("_");
+        let ranges = self.layout.ranges.iter().join("_");
         PreProcessedColumnId {
             id: format!("range_check_{}_column_{}", ranges, self.column_idx).to_string(),
         }
     }
 
     fn gen_column(&self) -> CircleEvaluation<SimdBackend, BaseField, BitReversedOrder> {
-        let partitions = generate_partitioned_enumeration(self.ranges);
+        let partitions = generate_partitioned_enumeration(self.layout.ranges);
         let column = partitions.into_iter().nth(self.column_idx).unwrap();
         CircleEvaluation::new(
             CanonicCoset::new(self.log_size()).circle_domain(),

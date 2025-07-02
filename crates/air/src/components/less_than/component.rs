@@ -1,9 +1,10 @@
+use num_traits::One;
 use stwo_prover::{
-    constraint_framework::{EvalAtRow, FrameworkComponent, RelationEntry},
+    constraint_framework::{EvalAtRow, FrameworkComponent, FrameworkEval, RelationEntry},
     core::fields::m31::M31,
 };
 
-use crate::components::NodeElements;
+use crate::components::{lookups::range_check::RangeCheckLookupElements, LessThanClaim, NodeElements};
 
 /// The STWO AIR component for element-wise LessThan operations.
 pub type LessThanComponent = FrameworkComponent<LessThanEval>;
@@ -19,7 +20,7 @@ pub struct LessThanEval {
     /// Interaction elements for node relations (used in input/output LogUp).
     node_elements: NodeElements,
     /// Specific interaction elements for the RangeCheck LUT LogUp.
-    range_check_elements: RangeCheckElements,
+    range_check_elements: RangeCheckLookupElements,
 }
 
 impl LessThanEval {
@@ -29,7 +30,7 @@ impl LessThanEval {
     pub fn new(
         claim: &LessThanClaim,
         node_elements: NodeElements,
-        range_check_elements: RangeCheckElements,
+        range_check_elements: RangeCheckLookupElements,
         range_check_log_size: u32,
     ) -> Self {
         Self {

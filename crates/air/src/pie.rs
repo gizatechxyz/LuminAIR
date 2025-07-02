@@ -4,7 +4,11 @@ use crate::{
     components::{
         add::table::AddTraceTable,
         exp2::table::Exp2TraceTable,
-        lookups::{exp2::table::Exp2LookupTraceTable, sin::table::SinLookupTraceTable},
+        less_than::table::LessThanTraceTable,
+        lookups::{
+            exp2::table::Exp2LookupTraceTable, range_check::table::RangeCheckLookupTraceTable,
+            sin::table::SinLookupTraceTable,
+        },
         max_reduce::table::MaxReduceTraceTable,
         mul::table::MulTraceTable,
         recip::table::RecipTraceTable,
@@ -42,6 +46,10 @@ pub enum TraceTable {
     Exp2 { table: Exp2TraceTable },
     /// Trace table for Exp2 lookup operations.
     Exp2Lookup { table: Exp2LookupTraceTable },
+    /// Trace table for LessThan operations.
+    LessThan { table: LessThanTraceTable },
+    /// Trace table for RangeCheck lookup operations.
+    RangeCheckLookup { table: RangeCheckLookupTraceTable },
 }
 
 impl TraceTable {
@@ -85,6 +93,14 @@ impl TraceTable {
     pub fn from_exp2_lookup(table: Exp2LookupTraceTable) -> Self {
         Self::Exp2Lookup { table }
     }
+    /// Creates a `TraceTable::LessThan` variant.
+    pub fn from_less_than(table: LessThanTraceTable) -> Self {
+        Self::LessThan { table }
+    }
+    /// Creates a `TraceTable::RangeCheckLookup` variant.
+    pub fn from_range_check_lookup(table: RangeCheckLookupTraceTable) -> Self {
+        Self::RangeCheckLookup { table }
+    }
 }
 
 /// Primary container for the PIE generated during trace execution.
@@ -112,6 +128,7 @@ pub struct Metadata {
 pub struct LUTMultiplicities {
     pub sin: AtomicMultiplicityColumn,
     pub exp2: AtomicMultiplicityColumn,
+    pub range_check: AtomicMultiplicityColumn,
 }
 
 /// Holds resource usage metadata gathered during graph execution.
@@ -145,6 +162,8 @@ pub struct OpCounter {
     pub sqrt: usize,
     /// Number of Exp2 operations.
     pub exp2: usize,
+    /// Number of LessThan operations.
+    pub less_than: usize,
 }
 
 /// Metadata about a specific input to a graph node.

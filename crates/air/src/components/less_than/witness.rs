@@ -1,8 +1,9 @@
 use luminair_utils::TraceError;
+use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use stwo_air_utils::trace::component_trace::ComponentTrace;
 use stwo_air_utils_derive::{IterMut, ParIterMut, Uninitialized};
 use stwo_prover::{
-    constraint_framework::logup::LogupTraceGenerator,
+    constraint_framework::{logup::LogupTraceGenerator, Relation},
     core::backend::simd::{
         m31::{PackedM31, LOG_N_LANES, N_LANES},
         qm31::PackedQM31,
@@ -14,8 +15,7 @@ use crate::{
     components::{
         less_than::table::{
             LessThanColumn, LessThanTraceTable, LessThanTraceTableRow, PackedLessThanTraceTableRow,
-        },
-        InteractionClaim, NodeElements,
+        }, lookups::range_check::RangeCheckLookupElements, InteractionClaim, LessThanClaim, NodeElements
     },
     utils::{pack_values, TreeBuilder},
 };
@@ -161,7 +161,7 @@ impl InteractionClaimGenerator {
         self,
         tree_builder: &mut impl TreeBuilder<SimdBackend>,
         node_elements: &NodeElements,
-        range_check_elements: &RangeCheckElements,
+        range_check_elements: &RangeCheckLookupElements,
     ) -> InteractionClaim {
         let mut logup_gen = LogupTraceGenerator::new(self.log_size);
 
@@ -197,7 +197,7 @@ impl InteractionClaimGenerator {
 
         let mut col_gen = logup_gen.new_col();
         for row in 0..1 << (self.log_size - LOG_N_LANES) {
-            let diff = self.lookup_data.diff[row][0];
+            let diff = self.lookup_data.diff[row];
             let multiplicity = self.lookup_data.range_check_mult[row];
 
             let denom: PackedQM31 = range_check_elements.combine(&[diff]);
