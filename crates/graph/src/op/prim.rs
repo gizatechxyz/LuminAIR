@@ -879,6 +879,7 @@ impl Operator for LuminairMul {
     }
 }
 
+/// LuminAIR operator for element-wise less-than (`a < b`).
 #[derive(Clone, Default, PartialEq)]
 struct LuminairLessThan {}
 impl core::fmt::Debug for LuminairLessThan {
@@ -888,6 +889,7 @@ impl core::fmt::Debug for LuminairLessThan {
 }
 
 impl LuminairLessThan {
+    /// Creates a new `LuminairLessThan` operator instance.
     pub fn new() -> Self {
         Self {}
     }
@@ -899,18 +901,20 @@ impl LuminairLessThan {
         inp: &[(InputTensor, ShapeTracker)],
         trace_mode: bool,
     ) -> (
-        Vec<Fixed<DEFAULT_FP_SCALE>>, // Output values
+        Vec<Fixed<DEFAULT_FP_SCALE>>,
         Option<
             Vec<(
-                // Intermediate values for trace
-                Fixed<DEFAULT_FP_SCALE>, // lhs
-                Fixed<DEFAULT_FP_SCALE>, // rhs
-                Fixed<DEFAULT_FP_SCALE>, // out
-                Fixed<DEFAULT_FP_SCALE>, // diff
-                Fixed<DEFAULT_FP_SCALE>, // borrow
+                Fixed<DEFAULT_FP_SCALE>,
+                Fixed<DEFAULT_FP_SCALE>,
+                Fixed<DEFAULT_FP_SCALE>,
+                i32,
+                i64,
             )>,
         >,
     ) {
+        const BIT_LENGTH: i64 = 16; // Bit length for the RangeCheck
+        let two_pow_k = 1 << BIT_LENGTH;
+
         let (lhs, rhs) = (
             get_buffer_from_tensor(&inp[0].0).unwrap(),
             get_buffer_from_tensor(&inp[1].0).unwrap(),
@@ -922,31 +926,27 @@ impl LuminairLessThan {
         let output_size = inp[0].1.n_elements().to_usize().unwrap();
         let mut out_data = vec![Fixed::<DEFAULT_FP_SCALE>::zero(); output_size];
 
+        // Only allocate for intermediate values if in trace mode
         let mut intermediate_values = if trace_mode {
             Some(Vec::with_capacity(output_size))
         } else {
             None
         };
 
-        const BIT_LENGTH: i64 = 16;
-        let two_pow_k = 1 << BIT_LENGTH;
-
-        for (idx, out_val_ref) in out_data.iter_mut().enumerate() {
+        for (idx, out) in out_data.iter_mut().enumerate() {
             let lhs_val = get_index(lhs, &lexpr, &mut stack, idx);
             let rhs_val = get_index(rhs, &rexpr, &mut stack, idx);
 
-            let (borrow, diff) = if lhs_val.0 < rhs_val.0 {
-                (0, rhs_val.0 - lhs_val.0)
+            let (out_val, borrow, diff) = if lhs_val.0 < rhs_val.0 {
+                (Fixed::from_f64(1.), 0, rhs_val.0 - lhs_val.0)
             } else {
-                (1, rhs_val.0 - lhs_val.0 + two_pow_k)
+                (Fixed::zero(), 1, rhs_val.0 - lhs_val.0 + two_pow_k)
             };
+            *out = out_val;
 
-            // The semantic output is `1 - borrow`. We scale it for the graph.
-            let out_val = Fixed::<DEFAULT_FP_SCALE>((1 - borrow) * (1 << DEFAULT_FP_SCALE));
-            *out_val_ref = out_val;
-
+            // Only collect intermediate values if in trace mode
             if let Some(values) = &mut intermediate_values {
-                values.push((lhs_val, rhs_val, out_val, Fixed(diff), Fixed(borrow)));
+                values.push((lhs_val, rhs_val, out_val, borrow, diff));
             }
         }
 
@@ -988,7 +988,7 @@ impl LuminairOperator<LessThanColumn, LessThanTraceTable, RangeCheckLookup<1>>
             BaseField::one() * BaseField::from_u32_unchecked(node_info.num_consumers)
         };
 
-        for (idx, (lhs_val, rhs_val, out_val, diff_val, borrow_val)) in
+        for (idx, (lhs_val, rhs_val, out_val, borrow, diff)) in
             intermediate_values.into_iter().enumerate()
         {
             let is_last_idx: u32 = if idx == (output_size - 1) { 1 } else { 0 };
@@ -998,24 +998,24 @@ impl LuminairOperator<LessThanColumn, LessThanTraceTable, RangeCheckLookup<1>>
                 lhs_id,
                 rhs_id,
                 idx: idx.into(),
-                is_last_idx: is_last_idx.into(),
+                is_last_idx: (is_last_idx).into(),
+                next_idx: (idx + 1).into(),
                 next_node_id: node_id,
                 next_lhs_id: lhs_id,
                 next_rhs_id: rhs_id,
-                next_idx: (idx + 1).into(),
                 lhs: lhs_val.to_m31(),
                 rhs: rhs_val.to_m31(),
                 out: out_val.to_m31(),
-                diff: diff_val.to_m31(),
-                borrow: borrow_val.to_m31(),
+                borrow: M31::from_u32_unchecked(borrow as u32),
+                diff: M31::from_u32_unchecked(diff as u32),
                 lhs_mult,
                 rhs_mult,
                 out_mult,
-                range_check_mult: M31::one(), // Each comparison needs one range check
+                range_check_mult: M31::one(),
             });
 
-            // Update range check multiplicities
-            lookup.multiplicities.increase_at(diff_val.0 as usize);
+            // Update multiplicities of the lookup.
+            lookup.multiplicities.increase_at(diff as usize);
         }
 
         vec![Tensor::new(StwoData(Arc::new(out_data)))]

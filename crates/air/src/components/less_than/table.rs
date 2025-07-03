@@ -9,7 +9,7 @@ use stwo_prover::core::{
 };
 
 use super::witness::N_TRACE_COLUMNS;
-use crate::components::TraceColumn;
+use crate::{components::TraceColumn, DEFAULT_FP_SCALE};
 
 /// Represents the raw trace data collected for LessThan operations.
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
@@ -79,9 +79,9 @@ impl LessThanTraceTableRow {
             next_rhs_id: M31::zero(),
             next_idx: M31::zero(),
             lhs: M31::zero(),
-            rhs: M31::zero(),
-            out: M31::zero(),
-            diff: M31::zero(),
+            rhs: M31::one(),
+            out: M31::from_u32_unchecked(1 << DEFAULT_FP_SCALE),
+            diff: M31::one(),
             borrow: M31::zero(),
             lhs_mult: M31::zero(),
             rhs_mult: M31::zero(),

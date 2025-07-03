@@ -1,5 +1,3 @@
-use std::array;
-
 use crate::{
     op::{
         prim::{CopyFromStwo, CopyToStwo, LuminairConstant},
