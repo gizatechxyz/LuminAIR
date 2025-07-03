@@ -23,7 +23,7 @@ pub struct Lookups {
     /// Configuration for the Exp2 lookup argument, if active.
     pub exp2: Option<Exp2Lookup>,
     /// Configuration for the RangeCheck lookup argument, if active.
-    pub range_check: Option<RangeCheckLookup<16>>,
+    pub range_check: Option<RangeCheckLookup<1>>,
 }
 
 /// Container for interaction elements specific to each lookup type.

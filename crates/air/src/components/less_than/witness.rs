@@ -21,7 +21,7 @@ use crate::{
 };
 
 /// Number of main trace columns for the LessThan component.
-pub(crate) const N_TRACE_COLUMNS: usize = 17;
+pub(crate) const N_TRACE_COLUMNS: usize = 18;
 
 /// Generates the main trace columns and initial data for interaction claims for the LessThan component.
 pub struct ClaimGenerator {

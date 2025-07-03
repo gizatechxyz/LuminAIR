@@ -172,7 +172,7 @@ pub struct LuminairInteractionClaimGenerator {
     /// Generator for the LessThan component's interaction claim.
     pub less_than: Option<less_than::witness::InteractionClaimGenerator>,
     /// Generator for the RangeCheck Lookup component's interaction claim.
-    pub range_check_lookup: Option<lookups::range_check::witness::InteractionClaimGenerator<16>>,
+    pub range_check_lookup: Option<lookups::range_check::witness::InteractionClaimGenerator<1>>,
 }
 
 /// Container for claims related to the interaction trace of LuminAIR components.

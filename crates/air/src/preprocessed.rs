@@ -203,6 +203,10 @@ pub fn lookups_to_preprocessed_column(lookups: &Lookups) -> Vec<Box<dyn PreProce
         lut_cols.push(Box::new(col_0));
         lut_cols.push(Box::new(col_1));
     }
+    if let Some(range_check_lookup) = &lookups.range_check {
+        let col_0 = RangeCheckPreProcessed::new(range_check_lookup.layout.clone(), 0);
+        lut_cols.push(Box::new(col_0));
+    }
     lut_cols
 }
 
@@ -250,15 +254,15 @@ pub fn generate_partitioned_enumeration<const N: usize>(
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct RangeCheckPreProcessed<const N: usize> {
-    layout: RangeCheckLayout<N>,
-    column_idx: usize,
+    pub layout: RangeCheckLayout<N>,
+    pub col_index: usize,
 }
 
 impl<const N: usize> RangeCheckPreProcessed<N> {
-    pub fn new(layout: RangeCheckLayout<N>, column_idx: usize) -> Self {
+    pub fn new(layout: RangeCheckLayout<N>, col_index: usize) -> Self {
         assert!(layout.ranges.iter().all(|&r| r > 0));
-        assert!(column_idx < N);
-        Self { layout, column_idx }
+        assert!(col_index < N);
+        Self { layout, col_index }
     }
 
     pub fn evaluation(&self) -> CircleEvaluation<SimdBackend, BaseField, BitReversedOrder> {
@@ -274,13 +278,13 @@ impl<const N: usize> PreProcessedColumn for RangeCheckPreProcessed<N> {
     fn id(&self) -> PreProcessedColumnId {
         let ranges = self.layout.ranges.iter().join("_");
         PreProcessedColumnId {
-            id: format!("range_check_{}_column_{}", ranges, self.column_idx).to_string(),
+            id: format!("range_check_{}_column_{}", ranges, self.col_index).to_string(),
         }
     }
 
     fn gen_column(&self) -> CircleEvaluation<SimdBackend, BaseField, BitReversedOrder> {
         let partitions = generate_partitioned_enumeration(self.layout.ranges);
-        let column = partitions.into_iter().nth(self.column_idx).unwrap();
+        let column = partitions.into_iter().nth(self.col_index).unwrap();
         CircleEvaluation::new(
             CanonicCoset::new(self.log_size()).circle_domain(),
             BaseColumn::from_simd(column),

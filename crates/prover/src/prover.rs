@@ -1,11 +1,12 @@
 use luminair_air::{
     components::{
-        add, exp2, lookups, max_reduce, mul, recip, sin, sqrt, sum_reduce, LuminairComponents,
-        LuminairInteractionElements,
+        add, exp2, less_than, lookups, max_reduce, mul, recip, sin, sqrt, sum_reduce,
+        LuminairComponents, LuminairInteractionElements,
     },
     pie::{LuminairPie, TraceTable},
     preprocessed::{
-        lookups_to_preprocessed_column, Exp2PreProcessed, PreProcessedTrace, SinPreProcessed,
+        lookups_to_preprocessed_column, Exp2PreProcessed, PreProcessedTrace,
+        RangeCheckPreProcessed, SinPreProcessed,
     },
     settings::CircuitSettings,
     LuminairClaim, LuminairInteractionClaim, LuminairInteractionClaimGenerator,
@@ -136,6 +137,18 @@ pub fn prove(
                 main_claim.exp2_lookup = Some(cl.clone());
                 interaction_claim_gen.exp2_lookup = Some(in_cl_gen);
             }
+            TraceTable::LessThan { table } => {
+                let claim_gen = less_than::witness::ClaimGenerator::new(table);
+                let (cl, in_cl_gen) = claim_gen.write_trace(&mut tree_builder)?;
+                main_claim.less_than = Some(cl.clone());
+                interaction_claim_gen.less_than = Some(in_cl_gen);
+            }
+            TraceTable::RangeCheckLookup { table } => {
+                let claim_gen = lookups::range_check::witness::ClaimGenerator::new(table);
+                let (cl, in_cl_gen) = claim_gen.write_trace(&mut tree_builder)?;
+                main_claim.range_check_lookup = Some(cl.clone());
+                interaction_claim_gen.range_check_lookup = Some(in_cl_gen);
+            }
         }
     }
     // Mix the claim into the Fiat-Shamir channel.
@@ -204,10 +217,29 @@ pub fn prove(
     if let Some(claim_gen) = interaction_claim_gen.exp2_lookup {
         let mut exp2_luts = preprocessed_trace.columns_of::<Exp2PreProcessed>();
         exp2_luts.sort_by_key(|c| c.col_index);
-        
+
         let claim =
             claim_gen.write_interaction_trace(&mut tree_builder, &lookup_elements.exp2, &exp2_luts);
         interaction_claim.exp2_lookup = Some(claim)
+    }
+    if let Some(claim_gen) = interaction_claim_gen.less_than {
+        let claim = claim_gen.write_interaction_trace(
+            &mut tree_builder,
+            node_elements,
+            &lookup_elements.range_check,
+        );
+        interaction_claim.less_than = Some(claim)
+    }
+    if let Some(claim_gen) = interaction_claim_gen.range_check_lookup {
+        let mut range_check_lut = preprocessed_trace.columns_of::<RangeCheckPreProcessed<1>>();
+        range_check_lut.sort_by_key(|c| c.col_index);
+
+        let claim = claim_gen.write_interaction_trace(
+            &mut tree_builder,
+            &lookup_elements.range_check,
+            &range_check_lut,
+        );
+        interaction_claim.range_check_lookup = Some(claim)
     }
 
     // Mix the interaction claim into the Fiat-Shamir channel.

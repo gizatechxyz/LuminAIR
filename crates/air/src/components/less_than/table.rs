@@ -16,6 +16,7 @@ use crate::components::TraceColumn;
 pub struct LessThanTraceTable {
     /// Vector containing all rows of the LessThan trace.
     pub table: Vec<LessThanTraceTableRow>,
+    pub(crate) node_id: M31,
 }
 
 /// Represents a single row in the `LessThanTraceTable`.
@@ -311,7 +312,7 @@ impl LessThanColumn {
 /// Implements the `TraceColumn` trait for `LessThanColumn`.
 impl TraceColumn for LessThanColumn {
     /// Specifies the number of columns used by the LessThan component.
-    /// Returns `(N_TRACE_COLUMNS, 3)`, indicating the number of main trace columns
+    /// Returns `(N_TRACE_COLUMNS, 4)`, indicating the number of main trace columns
     /// and the number of interaction trace columns (for LogUp).
     fn count() -> (usize, usize) {
         (N_TRACE_COLUMNS, 4)

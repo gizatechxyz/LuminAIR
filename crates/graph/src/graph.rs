@@ -102,7 +102,7 @@ impl LuminairGraph for Graph {
             if <Box<dyn Operator> as HasProcessTrace<
                 LessThanColumn,
                 LessThanTraceTable,
-                RangeCheckLookup<16>,
+                RangeCheckLookup<1>,
             >>::has_process_trace(op)
             {
                 range_check_needed = true
@@ -137,7 +137,7 @@ impl LuminairGraph for Graph {
 
         let range_check_lookup = if range_check_needed {
             Some(RangeCheckLookup::new(&RangeCheckLayout {
-                ranges: array::from_fn(|i| i as u32),
+                ranges: [16],
                 log_size: 16,
             }))
         } else {
@@ -426,7 +426,7 @@ impl LuminairGraph for Graph {
                     _ if <Box<dyn Operator> as HasProcessTrace<
                         LessThanColumn,
                         LessThanTraceTable,
-                        RangeCheckLookup<16>,
+                        RangeCheckLookup<1>,
                     >>::has_process_trace(node_op) =>
                     {
                         op_counter.less_than += 1;
@@ -434,7 +434,7 @@ impl LuminairGraph for Graph {
                             Some(lookup) => <Box<dyn Operator> as HasProcessTrace<
                                 LessThanColumn,
                                 LessThanTraceTable,
-                                RangeCheckLookup<16>,
+                                RangeCheckLookup<1>,
                             >>::call_process_trace(
                                 node_op,
                                 srcs,
@@ -517,6 +517,19 @@ impl LuminairGraph for Graph {
                 lookup.add_multiplicities_to_table(&mut exp2_lookup_table);
                 max_log_size = max_log_size.max(lookup.layout.log_size);
                 trace_tables.push(TraceTable::from_exp2_lookup(exp2_lookup_table))
+            } // TODO (@raphaelDkhn): though error if LUT not present.
+        }
+        if !less_than_table.table.is_empty() {
+            let log_size = calculate_log_size(less_than_table.table.len());
+            max_log_size = max_log_size.max(log_size);
+            trace_tables.push(TraceTable::from_less_than(less_than_table));
+
+            if let Some(lookup) = settings.lookups.range_check.as_ref() {
+                lookup.add_multiplicities_to_table(&mut range_check_lookup_table);
+                max_log_size = max_log_size.max(lookup.layout.log_size);
+                trace_tables.push(TraceTable::from_range_check_lookup(
+                    range_check_lookup_table,
+                ))
             } // TODO (@raphaelDkhn): though error if LUT not present.
         }
 

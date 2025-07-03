@@ -4,7 +4,7 @@ use stwo_prover::{
     core::fields::m31::M31,
 };
 
-use crate::components::{lookups::range_check::RangeCheckLookupElements, LessThanClaim, NodeElements};
+use crate::{components::{lookups::range_check::RangeCheckLookupElements, LessThanClaim, NodeElements}, DEFAULT_FP_SCALE};
 
 /// The STWO AIR component for element-wise LessThan operations.
 pub type LessThanComponent = FrameworkComponent<LessThanEval>;
@@ -58,6 +58,7 @@ impl FrameworkEval for LessThanEval {
     fn evaluate<E: EvalAtRow>(&self, mut eval: E) -> E {
         const BIT_LENGTH: u32 = 16; // TODO: make it dynamic.
         let two_pow_k = E::F::from(M31::from_u32_unchecked(1 << BIT_LENGTH));
+        let scale_factor = E::F::from(M31::from_u32_unchecked(1 << DEFAULT_FP_SCALE));
 
         // IDs
         let node_id = eval.next_trace_mask();
@@ -94,7 +95,7 @@ impl FrameworkEval for LessThanEval {
 
         // `borrow` and `out_val` must be boolean and opposite
         eval.add_constraint(borrow.clone() * (borrow.clone() - E::F::one()));
-        eval.add_constraint(out_val.clone() + borrow.clone() - E::F::one());
+        eval.add_constraint(out_val.clone() - ((E::F::one() - borrow.clone()) * scale_factor));
 
         // Core arithmetic constraint: lhs + diff = rhs + borrow * 2^k
         eval.add_constraint(
