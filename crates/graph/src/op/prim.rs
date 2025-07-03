@@ -899,6 +899,7 @@ impl LuminairLessThan {
     fn compute(
         &self,
         inp: &[(InputTensor, ShapeTracker)],
+        bit_length: u32,
         trace_mode: bool,
     ) -> (
         Vec<Fixed<DEFAULT_FP_SCALE>>,
@@ -907,13 +908,13 @@ impl LuminairLessThan {
                 Fixed<DEFAULT_FP_SCALE>,
                 Fixed<DEFAULT_FP_SCALE>,
                 Fixed<DEFAULT_FP_SCALE>,
-                i32,
+                i64,
                 i64,
             )>,
         >,
     ) {
-        const BIT_LENGTH: i64 = 16; // Bit length for the RangeCheck
-        let two_pow_k = 1 << BIT_LENGTH;
+        let bit_length = bit_length as i64;
+        let two_pow_k = 1 << bit_length;
 
         let (lhs, rhs) = (
             get_buffer_from_tensor(&inp[0].0).unwrap(),
@@ -964,7 +965,8 @@ impl LuminairOperator<LessThanColumn, LessThanTraceTable, RangeCheckLookup<1>>
         node_info: &NodeInfo,
         lookup: &mut RangeCheckLookup<1>,
     ) -> Vec<Tensor> {
-        let (out_data, intermediate_values) = self.compute(&inp, true);
+        let bit_length = lookup.layout.ranges[0];
+        let (out_data, intermediate_values) = self.compute(&inp, bit_length, true);
         let intermediate_values = intermediate_values.unwrap();
 
         let output_size = inp[0].1.n_elements().to_usize().unwrap();
@@ -1024,7 +1026,7 @@ impl LuminairOperator<LessThanColumn, LessThanTraceTable, RangeCheckLookup<1>>
 
 impl Operator for LuminairLessThan {
     fn process(&mut self, inp: Vec<(InputTensor, ShapeTracker)>) -> Vec<Tensor> {
-        let (out_data, _) = self.compute(&inp, false);
+        let (out_data, _) = self.compute(&inp, 0 /* the bit here will not be used */, false);
         vec![Tensor::new(StwoData(Arc::new(out_data)))]
     }
 }

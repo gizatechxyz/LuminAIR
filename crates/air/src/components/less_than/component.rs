@@ -15,6 +15,8 @@ pub type LessThanComponent = FrameworkComponent<LessThanEval>;
 pub struct LessThanEval {
     /// Log2 size of the component's main trace segment.
     log_size: u32,
+    /// Bit length for range check
+    bit_length: u32,
     /// Log2 size of the preprocessed RangeCheck Lookup Table.
     range_check_log_size: u32,
     /// Interaction elements for node relations (used in input/output LogUp).
@@ -29,12 +31,14 @@ impl LessThanEval {
     /// and the log_size of the RangeCheck LUT.
     pub fn new(
         claim: &LessThanClaim,
+        bit_length: u32,
         node_elements: NodeElements,
         range_check_elements: RangeCheckLookupElements,
         range_check_log_size: u32,
     ) -> Self {
         Self {
             log_size: claim.log_size,
+            bit_length,
             range_check_log_size,
             node_elements,
             range_check_elements,
@@ -56,8 +60,7 @@ impl FrameworkEval for LessThanEval {
 
     /// Evaluates the LessThan AIR constraints on a given evaluation point (`eval`).
     fn evaluate<E: EvalAtRow>(&self, mut eval: E) -> E {
-        const BIT_LENGTH: u32 = 16; // TODO: make it dynamic.
-        let two_pow_k = E::F::from(M31::from_u32_unchecked(1 << BIT_LENGTH));
+        let two_pow_k = E::F::from(M31::from_u32_unchecked(1 << self.bit_length));
         let scale_factor = E::F::from(M31::from_u32_unchecked(1 << DEFAULT_FP_SCALE));
 
         // IDs

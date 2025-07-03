@@ -425,10 +425,16 @@ impl LuminairComponents {
                 .as_ref()
                 .map(|s| s.layout.log_size)
                 .unwrap();
+            let bit_length = lookups
+                .range_check
+                .as_ref()
+                .map(|s| s.layout.ranges[0])
+                .unwrap();
             Some(LessThanComponent::new(
                 tree_span_provider,
                 LessThanEval::new(
                     &less_than_claim,
+                    bit_length,
                     interaction_elements.node_elements.clone(),
                     interaction_elements.lookup_elements.range_check.clone(),
                     lut_log_size,
@@ -441,10 +447,15 @@ impl LuminairComponents {
 
         let range_check_lookup =
             if let Some(ref range_check_lookup_claim) = claim.range_check_lookup {
+                let bit_length = lookups
+                    .range_check
+                    .as_ref()
+                    .map(|s| s.layout.ranges[0])
+                    .unwrap();
                 Some(RangeCheckLookupComponent::new(
                     tree_span_provider,
                     RangeCheckLookupEval::new(
-                        16,
+                        bit_length,
                         &range_check_lookup_claim,
                         interaction_elements.lookup_elements.range_check.clone(),
                     ),
