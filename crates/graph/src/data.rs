@@ -28,17 +28,20 @@ impl StwoData {
 
     /// Finds the minimum and maximum `Fixed` point values within the data.
     pub(crate) fn min_max(&self) -> (Fixed<DEFAULT_FP_SCALE>, Fixed<DEFAULT_FP_SCALE>) {
-        self.0.iter().fold(
-            (Fixed::zero(), Fixed::zero()),
-            |(min_val, max_val), &val| match self.0.len() {
-                0 => (Fixed::zero(), Fixed::zero()),
-                _ if min_val.0 == 0 && max_val.0 == 0 => (val, val),
-                _ => (
+        if self.0.is_empty() {
+            return (Fixed::zero(), Fixed::zero());
+        }
+
+        let first = self.0[0];
+        self.0
+            .iter()
+            .skip(1)
+            .fold((first, first), |(min_val, max_val), &val| {
+                (
                     if val.0 < min_val.0 { val } else { min_val },
                     if val.0 > max_val.0 { val } else { max_val },
-                ),
-            },
-        )
+                )
+            })
     }
 }
 
