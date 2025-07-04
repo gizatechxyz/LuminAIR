@@ -4,7 +4,10 @@ use stwo_prover::{
     core::fields::m31::M31,
 };
 
-use crate::{components::{lookups::range_check::RangeCheckLookupElements, LessThanClaim, NodeElements}, DEFAULT_FP_SCALE};
+use crate::{
+    components::{lookups::range_check::RangeCheckLookupElements, LessThanClaim, NodeElements},
+    DEFAULT_FP_SCALE_FACTOR, TWO_POW_31_MINUS_1,
+};
 
 /// The STWO AIR component for element-wise LessThan operations.
 pub type LessThanComponent = FrameworkComponent<LessThanEval>;
@@ -15,8 +18,6 @@ pub type LessThanComponent = FrameworkComponent<LessThanEval>;
 pub struct LessThanEval {
     /// Log2 size of the component's main trace segment.
     log_size: u32,
-    /// Bit length for range check
-    bit_length: u32,
     /// Log2 size of the preprocessed RangeCheck Lookup Table.
     range_check_log_size: u32,
     /// Interaction elements for node relations (used in input/output LogUp).
@@ -31,14 +32,12 @@ impl LessThanEval {
     /// and the log_size of the RangeCheck LUT.
     pub fn new(
         claim: &LessThanClaim,
-        bit_length: u32,
         node_elements: NodeElements,
         range_check_elements: RangeCheckLookupElements,
         range_check_log_size: u32,
     ) -> Self {
         Self {
             log_size: claim.log_size,
-            bit_length,
             range_check_log_size,
             node_elements,
             range_check_elements,
@@ -60,8 +59,9 @@ impl FrameworkEval for LessThanEval {
 
     /// Evaluates the LessThan AIR constraints on a given evaluation point (`eval`).
     fn evaluate<E: EvalAtRow>(&self, mut eval: E) -> E {
-        let two_pow_k = E::F::from(M31::from_u32_unchecked(1 << self.bit_length));
-        let scale_factor = E::F::from(M31::from_u32_unchecked(1 << DEFAULT_FP_SCALE));
+        // Use 31 bits for the constraint (maximum for M31 field)
+        let two_pow_k = E::F::from(M31::from_u32_unchecked(TWO_POW_31_MINUS_1));
+        let scale_factor = E::F::from(M31::from_u32_unchecked(DEFAULT_FP_SCALE_FACTOR));
 
         // IDs
         let node_id = eval.next_trace_mask();
@@ -82,6 +82,12 @@ impl FrameworkEval for LessThanEval {
         let out_val = eval.next_trace_mask();
         let diff_val = eval.next_trace_mask();
         let borrow = eval.next_trace_mask();
+
+        // 4-limb decomposition of diff
+        let limb0 = eval.next_trace_mask();
+        let limb1 = eval.next_trace_mask();
+        let limb2 = eval.next_trace_mask();
+        let limb3 = eval.next_trace_mask();
 
         // Multiplicities for interaction constraints
         let lhs_mult = eval.next_trace_mask();
@@ -104,6 +110,17 @@ impl FrameworkEval for LessThanEval {
         eval.add_constraint(
             lhs_val.clone() + diff_val.clone() - rhs_val.clone() - (borrow * two_pow_k),
         );
+
+        // Limb decomposition constraint: diff = limb3*2^24 + limb2*2^16 + limb1*2^8 + limb0
+        let two_pow_8 = E::F::from(M31::from_u32_unchecked(1u32 << 8));
+        let two_pow_16 = E::F::from(M31::from_u32_unchecked(1u32 << 16));
+        let two_pow_24 = E::F::from(M31::from_u32_unchecked(1u32 << 24));
+
+        let recomposed_diff = limb3.clone() * two_pow_24
+            + limb2.clone() * two_pow_16
+            + limb1.clone() * two_pow_8
+            + limb0.clone();
+        eval.add_constraint(diff_val - recomposed_diff);
 
         // ┌────────────────────────────┐
         // │   Transition Constraints   │
@@ -148,12 +165,30 @@ impl FrameworkEval for LessThanEval {
             &[out_val, node_id],
         ));
 
-        // 2. Range check on the difference
+        // 2. Range check on each limb (four separate 8-bit range checks)
+
+        eval.add_to_relation(RelationEntry::new(
+            &self.range_check_elements,
+            diff_mult.clone().into(),
+            &[limb0],
+        ));
+
+        eval.add_to_relation(RelationEntry::new(
+            &self.range_check_elements,
+            diff_mult.clone().into(),
+            &[limb1],
+        ));
+
+        eval.add_to_relation(RelationEntry::new(
+            &self.range_check_elements,
+            diff_mult.clone().into(),
+            &[limb2],
+        ));
 
         eval.add_to_relation(RelationEntry::new(
             &self.range_check_elements,
             diff_mult.into(),
-            &[diff_val],
+            &[limb3],
         ));
 
         eval.finalize_logup();

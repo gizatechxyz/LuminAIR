@@ -53,6 +53,14 @@ pub struct LessThanTraceTableRow {
     pub diff: M31,
     /// Value of the borrow bit
     pub borrow: M31,
+    /// First 8-bit limb of diff (bits 0-7)
+    pub limb0: M31,
+    /// Second 8-bit limb of diff (bits 8-15)
+    pub limb1: M31,
+    /// Third 8-bit limb of diff (bits 16-23)
+    pub limb2: M31,
+    /// Fourth 8-bit limb of diff (bits 24-31)
+    pub limb3: M31,
     /// Multiplicity contribution for the LogUp argument related to the LHS input.
     pub lhs_mult: M31,
     /// Multiplicity contribution for the LogUp argument related to the RHS input.
@@ -83,6 +91,10 @@ impl LessThanTraceTableRow {
             out: M31::from_u32_unchecked(1 << DEFAULT_FP_SCALE),
             diff: M31::one(),
             borrow: M31::zero(),
+            limb0: M31::one(),
+            limb1: M31::zero(),
+            limb2: M31::zero(),
+            limb3: M31::zero(),
             lhs_mult: M31::zero(),
             rhs_mult: M31::zero(),
             out_mult: M31::zero(),
@@ -123,6 +135,14 @@ pub struct PackedLessThanTraceTableRow {
     pub diff: PackedM31,
     /// Packed `borrow` values.
     pub borrow: PackedM31,
+    /// Packed `limb0` values.
+    pub limb0: PackedM31,
+    /// Packed `limb1` values.
+    pub limb1: PackedM31,
+    /// Packed `limb2` values.
+    pub limb2: PackedM31,
+    /// Packed `limb3` values.
+    pub limb3: PackedM31,
     /// Packed `lhs_mult` values.
     pub lhs_mult: PackedM31,
     /// Packed `rhs_mult` values.
@@ -152,6 +172,10 @@ impl Pack for LessThanTraceTableRow {
             out: PackedM31::from_array(std::array::from_fn(|i| inputs[i].out)),
             diff: PackedM31::from_array(std::array::from_fn(|i| inputs[i].diff)),
             borrow: PackedM31::from_array(std::array::from_fn(|i| inputs[i].borrow)),
+            limb0: PackedM31::from_array(std::array::from_fn(|i| inputs[i].limb0)),
+            limb1: PackedM31::from_array(std::array::from_fn(|i| inputs[i].limb1)),
+            limb2: PackedM31::from_array(std::array::from_fn(|i| inputs[i].limb2)),
+            limb3: PackedM31::from_array(std::array::from_fn(|i| inputs[i].limb3)),
             lhs_mult: PackedM31::from_array(std::array::from_fn(|i| inputs[i].lhs_mult)),
             rhs_mult: PackedM31::from_array(std::array::from_fn(|i| inputs[i].rhs_mult)),
             out_mult: PackedM31::from_array(std::array::from_fn(|i| inputs[i].out_mult)),
@@ -181,6 +205,10 @@ impl Unpack for PackedLessThanTraceTableRow {
             out,
             diff,
             borrow,
+            limb0,
+            limb1,
+            limb2,
+            limb3,
             lhs_mult,
             rhs_mult,
             out_mult,
@@ -200,6 +228,10 @@ impl Unpack for PackedLessThanTraceTableRow {
             self.out.to_array(),
             self.diff.to_array(),
             self.borrow.to_array(),
+            self.limb0.to_array(),
+            self.limb1.to_array(),
+            self.limb2.to_array(),
+            self.limb3.to_array(),
             self.lhs_mult.to_array(),
             self.rhs_mult.to_array(),
             self.out_mult.to_array(),
@@ -221,6 +253,10 @@ impl Unpack for PackedLessThanTraceTableRow {
             out: out[i],
             diff: diff[i],
             borrow: borrow[i],
+            limb0: limb0[i],
+            limb1: limb1[i],
+            limb2: limb2[i],
+            limb3: limb3[i],
             lhs_mult: lhs_mult[i],
             rhs_mult: rhs_mult[i],
             out_mult: out_mult[i],
@@ -273,6 +309,14 @@ pub enum LessThanColumn {
     Diff,
     /// Value of the borrow bit
     Borrow,
+    /// First 8-bit limb of diff (bits 0-7)
+    Limb0,
+    /// Second 8-bit limb of diff (bits 8-15)
+    Limb1,
+    /// Third 8-bit limb of diff (bits 16-23)
+    Limb2,
+    /// Fourth 8-bit limb of diff (bits 24-31)
+    Limb3,
     /// Multiplicity for the LogUp argument (LHS input).
     LhsMult,
     /// Multiplicity for the LogUp argument (RHS input).
@@ -301,10 +345,14 @@ impl LessThanColumn {
             Self::Out => 11,
             Self::Diff => 12,
             Self::Borrow => 13,
-            Self::LhsMult => 14,
-            Self::RhsMult => 15,
-            Self::OutMult => 16,
-            Self::RangeCheckMult => 17,
+            Self::Limb0 => 14,
+            Self::Limb1 => 15,
+            Self::Limb2 => 16,
+            Self::Limb3 => 17,
+            Self::LhsMult => 18,
+            Self::RhsMult => 19,
+            Self::OutMult => 20,
+            Self::RangeCheckMult => 21,
         }
     }
 }
@@ -312,9 +360,9 @@ impl LessThanColumn {
 /// Implements the `TraceColumn` trait for `LessThanColumn`.
 impl TraceColumn for LessThanColumn {
     /// Specifies the number of columns used by the LessThan component.
-    /// Returns `(N_TRACE_COLUMNS, 4)`, indicating the number of main trace columns
+    /// Returns `(N_TRACE_COLUMNS, 7)`, indicating the number of main trace columns
     /// and the number of interaction trace columns (for LogUp).
     fn count() -> (usize, usize) {
-        (N_TRACE_COLUMNS, 4)
+        (N_TRACE_COLUMNS, 7)
     }
 }

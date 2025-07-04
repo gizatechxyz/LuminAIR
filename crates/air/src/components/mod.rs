@@ -425,16 +425,10 @@ impl LuminairComponents {
                 .as_ref()
                 .map(|s| s.layout.log_size)
                 .unwrap();
-            let bit_length = lookups
-                .range_check
-                .as_ref()
-                .map(|s| s.layout.ranges[0])
-                .unwrap();
             Some(LessThanComponent::new(
                 tree_span_provider,
                 LessThanEval::new(
                     &less_than_claim,
-                    bit_length,
                     interaction_elements.node_elements.clone(),
                     interaction_elements.lookup_elements.range_check.clone(),
                     lut_log_size,

@@ -899,7 +899,6 @@ impl LuminairLessThan {
     fn compute(
         &self,
         inp: &[(InputTensor, ShapeTracker)],
-        bit_length: u32,
         trace_mode: bool,
     ) -> (
         Vec<Fixed<DEFAULT_FP_SCALE>>,
@@ -913,8 +912,8 @@ impl LuminairLessThan {
             )>,
         >,
     ) {
-        let bit_length = bit_length as i64;
-        let two_pow_k = 1 << bit_length;
+        // Use 31 bits for diff calculation (maximum for M31 field)
+        let two_pow_k = (1i64 << 31) - 1;
 
         let (lhs, rhs) = (
             get_buffer_from_tensor(&inp[0].0).unwrap(),
@@ -965,8 +964,7 @@ impl LuminairOperator<LessThanColumn, LessThanTraceTable, RangeCheckLookup<1>>
         node_info: &NodeInfo,
         lookup: &mut RangeCheckLookup<1>,
     ) -> Vec<Tensor> {
-        let bit_length = lookup.layout.ranges[0];
-        let (out_data, intermediate_values) = self.compute(&inp, bit_length, true);
+        let (out_data, intermediate_values) = self.compute(&inp, true);
         let intermediate_values = intermediate_values.unwrap();
 
         let output_size = inp[0].1.n_elements().to_usize().unwrap();
@@ -995,6 +993,13 @@ impl LuminairOperator<LessThanColumn, LessThanTraceTable, RangeCheckLookup<1>>
         {
             let is_last_idx: u32 = if idx == (output_size - 1) { 1 } else { 0 };
 
+            // Decompose diff into four 8-bit limbs
+            let diff_u32 = diff as u32;
+            let limb0 = (diff_u32 & 0xFF) as u32;
+            let limb1 = ((diff_u32 >> 8) & 0xFF) as u32;
+            let limb2 = ((diff_u32 >> 16) & 0xFF) as u32;
+            let limb3 = ((diff_u32 >> 24) & 0xFF) as u32;
+
             table.add_row(LessThanTraceTableRow {
                 node_id,
                 lhs_id,
@@ -1010,14 +1015,21 @@ impl LuminairOperator<LessThanColumn, LessThanTraceTable, RangeCheckLookup<1>>
                 out: out_val.to_m31(),
                 borrow: M31::from_u32_unchecked(borrow as u32),
                 diff: M31::from_u32_unchecked(diff as u32),
+                limb0: M31::from_u32_unchecked(limb0),
+                limb1: M31::from_u32_unchecked(limb1),
+                limb2: M31::from_u32_unchecked(limb2),
+                limb3: M31::from_u32_unchecked(limb3),
                 lhs_mult,
                 rhs_mult,
                 out_mult,
                 range_check_mult: M31::one(),
             });
 
-            // Update multiplicities of the lookup.
-            lookup.multiplicities.increase_at(diff as usize);
+            // Update multiplicities of the lookup for each limb
+            lookup.multiplicities.increase_at(limb0 as usize);
+            lookup.multiplicities.increase_at(limb1 as usize);
+            lookup.multiplicities.increase_at(limb2 as usize);
+            lookup.multiplicities.increase_at(limb3 as usize);
         }
 
         vec![Tensor::new(StwoData(Arc::new(out_data)))]
@@ -1026,7 +1038,7 @@ impl LuminairOperator<LessThanColumn, LessThanTraceTable, RangeCheckLookup<1>>
 
 impl Operator for LuminairLessThan {
     fn process(&mut self, inp: Vec<(InputTensor, ShapeTracker)>) -> Vec<Tensor> {
-        let (out_data, _) = self.compute(&inp, 0 /* the bit here will not be used */, false);
+        let (out_data, _) = self.compute(&inp, false);
         vec![Tensor::new(StwoData(Arc::new(out_data)))]
     }
 }

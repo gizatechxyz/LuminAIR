@@ -19,6 +19,9 @@ pub mod utils;
 
 // TODO (@raphaelDkhn): We should parametizing the fixed pointscale.
 pub const DEFAULT_FP_SCALE: u32 = 12;
+pub const DEFAULT_FP_SCALE_FACTOR: u32 = 1 << DEFAULT_FP_SCALE;
+
+const TWO_POW_31_MINUS_1: u32 = (1u32 << 31) - 1;
 
 /// Container for claims related to the main execution trace of LuminAIR components.
 ///

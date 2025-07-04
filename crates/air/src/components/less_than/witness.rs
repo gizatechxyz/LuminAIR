@@ -21,7 +21,7 @@ use crate::{
 };
 
 /// Number of main trace columns for the LessThan component.
-pub(crate) const N_TRACE_COLUMNS: usize = 18;
+pub(crate) const N_TRACE_COLUMNS: usize = 22;
 
 /// Generates the main trace columns and initial data for interaction claims for the LessThan component.
 pub struct ClaimGenerator {
@@ -108,6 +108,10 @@ fn write_trace_simd(
             *row[LessThanColumn::Out.index()] = input.out;
             *row[LessThanColumn::Diff.index()] = input.diff;
             *row[LessThanColumn::Borrow.index()] = input.borrow;
+            *row[LessThanColumn::Limb0.index()] = input.limb0;
+            *row[LessThanColumn::Limb1.index()] = input.limb1;
+            *row[LessThanColumn::Limb2.index()] = input.limb2;
+            *row[LessThanColumn::Limb3.index()] = input.limb3;
             *row[LessThanColumn::LhsMult.index()] = input.lhs_mult;
             *row[LessThanColumn::RhsMult.index()] = input.rhs_mult;
             *row[LessThanColumn::OutMult.index()] = input.out_mult;
@@ -119,7 +123,10 @@ fn write_trace_simd(
             *lookup_data.rhs_mult = input.rhs_mult;
             *lookup_data.out = [input.out, input.node_id];
             *lookup_data.out_mult = input.out_mult;
-            *lookup_data.diff = input.diff;
+            *lookup_data.limb0 = input.limb0;
+            *lookup_data.limb1 = input.limb1;
+            *lookup_data.limb2 = input.limb2;
+            *lookup_data.limb3 = input.limb3;
             *lookup_data.range_check_mult = input.range_check_mult;
         });
 
@@ -141,8 +148,14 @@ struct LookupData {
     out: Vec<[PackedM31; 2]>,
     /// Multiplicities for output values.
     out_mult: Vec<PackedM31>,
-    /// Diff value
-    diff: Vec<PackedM31>,
+    /// First 8-bit limb values
+    limb0: Vec<PackedM31>,
+    /// Second 8-bit limb values
+    limb1: Vec<PackedM31>,
+    /// Third 8-bit limb values
+    limb2: Vec<PackedM31>,
+    /// Fourth 8-bit limb values
+    limb3: Vec<PackedM31>,
     /// Multiplicities for RangeCheck LUT interaction.
     range_check_mult: Vec<PackedM31>,
 }
@@ -195,12 +208,43 @@ impl InteractionClaimGenerator {
         }
         col_gen.finalize_col();
 
+        // Four separate columns for each limb
         let mut col_gen = logup_gen.new_col();
         for row in 0..1 << (self.log_size - LOG_N_LANES) {
-            let diff = self.lookup_data.diff[row];
+            let limb0 = self.lookup_data.limb0[row];
             let multiplicity = self.lookup_data.range_check_mult[row];
 
-            let denom: PackedQM31 = range_check_elements.combine(&[diff]);
+            let denom: PackedQM31 = range_check_elements.combine(&[limb0]);
+            col_gen.write_frac(row, multiplicity.into(), denom);
+        }
+        col_gen.finalize_col();
+
+        let mut col_gen = logup_gen.new_col();
+        for row in 0..1 << (self.log_size - LOG_N_LANES) {
+            let limb1 = self.lookup_data.limb1[row];
+            let multiplicity = self.lookup_data.range_check_mult[row];
+
+            let denom: PackedQM31 = range_check_elements.combine(&[limb1]);
+            col_gen.write_frac(row, multiplicity.into(), denom);
+        }
+        col_gen.finalize_col();
+
+        let mut col_gen = logup_gen.new_col();
+        for row in 0..1 << (self.log_size - LOG_N_LANES) {
+            let limb2 = self.lookup_data.limb2[row];
+            let multiplicity = self.lookup_data.range_check_mult[row];
+
+            let denom: PackedQM31 = range_check_elements.combine(&[limb2]);
+            col_gen.write_frac(row, multiplicity.into(), denom);
+        }
+        col_gen.finalize_col();
+
+        let mut col_gen = logup_gen.new_col();
+        for row in 0..1 << (self.log_size - LOG_N_LANES) {
+            let limb3 = self.lookup_data.limb3[row];
+            let multiplicity = self.lookup_data.range_check_mult[row];
+
+            let denom: PackedQM31 = range_check_elements.combine(&[limb3]);
             col_gen.write_frac(row, multiplicity.into(), denom);
         }
         col_gen.finalize_col();

@@ -72,7 +72,8 @@ impl LuminairGraph for Graph {
         // Accumulate ranges per non-linear op
         let mut sin_ranges: Vec<Range> = Vec::new();
         let mut exp2_ranges: Vec<Range> = Vec::new();
-        let mut less_than_ranges: Vec<Range> = Vec::new();
+
+        let mut range_check_8_required = false;
 
         for (node, src_ids) in self.linearized_graph.as_ref().unwrap() {
             if self.tensors.contains_key(&(*node, 0)) {
@@ -101,7 +102,7 @@ impl LuminairGraph for Graph {
                 RangeCheckLookup<1>,
             >>::has_process_trace(op)
             {
-                less_than_ranges.push(compute_padded_range_from_srcs(&srcs));
+                range_check_8_required = true;
             }
 
             // Execute
@@ -131,42 +132,10 @@ impl LuminairGraph for Graph {
             None
         };
 
-        let range_check_lookup = if !less_than_ranges.is_empty() {
-            // Coalesce ranges to get the overall min/max
-            let coalesced_ranges = coalesce_ranges(less_than_ranges);
-                        
-            // Find the maximum absolute value to determine bit length needed
-            let mut max_abs_value = 0i64;
-            for range in &coalesced_ranges {
-                let min_abs = range.0.0.abs();
-                let max_abs = range.1.0.abs();
-                max_abs_value = max_abs_value.max(min_abs).max(max_abs);
-            }
-                        
-            // Calculate the maximum possible difference between any two values in the range
-            // This is what we need to range check in the LessThan operation
-            let max_diff = if !coalesced_ranges.is_empty() {
-                let global_min = coalesced_ranges.iter().map(|r| r.0.0).min().unwrap();
-                let global_max = coalesced_ranges.iter().map(|r| r.1.0).max().unwrap();
-                (global_max - global_min).max(0)
-            } else {
-                0
-            };
-                        
-            // Calculate required bit length: ceil(log2(max_diff + 1))
-            let required_bits = if max_diff > 0 {
-                (max_diff as u64 + 1).ilog2() + 1
-            } else {
-                1 // Minimum 1 bit
-            };
-                        
-            // Ensure minimum bit length and cap at reasonable maximum
-            let bit_length = required_bits.max(8).min(32);
-            let log_size = bit_length;
-                        
+        let range_check_lookup = if range_check_8_required {
             Some(RangeCheckLookup::new(&RangeCheckLayout {
-                ranges: [bit_length],
-                log_size,
+                ranges: [8],
+                log_size: 8,
             }))
         } else {
             None
