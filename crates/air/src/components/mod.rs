@@ -57,9 +57,19 @@ use crate::{
             component::{Exp2Component, Exp2Eval},
             table::Exp2Column,
         },
-        lookups::exp2::{
-            component::{Exp2LookupComponent, Exp2LookupEval},
-            table::Exp2LookupColumn,
+        less_than::{
+            component::{LessThanComponent, LessThanEval},
+            table::LessThanColumn,
+        },
+        lookups::{
+            exp2::{
+                component::{Exp2LookupComponent, Exp2LookupEval},
+                table::Exp2LookupColumn,
+            },
+            range_check::{
+                component::{RangeCheckLookupComponent, RangeCheckLookupEval},
+                table::RangeCheckLookupColumn,
+            },
         },
     },
     preprocessed::PreProcessedTrace,
@@ -68,6 +78,7 @@ use crate::{
 
 pub mod add;
 pub mod exp2;
+pub mod less_than;
 pub mod lookups;
 pub mod max_reduce;
 pub mod mul;
@@ -97,9 +108,13 @@ pub type MaxReduceClaim = Claim<MaxReduceColumn>;
 /// Type alias for the claim associated with the Sqrt component's trace.
 pub type SqrtClaim = Claim<SqrtColumn>;
 /// Type alias for the claim associated with the Exp2 component's trace.
-pub type Exp2Claim = Claim<SinColumn>;
+pub type Exp2Claim = Claim<Exp2Column>;
 /// Type alias for the claim associated with the Exp2Lookup component's trace.
 pub type Exp2LookupClaim = Claim<Exp2LookupColumn>;
+/// Type alias for the claim associated with the LessThan component's trace.
+pub type LessThanClaim = Claim<LessThanColumn>;
+/// Type alias for the claim associated with the RangeCheckLookup component's trace.
+pub type RangeCheckLookupClaim = Claim<RangeCheckLookupColumn>;
 
 /// Trait implemented by trace column definitions (e.g., `AddColumn`).
 /// Provides metadata about the number of columns used by the component.
@@ -172,6 +187,10 @@ pub enum ClaimType {
     Exp2(Claim<Exp2Column>),
     /// Claim for a Exp2Lookup component trace.
     Exp2Lookup(Claim<Exp2LookupColumn>),
+    /// Claim for a LessThan component trace.
+    LessThan(Claim<LessThanColumn>),
+    /// Claim for a RangeCheckLookup component trace.
+    RangeCheckLookup(Claim<RangeCheckLookupColumn>),
 }
 
 /// Represents the claim resulting from the interaction phase (e.g., LogUp protocol).
@@ -247,6 +266,10 @@ pub struct LuminairComponents {
     exp2: Option<Exp2Component>,
     /// Optional Exp2Lookup component instance.
     exp2_lookup: Option<Exp2LookupComponent>,
+    /// Optional LessThan component instance.
+    less_than: Option<LessThanComponent>,
+    /// Optional RangeCheckLookup component instance.
+    range_check_lookup: Option<RangeCheckLookupComponent>,
 }
 
 impl LuminairComponents {
@@ -396,6 +419,56 @@ impl LuminairComponents {
             None
         };
 
+        let less_than = if let Some(ref less_than_claim) = claim.less_than {
+            let lut_log_size = lookups
+                .range_check
+                .as_ref()
+                .map(|s| s.layout.log_size)
+                .unwrap();
+            let bit_length = lookups
+                .range_check
+                .as_ref()
+                .map(|s| s.layout.ranges[0])
+                .unwrap();
+            Some(LessThanComponent::new(
+                tree_span_provider,
+                LessThanEval::new(
+                    &less_than_claim,
+                    bit_length,
+                    interaction_elements.node_elements.clone(),
+                    interaction_elements.lookup_elements.range_check.clone(),
+                    lut_log_size,
+                ),
+                interaction_claim.less_than.as_ref().unwrap().claimed_sum,
+            ))
+        } else {
+            None
+        };
+
+        let range_check_lookup =
+            if let Some(ref range_check_lookup_claim) = claim.range_check_lookup {
+                let bit_length = lookups
+                    .range_check
+                    .as_ref()
+                    .map(|s| s.layout.ranges[0])
+                    .unwrap();
+                Some(RangeCheckLookupComponent::new(
+                    tree_span_provider,
+                    RangeCheckLookupEval::new(
+                        bit_length,
+                        &range_check_lookup_claim,
+                        interaction_elements.lookup_elements.range_check.clone(),
+                    ),
+                    interaction_claim
+                        .range_check_lookup
+                        .as_ref()
+                        .unwrap()
+                        .claimed_sum,
+                ))
+            } else {
+                None
+            };
+
         Self {
             add,
             mul,
@@ -407,6 +480,8 @@ impl LuminairComponents {
             sqrt,
             exp2,
             exp2_lookup,
+            less_than,
+            range_check_lookup,
         }
     }
 
@@ -452,6 +527,14 @@ impl LuminairComponents {
         }
 
         if let Some(ref component) = self.exp2_lookup {
+            components.push(component);
+        }
+
+        if let Some(ref component) = self.less_than {
+            components.push(component);
+        }
+
+        if let Some(ref component) = self.range_check_lookup {
             components.push(component);
         }
 

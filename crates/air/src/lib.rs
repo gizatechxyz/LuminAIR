@@ -7,7 +7,9 @@ use components::{
 };
 use stwo_prover::core::{channel::Channel, pcs::TreeVec};
 
-use crate::components::{Exp2Claim, Exp2LookupClaim};
+use crate::components::{
+    less_than, Exp2Claim, Exp2LookupClaim, LessThanClaim, RangeCheckLookupClaim,
+};
 
 pub mod components;
 pub mod pie;
@@ -45,6 +47,10 @@ pub struct LuminairClaim {
     pub exp2: Option<Exp2Claim>,
     /// Claim for the Exp2 Lookup component's trace.
     pub exp2_lookup: Option<Exp2LookupClaim>,
+    /// Claim for the LessThan component's trace.
+    pub less_than: Option<LessThanClaim>,
+    /// Claim for the LessThan Lookup component's trace.
+    pub range_check_lookup: Option<RangeCheckLookupClaim>,
 }
 
 impl LuminairClaim {
@@ -80,6 +86,12 @@ impl LuminairClaim {
             claim.mix_into(channel);
         }
         if let Some(ref claim) = self.exp2_lookup {
+            claim.mix_into(channel);
+        }
+        if let Some(ref claim) = self.less_than {
+            claim.mix_into(channel);
+        }
+        if let Some(ref claim) = self.range_check_lookup {
             claim.mix_into(channel);
         }
     }
@@ -120,6 +132,12 @@ impl LuminairClaim {
         if let Some(ref claim) = self.exp2_lookup {
             log_sizes.push(claim.log_sizes());
         }
+        if let Some(ref claim) = self.less_than {
+            log_sizes.push(claim.log_sizes());
+        }
+        if let Some(ref claim) = self.range_check_lookup {
+            log_sizes.push(claim.log_sizes());
+        }
         TreeVec::concat_cols(log_sizes.into_iter())
     }
 }
@@ -151,6 +169,10 @@ pub struct LuminairInteractionClaimGenerator {
     pub exp2: Option<exp2::witness::InteractionClaimGenerator>,
     /// Generator for the Exp2 Lookup component's interaction claim.
     pub exp2_lookup: Option<lookups::exp2::witness::InteractionClaimGenerator>,
+    /// Generator for the LessThan component's interaction claim.
+    pub less_than: Option<less_than::witness::InteractionClaimGenerator>,
+    /// Generator for the RangeCheck Lookup component's interaction claim.
+    pub range_check_lookup: Option<lookups::range_check::witness::InteractionClaimGenerator<1>>,
 }
 
 /// Container for claims related to the interaction trace of LuminAIR components.
@@ -181,6 +203,10 @@ pub struct LuminairInteractionClaim {
     pub exp2: Option<InteractionClaim>,
     /// Interaction claim for the Exp2 Lookup component.
     pub exp2_lookup: Option<InteractionClaim>,
+    /// Interaction claim for the LessThan component.
+    pub less_than: Option<InteractionClaim>,
+    /// Interaction claim for the RangeCheck Lookup component.
+    pub range_check_lookup: Option<InteractionClaim>,
 }
 
 impl LuminairInteractionClaim {
@@ -215,6 +241,12 @@ impl LuminairInteractionClaim {
             claim.mix_into(channel);
         }
         if let Some(ref claim) = self.exp2_lookup {
+            claim.mix_into(channel);
+        }
+        if let Some(ref claim) = self.less_than {
+            claim.mix_into(channel);
+        }
+        if let Some(ref claim) = self.range_check_lookup {
             claim.mix_into(channel);
         }
     }

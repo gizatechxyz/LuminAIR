@@ -2,9 +2,13 @@ use serde::{Deserialize, Serialize};
 use sin::{SinLookup, SinLookupElements};
 use stwo_prover::core::channel::Channel;
 
-use crate::components::lookups::exp2::{Exp2Lookup, Exp2LookupElements};
+use crate::components::lookups::{
+    exp2::{Exp2Lookup, Exp2LookupElements},
+    range_check::{RangeCheckLookup, RangeCheckLookupElements},
+};
 
 pub mod exp2;
+pub mod range_check;
 pub mod sin;
 
 /// Container for configurations of all active lookup arguments in the AIR.
@@ -18,6 +22,8 @@ pub struct Lookups {
     pub sin: Option<SinLookup>,
     /// Configuration for the Exp2 lookup argument, if active.
     pub exp2: Option<Exp2Lookup>,
+    /// Configuration for the RangeCheck lookup argument, if active.
+    pub range_check: Option<RangeCheckLookup<1>>,
 }
 
 /// Container for interaction elements specific to each lookup type.
@@ -30,6 +36,8 @@ pub struct LookupElements {
     pub sin: SinLookupElements,
     /// Interaction elements for the Exp2 lookup.
     pub exp2: Exp2LookupElements,
+    /// Interaction elements for the RangeCheck lookup.
+    pub range_check: RangeCheckLookupElements,
 }
 
 impl LookupElements {
@@ -38,6 +46,7 @@ impl LookupElements {
         Self {
             sin: SinLookupElements::draw(channel),
             exp2: Exp2LookupElements::draw(channel),
+            range_check: RangeCheckLookupElements::draw(channel),
         }
     }
 }

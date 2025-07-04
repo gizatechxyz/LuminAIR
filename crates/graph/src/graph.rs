@@ -10,8 +10,10 @@ use luminair_air::{
     components::{
         add::table::{AddColumn, AddTraceTable},
         exp2::table::{Exp2Column, Exp2TraceTable},
+        less_than::table::{LessThanColumn, LessThanTraceTable},
         lookups::{
             exp2::{table::Exp2LookupTraceTable, Exp2Lookup},
+            range_check::{table::RangeCheckLookupTraceTable, RangeCheckLayout, RangeCheckLookup},
             sin::{table::SinLookupTraceTable, SinLookup},
             Lookups,
         },
@@ -70,6 +72,7 @@ impl LuminairGraph for Graph {
         // Accumulate ranges per non-linear op
         let mut sin_ranges: Vec<Range> = Vec::new();
         let mut exp2_ranges: Vec<Range> = Vec::new();
+        let mut less_than_ranges: Vec<Range> = Vec::new();
 
         for (node, src_ids) in self.linearized_graph.as_ref().unwrap() {
             if self.tensors.contains_key(&(*node, 0)) {
@@ -91,6 +94,14 @@ impl LuminairGraph for Graph {
             }
             if <Box<dyn Operator> as HasProcessTrace<Exp2Column, Exp2TraceTable, Exp2Lookup>>::has_process_trace(op) {
                 exp2_ranges.push(compute_padded_range_from_srcs(&srcs));
+            }
+            if <Box<dyn Operator> as HasProcessTrace<
+                LessThanColumn,
+                LessThanTraceTable,
+                RangeCheckLookup<1>,
+            >>::has_process_trace(op)
+            {
+                less_than_ranges.push(compute_padded_range_from_srcs(&srcs));
             }
 
             // Execute
@@ -120,10 +131,52 @@ impl LuminairGraph for Graph {
             None
         };
 
+        let range_check_lookup = if !less_than_ranges.is_empty() {
+            // Coalesce ranges to get the overall min/max
+            let coalesced_ranges = coalesce_ranges(less_than_ranges);
+                        
+            // Find the maximum absolute value to determine bit length needed
+            let mut max_abs_value = 0i64;
+            for range in &coalesced_ranges {
+                let min_abs = range.0.0.abs();
+                let max_abs = range.1.0.abs();
+                max_abs_value = max_abs_value.max(min_abs).max(max_abs);
+            }
+                        
+            // Calculate the maximum possible difference between any two values in the range
+            // This is what we need to range check in the LessThan operation
+            let max_diff = if !coalesced_ranges.is_empty() {
+                let global_min = coalesced_ranges.iter().map(|r| r.0.0).min().unwrap();
+                let global_max = coalesced_ranges.iter().map(|r| r.1.0).max().unwrap();
+                (global_max - global_min).max(0)
+            } else {
+                0
+            };
+                        
+            // Calculate required bit length: ceil(log2(max_diff + 1))
+            let required_bits = if max_diff > 0 {
+                (max_diff as u64 + 1).ilog2() + 1
+            } else {
+                1 // Minimum 1 bit
+            };
+                        
+            // Ensure minimum bit length and cap at reasonable maximum
+            let bit_length = required_bits.max(8).min(32);
+            let log_size = bit_length;
+                        
+            Some(RangeCheckLookup::new(&RangeCheckLayout {
+                ranges: [bit_length],
+                log_size,
+            }))
+        } else {
+            None
+        };
+
         CircuitSettings {
             lookups: Lookups {
                 sin: sin_lookup,
                 exp2: exp2_lookup,
+                range_check: range_check_lookup,
             },
         }
     }
@@ -159,6 +212,8 @@ impl LuminairGraph for Graph {
         let mut sqrt_table = SqrtTraceTable::new();
         let mut exp2_table = Exp2TraceTable::new();
         let mut exp2_lookup_table = Exp2LookupTraceTable::new();
+        let mut less_than_table = LessThanTraceTable::new();
+        let mut range_check_lookup_table = RangeCheckLookupTraceTable::new();
 
         for (node, src_ids) in self.linearized_graph.as_ref().unwrap() {
             if self.tensors.contains_key(&(*node, 0)) {
@@ -396,6 +451,29 @@ impl LuminairGraph for Graph {
                             None => unreachable!("Exp2 lookup table must be initialised"),
                         }
                     }
+                    _ if <Box<dyn Operator> as HasProcessTrace<
+                        LessThanColumn,
+                        LessThanTraceTable,
+                        RangeCheckLookup<1>,
+                    >>::has_process_trace(node_op) =>
+                    {
+                        op_counter.less_than += 1;
+                        match settings.lookups.range_check.as_mut() {
+                            Some(lookup) => <Box<dyn Operator> as HasProcessTrace<
+                                LessThanColumn,
+                                LessThanTraceTable,
+                                RangeCheckLookup<1>,
+                            >>::call_process_trace(
+                                node_op,
+                                srcs,
+                                &mut less_than_table,
+                                &node_info,
+                                lookup,
+                            )
+                            .unwrap(),
+                            None => unreachable!("RangeCheck lookup table must be initialised"),
+                        }
+                    }
 
                     _ => node_op.process(srcs),
                 };
@@ -467,6 +545,19 @@ impl LuminairGraph for Graph {
                 lookup.add_multiplicities_to_table(&mut exp2_lookup_table);
                 max_log_size = max_log_size.max(lookup.layout.log_size);
                 trace_tables.push(TraceTable::from_exp2_lookup(exp2_lookup_table))
+            } // TODO (@raphaelDkhn): though error if LUT not present.
+        }
+        if !less_than_table.table.is_empty() {
+            let log_size = calculate_log_size(less_than_table.table.len());
+            max_log_size = max_log_size.max(log_size);
+            trace_tables.push(TraceTable::from_less_than(less_than_table));
+
+            if let Some(lookup) = settings.lookups.range_check.as_ref() {
+                lookup.add_multiplicities_to_table(&mut range_check_lookup_table);
+                max_log_size = max_log_size.max(lookup.layout.log_size);
+                trace_tables.push(TraceTable::from_range_check_lookup(
+                    range_check_lookup_table,
+                ))
             } // TODO (@raphaelDkhn): though error if LUT not present.
         }
 
