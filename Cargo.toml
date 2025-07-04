@@ -42,5 +42,5 @@ opt-level = 3
 debug = false
 lto = true
 
-# [profile.test]
-# inherits = "release"
+[profile.test]
+inherits = "release"
