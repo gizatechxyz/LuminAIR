@@ -122,6 +122,36 @@ impl Operator for LuminairConstant {
 
 // ================== UNARY ==================
 
+#[derive(Clone, PartialEq)]
+pub struct LuminairContiguous {}
+impl core::fmt::Debug for LuminairContiguous {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Contiguous")
+    }
+}
+impl LuminairContiguous {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl Operator for LuminairContiguous {
+    fn process(&mut self, inp: Vec<(InputTensor, ShapeTracker)>) -> Vec<Tensor> {
+        // Copy data over to new tensor
+        let inp_data = get_buffer_from_tensor(&inp[0].0).unwrap();
+        let expr = (inp[0].1.index_expression(), inp[0].1.valid_expression());
+
+        let mut stack: Vec<i64> = vec![];
+        let mut out_data =
+            vec![Fixed::<DEFAULT_FP_SCALE>::zero(); inp[0].1.n_elements().to_usize().unwrap()];
+
+        for (i, out) in out_data.iter_mut().enumerate() {
+            *out = get_index(inp_data, &expr, &mut stack, i);
+        }
+        vec![Tensor::new(StwoData(Arc::new(out_data)))]
+    }
+}
+
 /// LuminAIR operator for element-wise reciprocal (`1 / x`).
 ///
 /// Implements both the standard `Operator` trait for graph execution and the
@@ -1512,6 +1542,8 @@ impl Compiler for PrimitiveCompiler {
                 *op_ref = LuminairExp2::new().into_operator()
             } else if is::<luminal::op::LessThan>(op) {
                 *op_ref = LuminairLessThan::new().into_operator()
+            } else if is::<luminal::op::Contiguous>(op) {
+                *op_ref = Box::new(LuminairContiguous::new());
             }
         }
     }
