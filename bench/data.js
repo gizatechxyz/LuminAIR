@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1751641836195,
+  "lastUpdate": 1752151100279,
   "repoUrl": "https://github.com/gizatechxyz/LuminAIR",
   "entries": {
     "LuminAIR Benchmarks": [
@@ -5015,6 +5015,192 @@ window.BENCHMARK_DATA = {
             "name": "LessThan Operator/Verification (32x32)",
             "value": 239624,
             "range": "± 7190",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "113879115+raphaelDkhn@users.noreply.github.com",
+            "name": "raphaelDkhn",
+            "username": "raphaelDkhn"
+          },
+          "committer": {
+            "email": "113879115+raphaelDkhn@users.noreply.github.com",
+            "name": "raphaelDkhn",
+            "username": "raphaelDkhn"
+          },
+          "distinct": true,
+          "id": "53faf2409c0153212d34ec63f8a00642a82f50eb",
+          "message": "implement contiguous op",
+          "timestamp": "2025-07-10T15:31:00+03:00",
+          "tree_id": "456ce4c94886653bef23656fc4d53cd8f8706ddc",
+          "url": "https://github.com/gizatechxyz/LuminAIR/commit/53faf2409c0153212d34ec63f8a00642a82f50eb"
+        },
+        "date": 1752151099295,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "Add Operator/Trace Generation (32x32)",
+            "value": 53078,
+            "range": "± 775",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Add Operator/Proving (32x32)",
+            "value": 6295787,
+            "range": "± 160794",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Add Operator/Verification (32x32)",
+            "value": 191814,
+            "range": "± 2885",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Mul Operator/Trace Generation (32x32)",
+            "value": 55553,
+            "range": "± 357",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Mul Operator/Proving (32x32)",
+            "value": 6360032,
+            "range": "± 265024",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Mul Operator/Verification (32x32)",
+            "value": 179847,
+            "range": "± 3360",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Recip Operator/Trace Generation (32x32)",
+            "value": 32688,
+            "range": "± 190",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Recip Operator/Proving (32x32)",
+            "value": 5991704,
+            "range": "± 116056",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Recip Operator/Verification (32x32)",
+            "value": 179006,
+            "range": "± 2319",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Sum Reduce Operator/Trace Generation (32x32)",
+            "value": 33992,
+            "range": "± 155",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Sum Reduce Operator/Proving (32x32)",
+            "value": 6009221,
+            "range": "± 264206",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Sum Reduce Operator/Verification (32x32)",
+            "value": 186996,
+            "range": "± 2508",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Max Reduce Operator/Trace Generation (32x32)",
+            "value": 36646,
+            "range": "± 171",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Max Reduce Operator/Proving (32x32)",
+            "value": 6068755,
+            "range": "± 149686",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Max Reduce Operator/Verification (32x32)",
+            "value": 172639,
+            "range": "± 3044",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Sin Operator/Trace Generation (32x32)",
+            "value": 75042,
+            "range": "± 617",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Sin Operator/Proving (32x32)",
+            "value": 22796001,
+            "range": "± 770932",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Sin Operator/Verification (32x32)",
+            "value": 254667,
+            "range": "± 19988",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Sqrt Operator/Trace Generation (32x32)",
+            "value": 47125,
+            "range": "± 406",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Sqrt Operator/Proving (32x32)",
+            "value": 5969813,
+            "range": "± 136279",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Sqrt Operator/Verification (32x32)",
+            "value": 182060,
+            "range": "± 3008",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Exp2 Operator/Trace Generation (32x32)",
+            "value": 47751,
+            "range": "± 225",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Exp2 Operator/Proving (32x32)",
+            "value": 22575547,
+            "range": "± 832711",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "Exp2 Operator/Verification (32x32)",
+            "value": 253675,
+            "range": "± 26273",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "LessThan Operator/Trace Generation (32x32)",
+            "value": 63108,
+            "range": "± 570",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "LessThan Operator/Proving (32x32)",
+            "value": 8525776,
+            "range": "± 117849",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "LessThan Operator/Verification (32x32)",
+            "value": 238087,
+            "range": "± 4893",
             "unit": "ns/iter"
           }
         ]
