@@ -1,6 +1,6 @@
 use crate::{
     op::{
-        prim::{CopyFromStwo, CopyToStwo, LuminairConstant},
+        prim::{CopyFromStwo, CopyToStwo, LuminairConstant, LuminairContiguous},
         HasProcessTrace,
     },
     utils::compute_padded_range_from_srcs,
@@ -201,46 +201,17 @@ impl LuminairGraph for Graph {
             let input_info: Vec<InputInfo> = src_ids
                 .iter()
                 .map(|(id, _, _)| {
-                    let node_weight = self.node_weight(*id).unwrap();
-
-                    let is_function = node_weight.as_any().is::<Function>();
-                    let is_constant = node_weight.as_any().is::<LuminairConstant>()
-                        || node_weight.as_any().is::<luminal::op::Constant>();
-                    let is_copy_to = node_weight.as_any().is::<CopyToStwo>();
-
-                    // Check if this is a CopyToStwo that wraps a Function node or a Constant
-                    let is_copy_of_initializer = if is_copy_to {
-                        self.get_sources(*id).iter().any(|(src_id, _, _)| {
-                            let src_weight = self.node_weight(*src_id).unwrap();
-                            src_weight.as_any().is::<Function>()
-                                || src_weight.as_any().is::<LuminairConstant>()
-                                || src_weight.as_any().is::<luminal::op::Constant>()
-                        })
-                    } else {
-                        false
-                    };
+                    let is_initializer = is_initializer(self, *id);
 
                     InputInfo {
-                        is_initializer: is_function || is_constant || is_copy_of_initializer,
+                        is_initializer,
                         id: id.index() as u32,
                     }
                 })
                 .collect();
 
             // Determine output status
-            let is_direct_output = self.to_retrieve.contains_key(&node);
-            let is_output_via_copy = self
-                .graph
-                .edges_directed(*node, petgraph::Direction::Outgoing)
-                .any(|e| {
-                    let target = e.target();
-                    self.to_retrieve.contains_key(&target)
-                        && self
-                            .node_weight(target)
-                            .unwrap()
-                            .as_any()
-                            .is::<CopyFromStwo>()
-                });
+            let is_final_output = is_final_output(self, *node);
 
             // Calculate expansion-adjusted consumer count
             let base_consumers = *consumers.get(&(*node, 0)).unwrap_or(&0);
@@ -276,9 +247,7 @@ impl LuminairGraph for Graph {
 
             let node_info = NodeInfo {
                 inputs: input_info,
-                output: OutputInfo {
-                    is_final_output: is_direct_output || is_output_via_copy,
-                },
+                output: OutputInfo { is_final_output },
                 num_consumers: expansion_adjusted_consumers,
                 id: node.index() as u32,
             };
@@ -630,4 +599,80 @@ fn coalesce_ranges(mut ranges: Vec<Range>) -> Vec<Range> {
 
     result.push(current_range);
     result
+}
+
+/// Helper function to recursively check if a node is an initializer
+fn is_initializer(graph: &Graph, node_id: NodeIndex) -> bool {
+    let node_weight = graph.node_weight(node_id).unwrap();
+
+    // Check if the node itself is an initializer
+    let is_function = node_weight.as_any().is::<Function>();
+    let is_constant = node_weight.as_any().is::<LuminairConstant>()
+        || node_weight.as_any().is::<luminal::op::Constant>();
+    let is_copy_to = node_weight.as_any().is::<CopyToStwo>();
+
+    if is_function || is_constant {
+        return true;
+    }
+
+    // Check if this is a CopyToStwo that wraps an initializer
+    if is_copy_to {
+        return graph
+            .get_sources(node_id)
+            .iter()
+            .any(|(src_id, _, _)| is_initializer(graph, *src_id));
+    }
+
+    // Check if this is a Contiguous operator that comes after an initializer
+    let is_contiguous = node_weight.as_any().is::<LuminairContiguous>();
+    if is_contiguous {
+        return graph
+            .get_sources(node_id)
+            .iter()
+            .any(|(src_id, _, _)| is_initializer(graph, *src_id));
+    }
+
+    false
+}
+
+/// Helper function to recursively check if a node is a final output
+fn is_final_output(graph: &Graph, node_id: NodeIndex) -> bool {
+    // Check if the node itself is a final output
+    if graph.to_retrieve.contains_key(&node_id) {
+        return true;
+    }
+
+    // Check if it's connected to a CopyFromStwo that is a final output
+    let is_output_via_copy = graph
+        .graph
+        .edges_directed(node_id, petgraph::Direction::Outgoing)
+        .any(|e| {
+            let target = e.target();
+            graph.to_retrieve.contains_key(&target)
+                && graph
+                    .node_weight(target)
+                    .unwrap()
+                    .as_any()
+                    .is::<CopyFromStwo>()
+        });
+
+    if is_output_via_copy {
+        return true;
+    }
+
+    // Check if this node is connected to a Contiguous operator that leads to a final output
+    graph
+        .graph
+        .edges_directed(node_id, petgraph::Direction::Outgoing)
+        .any(|e| {
+            let target = e.target();
+            let target_weight = graph.node_weight(target).unwrap();
+            let is_target_contiguous = target_weight.as_any().is::<LuminairContiguous>();
+
+            if is_target_contiguous {
+                is_final_output(graph, target)
+            } else {
+                false
+            }
+        })
 }
