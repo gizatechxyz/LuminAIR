@@ -4,6 +4,7 @@ use crate::{
     components::{
         add::table::AddTraceTable,
         exp2::table::Exp2TraceTable,
+        inputs::table::InputsTraceTable,
         less_than::table::LessThanTraceTable,
         lookups::{
             exp2::table::Exp2LookupTraceTable, range_check::table::RangeCheckLookupTraceTable,
@@ -50,6 +51,8 @@ pub enum TraceTable {
     LessThan { table: LessThanTraceTable },
     /// Trace table for RangeCheck lookup operations.
     RangeCheckLookup { table: RangeCheckLookupTraceTable },
+    /// Trace table for Inputs operations.
+    Inputs { table: InputsTraceTable },
 }
 
 impl TraceTable {
@@ -100,6 +103,10 @@ impl TraceTable {
     /// Creates a `TraceTable::RangeCheckLookup` variant.
     pub fn from_range_check_lookup(table: RangeCheckLookupTraceTable) -> Self {
         Self::RangeCheckLookup { table }
+    }
+    /// Creates a `TraceTable::Inputs` variant.
+    pub fn from_inputs(table: InputsTraceTable) -> Self {
+        Self::Inputs { table }
     }
 }
 
@@ -164,6 +171,8 @@ pub struct OpCounter {
     pub exp2: usize,
     /// Number of LessThan operations.
     pub less_than: usize,
+    /// Number of Inputs operations.
+    pub inputs: usize,
 }
 
 /// Metadata about a specific input to a graph node.
