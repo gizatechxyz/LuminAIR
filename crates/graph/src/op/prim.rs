@@ -52,6 +52,7 @@ impl LuminairOperator<InputsColumn, InputsTraceTable, ()> for CopyToStwo {
         node_info: &NodeInfo,
         _lookup: &mut (),
     ) -> Vec<Tensor> {
+
         // Convert Vec<f32> to StwoData
         let data = StwoData::from_f32(inp[0].0.borrowed().downcast_ref::<Vec<f32>>().unwrap());
 
@@ -1490,6 +1491,8 @@ impl Compiler for PrimitiveCompiler {
 
             if let Some(c) = op_ref.as_any().downcast_ref::<luminal::op::Constant>() {
                 *op_ref = Box::new(LuminairConstant::new(c.0.clone()));
+            } else if op_ref.as_any().is::<CopyToStwo>() {
+                *op_ref = <CopyToStwo as IntoOperator<InputsColumn, InputsTraceTable, ()>>::into_operator(CopyToStwo::new());
             } else if is::<luminal::op::Add>(op) {
                 *op_ref = LuminairAdd::new().into_operator()
             } else if is::<luminal::op::Mul>(op) {
