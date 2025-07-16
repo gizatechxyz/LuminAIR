@@ -52,7 +52,6 @@ impl LuminairOperator<InputsColumn, InputsTraceTable, ()> for CopyToStwo {
         node_info: &NodeInfo,
         _lookup: &mut (),
     ) -> Vec<Tensor> {
-
         // Convert Vec<f32> to StwoData
         let data = StwoData::from_f32(inp[0].0.borrowed().downcast_ref::<Vec<f32>>().unwrap());
 
@@ -140,6 +139,48 @@ impl LuminairConstant {
     /// Creates a new `LuminairConstant` operator holding the specified value.
     pub fn new(value: ConstantValue) -> Self {
         Self { value }
+    }
+}
+
+impl LuminairOperator<InputsColumn, InputsTraceTable, ()> for LuminairConstant {
+    fn process_trace(
+        &mut self,
+        _inp: Vec<(InputTensor, ShapeTracker)>,
+        table: &mut InputsTraceTable,
+        node_info: &NodeInfo,
+        _lookup: &mut (),
+    ) -> Vec<Tensor> {
+        // Create a new tensor with the constant value
+        let value = match &self.value {
+            ConstantValue::Float(f) => *f,
+            ConstantValue::Expression(_expr) => {
+                panic!("Dynamic expressions not yet supported")
+            }
+        };
+
+        // Create and return a single element with the constant value
+        let mut data = Vec::with_capacity(1);
+        data.push(Fixed::<DEFAULT_FP_SCALE>::from_f64(value as f64));
+
+        let node_id: BaseField = node_info.id.into();
+
+        let multiplicity = if node_info.output.is_final_output {
+            BaseField::zero()
+        } else {
+            BaseField::one() * BaseField::from_u32_unchecked(node_info.num_consumers)
+        };
+
+        table.add_row(InputsTraceTableRow {
+            node_id,
+            idx: M31::zero(),
+            is_last_idx: M31::one(),
+            next_node_id: node_id,
+            next_idx: M31::zero(),
+            val: data[0].to_m31(),
+            multiplicity,
+        });
+
+        vec![Tensor::new(StwoData(Arc::new(data)))]
     }
 }
 
@@ -1490,9 +1531,15 @@ impl Compiler for PrimitiveCompiler {
             let op_ref = graph.graph.node_weight_mut(id).unwrap();
 
             if let Some(c) = op_ref.as_any().downcast_ref::<luminal::op::Constant>() {
-                *op_ref = Box::new(LuminairConstant::new(c.0.clone()));
+                *op_ref =
+                    <LuminairConstant as IntoOperator<InputsColumn, InputsTraceTable, ()>>::into_operator(
+                        LuminairConstant::new(c.0.clone()),
+                    );
             } else if op_ref.as_any().is::<CopyToStwo>() {
-                *op_ref = <CopyToStwo as IntoOperator<InputsColumn, InputsTraceTable, ()>>::into_operator(CopyToStwo::new());
+                *op_ref =
+                    <CopyToStwo as IntoOperator<InputsColumn, InputsTraceTable, ()>>::into_operator(
+                        CopyToStwo::new(),
+                    );
             } else if is::<luminal::op::Add>(op) {
                 *op_ref = LuminairAdd::new().into_operator()
             } else if is::<luminal::op::Mul>(op) {
