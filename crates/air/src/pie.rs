@@ -179,8 +179,6 @@ pub struct OpCounter {
 /// Indicates if a node input is an initializer (i.e., from initial input).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct InputInfo {
-    /// True if the input originates from a graph input or a constant (not an intermediate value).
-    pub is_initializer: bool,
     /// The unique ID of the node providing this input.
     pub id: u32,
 }
