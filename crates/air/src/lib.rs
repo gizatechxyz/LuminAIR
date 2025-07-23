@@ -39,7 +39,7 @@ pub struct LuminairClaim {
     pub max_reduce: Option<MaxReduceClaim>,
     /// Claim for the Sqrt component's trace.
     pub sqrt: Option<SqrtClaim>,
-    /// Claim for the Sqrt component's trace.
+    /// Claim for the Rem component's trace.
     pub rem: Option<RemClaim>,
 
 }
@@ -132,7 +132,7 @@ pub struct LuminairInteractionClaimGenerator {
     pub max_reduce: Option<max_reduce::witness::InteractionClaimGenerator>,
     /// Generator for the Sqrt component's interaction claim.
     pub sqrt: Option<sqrt::witness::InteractionClaimGenerator>,
-    /// Generator for the Sqrt component's interaction claim.
+    /// Generator for the Rem component's interaction claim.
     pub rem: Option<rem::witness::InteractionClaimGenerator>,
 }
 

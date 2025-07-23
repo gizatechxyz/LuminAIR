@@ -50,7 +50,7 @@ impl FrameworkEval for RemEval {
         let out_val = eval.next_trace_mask();
         let rem_val = eval.next_trace_mask();
 
-        // Mulitiplication for interaction constraints
+        // Multiplicities for interaction constraints
         let lhs_mult = eval.next_trace_mask();
         let rhs_mult = eval.next_trace_mask();
         let out_mult = eval.next_trace_mask();

@@ -158,7 +158,7 @@ pub enum ClaimType {
     MaxReduce(Claim<MaxReduceColumn>),
     /// Claim for a Sqrt component trace.
     Sqrt(Claim<SqrtColumn>),
-    /// Claim for a Sqrt component trace.
+    /// Claim for a Rem component trace.
     Rem(Claim<RemColumn>),
 }
 
