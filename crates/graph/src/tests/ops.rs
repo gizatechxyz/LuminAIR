@@ -21,6 +21,7 @@ unary_test!(|a| a.exp2(), test_exp2, f32, true);
 
 binary_test!(|a, b| a + b, test_add, f32, false);
 binary_test!(|a, b| a * b, test_mul, f32, false);
+binary_test!(|a, b| a % b, test_rem, f32, false);
 
 // =============== REDUCE ===============
 
