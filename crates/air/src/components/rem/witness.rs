@@ -17,8 +17,8 @@ use stwo_prover::{
 
 use super::table::{RemColumn, RemTraceTable, RemTraceTableRow, PackedRemTraceTableRow};
 
-/// Number of main trace columns for the Add component.
-pub(crate) const N_TRACE_COLUMNS: usize = 16;
+/// Number of main trace columns for the Rem component.
+pub(crate) const N_TRACE_COLUMNS: usize = 17;
 
 pub struct ClaimGenerator {
     pub inputs: RemTraceTable,
@@ -92,6 +92,7 @@ fn write_trace_simd(
             *row[RemColumn::Rhs.index()] = input.rhs;
             *row[RemColumn::Out.index()] = input.out;
             *row[RemColumn::Rem.index()] = input.rem;
+            *row[RemColumn::Quotient.index()] = input.quotient;
             *row[RemColumn::LhsMult.index()] = input.lhs_mult;
             *row[RemColumn::RhsMult.index()] = input.rhs_mult;
             *row[RemColumn::OutMult.index()] = input.out_mult;

@@ -49,6 +49,7 @@ impl FrameworkEval for RemEval {
         let rhs_val = eval.next_trace_mask();
         let out_val = eval.next_trace_mask();
         let rem_val = eval.next_trace_mask();
+        let quotient = eval.next_trace_mask();
 
         // Multiplicities for interaction constraints
         let lhs_mult = eval.next_trace_mask();
@@ -62,12 +63,17 @@ impl FrameworkEval for RemEval {
         // The is_last_idx flag is either 0 or 1.
         eval.add_constraint(is_last_idx.clone() * (is_last_idx.clone() - E::F::one()));
 
+        // For rem operation: compute remainder when lhs is divided by rhs
+        // Use eval_fixed_rem to verify the relationship between lhs, rhs, quotient, and remainder
         eval.eval_fixed_rem(
             lhs_val.clone(),
             rhs_val.clone(),
-            out_val.clone(),
+            quotient.clone(),
             rem_val.clone(),
         );
+        
+        // Constraint: out_val should equal rem_val (the remainder is our output)
+        eval.add_constraint(out_val.clone() - rem_val);
 
         // ┌────────────────────────────┐
         // │   Transition Constraints   │

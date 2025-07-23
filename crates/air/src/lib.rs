@@ -89,6 +89,9 @@ impl LuminairClaim {
         if let Some(ref claim) = self.sqrt {
             claim.mix_into(channel);
         }
+        if let Some(ref claim) = self.rem {
+            claim.mix_into(channel);
+        }
         if let Some(ref claim) = self.exp2 {
             claim.mix_into(channel);
         }
@@ -131,6 +134,9 @@ impl LuminairClaim {
             log_sizes.push(claim.log_sizes());
         }
         if let Some(ref claim) = self.sqrt {
+            log_sizes.push(claim.log_sizes());
+        }
+        if let Some(ref claim) = self.rem {
             log_sizes.push(claim.log_sizes());
         }
         if let Some(ref claim) = self.exp2 {

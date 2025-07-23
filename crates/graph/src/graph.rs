@@ -375,7 +375,7 @@ impl LuminairGraph for Graph {
                             (),
                         >>::has_process_trace(node_op) =>
                     {
-                        op_counter.mul += 1;
+                        op_counter.rem += 1;
                         <Box<dyn Operator> as HasProcessTrace<RemColumn, RemTraceTable, ()>>::call_process_trace(
                         node_op, srcs, &mut rem_table, &node_info, &mut ()
                     ).unwrap()

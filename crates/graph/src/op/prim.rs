@@ -1431,6 +1431,7 @@ impl LuminairRem {
             Fixed<DEFAULT_FP_SCALE>,
             Fixed<DEFAULT_FP_SCALE>,
             Fixed<DEFAULT_FP_SCALE>,
+            Fixed<DEFAULT_FP_SCALE>,
         )>,
         >,
     ) {
@@ -1455,12 +1456,21 @@ impl LuminairRem {
         for (idx, out) in out_data.iter_mut().enumerate() {
             let lhs_val = get_index(lhs, &lexpr, &mut stack, idx);
             let rhs_val = get_index(rhs, &rexpr, &mut stack, idx);
-            let (out_val, rem_val) = lhs_val * rhs_val;
+            
+            // For remainder operation, we need both quotient and remainder
+            // lhs_val = quotient * rhs_val + remainder
+            // Use integer division and modulo on the underlying i64 values
+            let quotient = Fixed::<DEFAULT_FP_SCALE>(lhs_val.0 / rhs_val.0);
+            let rem_val = Fixed::<DEFAULT_FP_SCALE>(lhs_val.0 % rhs_val.0);
+            let out_val = rem_val; // The output is the remainder
+            
+
+            
             *out = out_val;
 
             // Only collect intermediate values if in trace mode
             if let Some(values) = &mut intermediate_values {
-                values.push((lhs_val, rhs_val, out_val, rem_val));
+                values.push((lhs_val, rhs_val, out_val, rem_val, quotient));
             }
         }
 
@@ -1500,7 +1510,7 @@ impl LuminairOperator<RemColumn, RemTraceTable, ()> for LuminairRem {
             BaseField::one() * BaseField::from_u32_unchecked(node_info.num_consumers)
         };
 
-        for (idx, (lhs_val, rhs_val, out_val, rem_val)) in
+        for (idx, (lhs_val, rhs_val, out_val, rem_val, quotient)) in
             intermediate_values.into_iter().enumerate()
         {
             let is_last_idx: u32 = if idx == (output_size - 1) { 1 } else { 0 };
@@ -1519,6 +1529,7 @@ impl LuminairOperator<RemColumn, RemTraceTable, ()> for LuminairRem {
                 rhs: rhs_val.to_m31(),
                 out: out_val.to_m31(),
                 rem: rem_val.to_m31(),
+                quotient: quotient.to_m31(),
                 lhs_mult,
                 rhs_mult,
                 out_mult,

@@ -189,6 +189,20 @@ macro_rules! binary_test {
     };
 }
 
+#[macro_export]
+macro_rules! binary_test_no_broadcast {
+    ($func: expr, $name: ident, $type: ty, $nonzero: expr) => {
+        // Test operation with same-sized tensors only (no broadcasting)
+        $crate::single_binary_test!($func, $name, $type, (3, 4), (3, 4), $nonzero);
+        // Test with large tensors to ensure scalability
+        $crate::single_binary_test!($func, $name, $type, (32, 32), (32, 32), $nonzero);
+        // Test with tensors that have uneven dimensions
+        $crate::single_binary_test!($func, $name, $type, (17, 13), (17, 13), $nonzero);
+        // Test with scalar matching dimensions
+        $crate::single_binary_test!($func, $name, $type, (1, 1), (1, 1), $nonzero);
+    };
+}
+
 #[allow(dead_code)]
 pub fn assert_op_in_graph<T: Operator + 'static>(graph: &Graph) {
     assert!(
