@@ -12,7 +12,7 @@ use crate::{
         max_reduce::table::MaxReduceTraceTable,
         mul::table::MulTraceTable,
         recip::table::RecipTraceTable,
-        rem::table::RemTraceTableRow,
+        rem::table::RemTraceTable,
         sin::table::SinTraceTable,
         sqrt::table::SqrtTraceTable,
         sum_reduce::table::SumReduceTraceTable,

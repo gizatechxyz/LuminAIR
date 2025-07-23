@@ -2,11 +2,9 @@
 
 use ::serde::{Deserialize, Serialize};
 use components::{
-    add, add, exp2, lookups, lookups, max_reduce, max_reduce, mul, mul, recip, recip, rem, sin,
-    sin, sqrt, sqrt, sum_reduce, sum_reduce, AddClaim, AddClaim, InteractionClaim,
-    InteractionClaim, MaxReduceClaim, MaxReduceClaim, MulClaim, MulClaim, RecipClaim, RecipClaim,
-    RemClaim, SinClaim, SinClaim, SinLookupClaim, SinLookupClaim, SqrtClaim, SqrtClaim,
-    SumReduceClaim, SumReduceClaim,
+    add, exp2, lookups, max_reduce, mul, recip, rem, sin, sqrt, sum_reduce, AddClaim,
+    InteractionClaim, MaxReduceClaim, MulClaim, RecipClaim, RemClaim, SinClaim, SinLookupClaim,
+    SqrtClaim, SumReduceClaim,
 };
 use stwo_prover::core::{channel::Channel, pcs::TreeVec};
 
