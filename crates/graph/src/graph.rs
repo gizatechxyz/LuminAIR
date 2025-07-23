@@ -1,14 +1,19 @@
 use crate::{
     op::{
-        prim::{CopyFromStwo, CopyToStwo, LuminairConstant},
+        prim::{CopyFromStwo, CopyToStwo, LuminairConstant, LuminairContiguous},
         HasProcessTrace,
     },
     utils::compute_padded_range_from_srcs,
 };
+use itertools::Itertools;
 use luminair_air::{
     components::{
         add::table::{AddColumn, AddTraceTable},
+        exp2::table::{Exp2Column, Exp2TraceTable},
+        less_than::table::{LessThanColumn, LessThanTraceTable},
         lookups::{
+            exp2::{table::Exp2LookupTraceTable, Exp2Lookup},
+            range_check::{table::RangeCheckLookupTraceTable, RangeCheckLayout, RangeCheckLookup},
             sin::{table::SinLookupTraceTable, SinLookup},
             Lookups,
         },
@@ -21,18 +26,19 @@ use luminair_air::{
         rem::table::{RemColumn, RemTraceTable},
     },
     pie::{
-        ExecutionResources, InputInfo, LuminairPie, NodeInfo, OpCounter, OutputInfo, TraceTable,
+        ExecutionResources, InputInfo, LuminairPie, Metadata, NodeInfo, OpCounter, OutputInfo,
+        TraceTable,
     },
     preprocessed::{LookupLayout, Range},
     settings::CircuitSettings,
     utils::calculate_log_size,
 };
 use luminair_utils::LuminairError;
-use luminal::{
-    op::*,
-    prelude::{petgraph::visit::EdgeRef, *},
-};
+use luminal::{op::*, prelude::*};
 use numerair::Fixed;
+use petgraph::{stable_graph::StableGraph, visit::EdgeRef, Direction};
+use regex::Regex;
+use rustc_hash::FxHashMap;
 
 /// Trait defining the core functionality of a LuminAIR computation graph.
 ///
@@ -44,6 +50,9 @@ pub trait LuminairGraph {
 
     /// Generates an execution trace for the graph's computation.
     fn gen_trace(&mut self, settings: &mut CircuitSettings) -> Result<LuminairPie, LuminairError>;
+
+    /// View the graph
+    fn graph_viz(&self) -> String;
 }
 
 /// Implementation of `LuminairGraph` for the `luminal::Graph` struct.
@@ -63,6 +72,9 @@ impl LuminairGraph for Graph {
 
         // Accumulate ranges per non-linear op
         let mut sin_ranges: Vec<Range> = Vec::new();
+        let mut exp2_ranges: Vec<Range> = Vec::new();
+
+        let mut range_check_8_required = false;
 
         for (node, src_ids) in self.linearized_graph.as_ref().unwrap() {
             if self.tensors.contains_key(&(*node, 0)) {
@@ -81,6 +93,17 @@ impl LuminairGraph for Graph {
             let op = &*self.graph.node_weight(*node).unwrap();
             if <Box<dyn Operator> as HasProcessTrace<SinColumn, SinTraceTable, SinLookup>>::has_process_trace(op) {
                 sin_ranges.push(compute_padded_range_from_srcs(&srcs));
+            }
+            if <Box<dyn Operator> as HasProcessTrace<Exp2Column, Exp2TraceTable, Exp2Lookup>>::has_process_trace(op) {
+                exp2_ranges.push(compute_padded_range_from_srcs(&srcs));
+            }
+            if <Box<dyn Operator> as HasProcessTrace<
+                LessThanColumn,
+                LessThanTraceTable,
+                RangeCheckLookup<1>,
+            >>::has_process_trace(op)
+            {
+                range_check_8_required = true;
             }
 
             // Execute
@@ -103,9 +126,28 @@ impl LuminairGraph for Graph {
         } else {
             None
         };
+        let exp2_lookup = if !exp2_ranges.is_empty() {
+            let layout = LookupLayout::new(coalesce_ranges(exp2_ranges));
+            Some(Exp2Lookup::new(&layout))
+        } else {
+            None
+        };
+
+        let range_check_lookup = if range_check_8_required {
+            Some(RangeCheckLookup::new(&RangeCheckLayout {
+                ranges: [8],
+                log_size: 8,
+            }))
+        } else {
+            None
+        };
 
         CircuitSettings {
-            lookups: Lookups { sin: sin_lookup },
+            lookups: Lookups {
+                sin: sin_lookup,
+                exp2: exp2_lookup,
+                range_check: range_check_lookup,
+            },
         }
     }
 
@@ -139,6 +181,10 @@ impl LuminairGraph for Graph {
         let mut max_reduce_table = MaxReduceTraceTable::new();
         let mut sqrt_table = SqrtTraceTable::new();
         let mut rem_table = RemTraceTable::new();
+        let mut exp2_table = Exp2TraceTable::new();
+        let mut exp2_lookup_table = Exp2LookupTraceTable::new();
+        let mut less_than_table = LessThanTraceTable::new();
+        let mut range_check_lookup_table = RangeCheckLookupTraceTable::new();
 
         for (node, src_ids) in self.linearized_graph.as_ref().unwrap() {
             if self.tensors.contains_key(&(*node, 0)) {
@@ -157,46 +203,17 @@ impl LuminairGraph for Graph {
             let input_info: Vec<InputInfo> = src_ids
                 .iter()
                 .map(|(id, _, _)| {
-                    let node_weight = self.node_weight(*id).unwrap();
-
-                    let is_function = node_weight.as_any().is::<Function>();
-                    let is_constant = node_weight.as_any().is::<LuminairConstant>()
-                        || node_weight.as_any().is::<luminal::op::Constant>();
-                    let is_copy_to = node_weight.as_any().is::<CopyToStwo>();
-
-                    // Check if this is a CopyToStwo that wraps a Function node or a Constant
-                    let is_copy_of_initializer = if is_copy_to {
-                        self.get_sources(*id).iter().any(|(src_id, _, _)| {
-                            let src_weight = self.node_weight(*src_id).unwrap();
-                            src_weight.as_any().is::<Function>()
-                                || src_weight.as_any().is::<LuminairConstant>()
-                                || src_weight.as_any().is::<luminal::op::Constant>()
-                        })
-                    } else {
-                        false
-                    };
+                    let is_initializer = is_initializer(self, *id);
 
                     InputInfo {
-                        is_initializer: is_function || is_constant || is_copy_of_initializer,
+                        is_initializer,
                         id: id.index() as u32,
                     }
                 })
                 .collect();
 
             // Determine output status
-            let is_direct_output = self.to_retrieve.contains_key(&node);
-            let is_output_via_copy = self
-                .graph
-                .edges_directed(*node, petgraph::Direction::Outgoing)
-                .any(|e| {
-                    let target = e.target();
-                    self.to_retrieve.contains_key(&target)
-                        && self
-                            .node_weight(target)
-                            .unwrap()
-                            .as_any()
-                            .is::<CopyFromStwo>()
-                });
+            let is_final_output = is_final_output(self, *node);
 
             // Calculate expansion-adjusted consumer count
             let base_consumers = *consumers.get(&(*node, 0)).unwrap_or(&0);
@@ -232,9 +249,7 @@ impl LuminairGraph for Graph {
 
             let node_info = NodeInfo {
                 inputs: input_info,
-                output: OutputInfo {
-                    is_final_output: is_direct_output || is_output_via_copy,
-                },
+                output: OutputInfo { is_final_output },
                 num_consumers: expansion_adjusted_consumers,
                 id: node.index() as u32,
             };
@@ -365,6 +380,53 @@ impl LuminairGraph for Graph {
                         node_op, srcs, &mut rem_table, &node_info, &mut ()
                     ).unwrap()
                     }
+                    _ if <Box<dyn Operator> as HasProcessTrace<
+                        Exp2Column,
+                        Exp2TraceTable,
+                        Exp2Lookup,
+                    >>::has_process_trace(node_op) =>
+                    {
+                        op_counter.exp2 += 1;
+                        match settings.lookups.exp2.as_mut() {
+                            Some(lookup) => <Box<dyn Operator> as HasProcessTrace<
+                                Exp2Column,
+                                Exp2TraceTable,
+                                Exp2Lookup,
+                            >>::call_process_trace(
+                                node_op,
+                                srcs,
+                                &mut exp2_table,
+                                &node_info,
+                                lookup,
+                            )
+                            .unwrap(),
+                            None => unreachable!("Exp2 lookup table must be initialised"),
+                        }
+                    }
+                    _ if <Box<dyn Operator> as HasProcessTrace<
+                        LessThanColumn,
+                        LessThanTraceTable,
+                        RangeCheckLookup<1>,
+                    >>::has_process_trace(node_op) =>
+                    {
+                        op_counter.less_than += 1;
+                        match settings.lookups.range_check.as_mut() {
+                            Some(lookup) => <Box<dyn Operator> as HasProcessTrace<
+                                LessThanColumn,
+                                LessThanTraceTable,
+                                RangeCheckLookup<1>,
+                            >>::call_process_trace(
+                                node_op,
+                                srcs,
+                                &mut less_than_table,
+                                &node_info,
+                                lookup,
+                            )
+                            .unwrap(),
+                            None => unreachable!("RangeCheck lookup table must be initialised"),
+                        }
+                    }
+
                     _ => node_op.process(srcs),
                 };
 
@@ -431,14 +493,98 @@ impl LuminairGraph for Graph {
             max_log_size = max_log_size.max(log_size);
             trace_tables.push(TraceTable::from_rem(rem_table));
         }
+        if !exp2_table.table.is_empty() {
+            let log_size = calculate_log_size(exp2_table.table.len());
+            max_log_size = max_log_size.max(log_size);
+            trace_tables.push(TraceTable::from_exp2(exp2_table));
+
+            if let Some(lookup) = settings.lookups.exp2.as_ref() {
+                lookup.add_multiplicities_to_table(&mut exp2_lookup_table);
+                max_log_size = max_log_size.max(lookup.layout.log_size);
+                trace_tables.push(TraceTable::from_exp2_lookup(exp2_lookup_table))
+            } // TODO (@raphaelDkhn): though error if LUT not present.
+        }
+        if !less_than_table.table.is_empty() {
+            let log_size = calculate_log_size(less_than_table.table.len());
+            max_log_size = max_log_size.max(log_size);
+            trace_tables.push(TraceTable::from_less_than(less_than_table));
+
+            if let Some(lookup) = settings.lookups.range_check.as_ref() {
+                lookup.add_multiplicities_to_table(&mut range_check_lookup_table);
+                max_log_size = max_log_size.max(lookup.layout.log_size);
+                trace_tables.push(TraceTable::from_range_check_lookup(
+                    range_check_lookup_table,
+                ))
+            } // TODO (@raphaelDkhn): though error if LUT not present.
+        }
 
         Ok(LuminairPie {
             trace_tables,
-            execution_resources: ExecutionResources {
-                op_counter,
-                max_log_size,
+            metadata: Metadata {
+                execution_resources: ExecutionResources {
+                    op_counter,
+                    max_log_size,
+                },
             },
         })
+    }
+
+    fn graph_viz(&self) -> String {
+        let mut new_graph: StableGraph<String, u8> = StableGraph::default();
+        let mut id_map = FxHashMap::default();
+        for (id, node) in self.graph.node_indices().zip(self.graph.node_weights()) {
+            id_map.insert(id, new_graph.add_node(format!("{node:?}")));
+        }
+
+        let mut schedule_edges = vec![];
+        for node in self.graph.node_indices() {
+            for edge in self
+                .graph
+                .edges_directed(node, Direction::Outgoing)
+                .sorted_by_key(|e| {
+                    if let Some(d) = e.weight().as_data() {
+                        d.0
+                    } else {
+                        0
+                    }
+                })
+            {
+                let new_edge = new_graph.add_edge(
+                    id_map[&edge.source()],
+                    id_map[&edge.target()],
+                    if let Some(d) = edge.weight().as_data() {
+                        d.0
+                    } else {
+                        0
+                    },
+                );
+                if edge.weight().is_schedule() {
+                    schedule_edges.push(new_edge);
+                }
+            }
+        }
+
+        let mut graph_string =
+            petgraph::dot::Dot::with_config(&new_graph, &[petgraph::dot::Config::EdgeIndexLabel])
+                .to_string();
+        let re = Regex::new(r#"label\s*=\s*"\d+""#).unwrap();
+        for e in schedule_edges {
+            graph_string =
+                graph_string.replace(&format!("label = \"{}\"", e.index()), "color=\"green\"");
+        }
+        graph_string = re.replace_all(&graph_string, "").to_string();
+        let mark_nodes: &[NodeIndex] = &[];
+        for n in mark_nodes {
+            graph_string = graph_string.replace(
+                &format!("    {} [ label =", n.index()),
+                &format!(
+                    "    {} [ style=\"filled\" fillcolor=\"yellow\" label =",
+                    n.index()
+                ),
+            );
+        }
+
+        graph_string.to_owned()
     }
 }
 
@@ -472,4 +618,80 @@ fn coalesce_ranges(mut ranges: Vec<Range>) -> Vec<Range> {
 
     result.push(current_range);
     result
+}
+
+/// Helper function to recursively check if a node is an initializer
+fn is_initializer(graph: &Graph, node_id: NodeIndex) -> bool {
+    let node_weight = graph.node_weight(node_id).unwrap();
+
+    // Check if the node itself is an initializer
+    let is_function = node_weight.as_any().is::<Function>();
+    let is_constant = node_weight.as_any().is::<LuminairConstant>()
+        || node_weight.as_any().is::<luminal::op::Constant>();
+    let is_copy_to = node_weight.as_any().is::<CopyToStwo>();
+
+    if is_function || is_constant {
+        return true;
+    }
+
+    // Check if this is a CopyToStwo that wraps an initializer
+    if is_copy_to {
+        return graph
+            .get_sources(node_id)
+            .iter()
+            .any(|(src_id, _, _)| is_initializer(graph, *src_id));
+    }
+
+    // Check if this is a Contiguous operator that comes after an initializer
+    let is_contiguous = node_weight.as_any().is::<LuminairContiguous>();
+    if is_contiguous {
+        return graph
+            .get_sources(node_id)
+            .iter()
+            .any(|(src_id, _, _)| is_initializer(graph, *src_id));
+    }
+
+    false
+}
+
+/// Helper function to recursively check if a node is a final output
+fn is_final_output(graph: &Graph, node_id: NodeIndex) -> bool {
+    // Check if the node itself is a final output
+    if graph.to_retrieve.contains_key(&node_id) {
+        return true;
+    }
+
+    // Check if it's connected to a CopyFromStwo that is a final output
+    let is_output_via_copy = graph
+        .graph
+        .edges_directed(node_id, petgraph::Direction::Outgoing)
+        .any(|e| {
+            let target = e.target();
+            graph.to_retrieve.contains_key(&target)
+                && graph
+                    .node_weight(target)
+                    .unwrap()
+                    .as_any()
+                    .is::<CopyFromStwo>()
+        });
+
+    if is_output_via_copy {
+        return true;
+    }
+
+    // Check if this node is connected to a Contiguous operator that leads to a final output
+    graph
+        .graph
+        .edges_directed(node_id, petgraph::Direction::Outgoing)
+        .any(|e| {
+            let target = e.target();
+            let target_weight = graph.node_weight(target).unwrap();
+            let is_target_contiguous = target_weight.as_any().is::<LuminairContiguous>();
+
+            if is_target_contiguous {
+                is_final_output(graph, target)
+            } else {
+                false
+            }
+        })
 }

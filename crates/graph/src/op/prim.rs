@@ -1,7 +1,9 @@
 use luminair_air::{
     components::{
         add::table::{AddColumn, AddTraceTable, AddTraceTableRow},
-        lookups::sin::SinLookup,
+        exp2::table::{Exp2Column, Exp2TraceTable, Exp2TraceTableRow},
+        less_than::table::{LessThanColumn, LessThanTraceTable, LessThanTraceTableRow},
+        lookups::{exp2::Exp2Lookup, range_check::RangeCheckLookup, sin::SinLookup},
         max_reduce::table::{MaxReduceColumn, MaxReduceTraceTable, MaxReduceTraceTableRow},
         mul::table::{MulColumn, MulTraceTable, MulTraceTableRow},
         recip::table::{RecipColumn, RecipTraceTable, RecipTraceTableRow},
@@ -84,10 +86,15 @@ impl Operator for CopyFromStwo {
 /// Represents a constant value within the LuminAIR graph, stored as `StwoData`.
 ///
 /// Currently supports only float constants; dynamic expressions are not yet implemented.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct LuminairConstant {
     /// The constant value.
     pub value: ConstantValue,
+}
+impl core::fmt::Debug for LuminairConstant {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Constant({:?})", self.value)
+    }
 }
 
 impl LuminairConstant {
@@ -116,12 +123,47 @@ impl Operator for LuminairConstant {
 
 // ================== UNARY ==================
 
+#[derive(Clone, PartialEq)]
+pub struct LuminairContiguous {}
+impl core::fmt::Debug for LuminairContiguous {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Contiguous")
+    }
+}
+impl LuminairContiguous {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl Operator for LuminairContiguous {
+    fn process(&mut self, inp: Vec<(InputTensor, ShapeTracker)>) -> Vec<Tensor> {
+        // Copy data over to new tensor
+        let inp_data = get_buffer_from_tensor(&inp[0].0).unwrap();
+        let expr = (inp[0].1.index_expression(), inp[0].1.valid_expression());
+
+        let mut stack: Vec<i64> = vec![];
+        let mut out_data =
+            vec![Fixed::<DEFAULT_FP_SCALE>::zero(); inp[0].1.n_elements().to_usize().unwrap()];
+
+        for (i, out) in out_data.iter_mut().enumerate() {
+            *out = get_index(inp_data, &expr, &mut stack, i);
+        }
+        vec![Tensor::new(StwoData(Arc::new(out_data)))]
+    }
+}
+
 /// LuminAIR operator for element-wise reciprocal (`1 / x`).
 ///
 /// Implements both the standard `Operator` trait for graph execution and the
 /// `LuminairOperator` trait to generate trace entries for `RecipTraceTable`.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Clone, Default, PartialEq)]
 pub(crate) struct LuminairRecip {}
+impl core::fmt::Debug for LuminairRecip {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Recip")
+    }
+}
 
 impl LuminairRecip {
     /// Creates a new `LuminairRecip` operator instance.
@@ -237,8 +279,13 @@ impl Operator for LuminairRecip {
 /// `LuminairOperator` trait to generate trace entries for `SinTraceTable`.
 /// This operator interacts with the `SinLookup` component during trace generation
 /// to record input value occurrences for the lookup argument.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Clone, Default, PartialEq)]
 pub(crate) struct LuminairSin {}
+impl core::fmt::Debug for LuminairSin {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Sin")
+    }
+}
 
 impl LuminairSin {
     /// Creates a new `LuminairSin` operator instance.
@@ -353,8 +400,13 @@ impl Operator for LuminairSin {
 ///
 /// Implements both the standard `Operator` trait for graph execution and the
 /// `LuminairOperator` trait to generate trace entries for `SqrtTraceTable`.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Clone, Default, PartialEq)]
 pub(crate) struct LuminairSqrt {}
+impl core::fmt::Debug for LuminairSqrt {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Sqrt")
+    }
+}
 
 impl LuminairSqrt {
     /// Creates a new `LuminairSqrt` operator instance.
@@ -464,14 +516,142 @@ impl Operator for LuminairSqrt {
     }
 }
 
+/// LuminAIR operator for element-wise Exp2 (`exp2(x)`).
+///
+/// Implements both the standard `Operator` trait for graph execution and the
+/// `LuminairOperator` trait to generate trace entries for `Exp2TraceTable`.
+/// This operator interacts with the `Exp2Lookup` component during trace generation
+/// to record input value occurrences for the lookup argument.
+#[derive(Clone, Default, PartialEq)]
+pub(crate) struct LuminairExp2 {}
+impl core::fmt::Debug for LuminairExp2 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Exp2")
+    }
+}
+
+impl LuminairExp2 {
+    /// Creates a new `LuminairExp2` operator instance.
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl LuminairExp2 {
+    fn compute(
+        &self,
+        inp: &[(InputTensor, ShapeTracker)],
+        trace_mode: bool,
+    ) -> (
+        Vec<Fixed<DEFAULT_FP_SCALE>>,
+        Option<Vec<(Fixed<DEFAULT_FP_SCALE>, Fixed<DEFAULT_FP_SCALE>)>>,
+    ) {
+        let input = get_buffer_from_tensor(&inp[0].0).unwrap();
+        let expr = (inp[0].1.index_expression(), inp[0].1.valid_expression());
+
+        let mut stack: Vec<i64> = vec![];
+        let output_size = inp[0].1.n_elements().to_usize().unwrap();
+        let mut out_data = vec![Fixed::<DEFAULT_FP_SCALE>::zero(); output_size];
+
+        // Only allocate for intermediate values if in trace mode
+        let mut intermediate_values = if trace_mode {
+            Some(Vec::with_capacity(output_size))
+        } else {
+            None
+        };
+
+        for (idx, out) in out_data.iter_mut().enumerate() {
+            let input_val = get_index(input, &expr, &mut stack, idx);
+            let out_val = Fixed::<DEFAULT_FP_SCALE>::from_f64(input_val.to_f64().exp2());
+            *out = out_val;
+
+            // Only collect intermediate values if in trace mode
+            if let Some(values) = &mut intermediate_values {
+                values.push((input_val, out_val));
+            }
+        }
+
+        (out_data, intermediate_values)
+    }
+}
+
+impl LuminairOperator<Exp2Column, Exp2TraceTable, Exp2Lookup> for LuminairExp2 {
+    fn process_trace(
+        &mut self,
+        inp: Vec<(InputTensor, ShapeTracker)>,
+        table: &mut Exp2TraceTable,
+        node_info: &NodeInfo,
+        lookup: &mut Exp2Lookup,
+    ) -> Vec<Tensor> {
+        let (out_data, intermediate_values) = self.compute(&inp, true);
+        let intermediate_values = intermediate_values.unwrap();
+
+        let node_id: BaseField = node_info.id.into();
+        let input_id: BaseField = node_info.inputs[0].id.into();
+        let output_size = inp[0].1.n_elements().to_usize().unwrap();
+
+        let input_mult = if node_info.inputs[0].is_initializer {
+            BaseField::zero()
+        } else {
+            -BaseField::one()
+        };
+        let out_mult = if node_info.output.is_final_output {
+            BaseField::zero()
+        } else {
+            BaseField::one() * BaseField::from_u32_unchecked(node_info.num_consumers)
+        };
+
+        for (idx, (input_val, out_val)) in intermediate_values.into_iter().enumerate() {
+            let is_last_idx: u32 = if idx == (output_size - 1) { 1 } else { 0 };
+
+            table.add_row(Exp2TraceTableRow {
+                node_id,
+                input_id,
+                idx: idx.into(),
+                is_last_idx: (is_last_idx).into(),
+                next_idx: (idx + 1).into(),
+                next_node_id: node_id,
+                next_input_id: input_id,
+                input: input_val.to_m31(),
+                out: out_val.to_m31(),
+                input_mult,
+                out_mult,
+                lookup_mult: M31::one(),
+            });
+
+            // Update multiplicities of the lookup.
+            // Allows you to track the occurrence of a specific Exp2 operation.
+            let mult_address = lookup
+                .layout
+                .find_index(input_val.0)
+                .expect("Value should fit in range.");
+            lookup.multiplicities.increase_at(mult_address);
+        }
+
+        vec![Tensor::new(StwoData(Arc::new(out_data)))]
+    }
+}
+
+impl Operator for LuminairExp2 {
+    fn process(&mut self, inp: Vec<(InputTensor, ShapeTracker)>) -> Vec<Tensor> {
+        let (out_data, _) = self.compute(&inp, false);
+        vec![Tensor::new(StwoData(Arc::new(out_data)))]
+    }
+}
+
 // ================== BINARY ==================
 
 /// LuminAIR operator for element-wise addition (`a + b`).
 ///
 /// Implements both the standard `Operator` trait for graph execution and the
 /// `LuminairOperator` trait to generate trace entries for `AddTraceTable`.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Clone, Default, PartialEq)]
 struct LuminairAdd {}
+impl core::fmt::Debug for LuminairAdd {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Add")
+    }
+}
 
 impl LuminairAdd {
     /// Creates a new `LuminairAdd` operator instance.
@@ -597,8 +777,13 @@ impl Operator for LuminairAdd {
 ///
 /// Implements both the standard `Operator` trait for graph execution and the
 /// `LuminairOperator` trait to generate trace entries for `MulTraceTable`.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Clone, Default, PartialEq)]
 struct LuminairMul {}
+impl core::fmt::Debug for LuminairMul {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Mul")
+    }
+}
 
 impl LuminairMul {
     /// Creates a new `LuminairMul` operator instance.
@@ -725,6 +910,170 @@ impl Operator for LuminairMul {
     }
 }
 
+/// LuminAIR operator for element-wise less-than (`a < b`).
+#[derive(Clone, Default, PartialEq)]
+struct LuminairLessThan {}
+impl core::fmt::Debug for LuminairLessThan {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "LessThan")
+    }
+}
+
+impl LuminairLessThan {
+    /// Creates a new `LuminairLessThan` operator instance.
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl LuminairLessThan {
+    fn compute(
+        &self,
+        inp: &[(InputTensor, ShapeTracker)],
+        trace_mode: bool,
+    ) -> (
+        Vec<Fixed<DEFAULT_FP_SCALE>>,
+        Option<
+            Vec<(
+                Fixed<DEFAULT_FP_SCALE>,
+                Fixed<DEFAULT_FP_SCALE>,
+                Fixed<DEFAULT_FP_SCALE>,
+                i64,
+                i64,
+            )>,
+        >,
+    ) {
+        // Use 31 bits for diff calculation (maximum for M31 field)
+        let two_pow_k = (1i64 << 31) - 1;
+
+        let (lhs, rhs) = (
+            get_buffer_from_tensor(&inp[0].0).unwrap(),
+            get_buffer_from_tensor(&inp[1].0).unwrap(),
+        );
+        let lexpr = (inp[0].1.index_expression(), inp[0].1.valid_expression());
+        let rexpr = (inp[1].1.index_expression(), inp[1].1.valid_expression());
+
+        let mut stack: Vec<i64> = vec![];
+        let output_size = inp[0].1.n_elements().to_usize().unwrap();
+        let mut out_data = vec![Fixed::<DEFAULT_FP_SCALE>::zero(); output_size];
+
+        // Only allocate for intermediate values if in trace mode
+        let mut intermediate_values = if trace_mode {
+            Some(Vec::with_capacity(output_size))
+        } else {
+            None
+        };
+
+        for (idx, out) in out_data.iter_mut().enumerate() {
+            let lhs_val = get_index(lhs, &lexpr, &mut stack, idx);
+            let rhs_val = get_index(rhs, &rexpr, &mut stack, idx);
+
+            let (out_val, borrow, diff) = if lhs_val.0 < rhs_val.0 {
+                (Fixed::from_f64(1.), 0, rhs_val.0 - lhs_val.0)
+            } else {
+                (Fixed::zero(), 1, rhs_val.0 - lhs_val.0 + two_pow_k)
+            };
+            *out = out_val;
+
+            // Only collect intermediate values if in trace mode
+            if let Some(values) = &mut intermediate_values {
+                values.push((lhs_val, rhs_val, out_val, borrow, diff));
+            }
+        }
+
+        (out_data, intermediate_values)
+    }
+}
+
+impl LuminairOperator<LessThanColumn, LessThanTraceTable, RangeCheckLookup<1>>
+    for LuminairLessThan
+{
+    fn process_trace(
+        &mut self,
+        inp: Vec<(InputTensor, ShapeTracker)>,
+        table: &mut LessThanTraceTable,
+        node_info: &NodeInfo,
+        lookup: &mut RangeCheckLookup<1>,
+    ) -> Vec<Tensor> {
+        let (out_data, intermediate_values) = self.compute(&inp, true);
+        let intermediate_values = intermediate_values.unwrap();
+
+        let output_size = inp[0].1.n_elements().to_usize().unwrap();
+        let node_id: BaseField = node_info.id.into();
+        let lhs_id: BaseField = node_info.inputs[0].id.into();
+        let rhs_id: BaseField = node_info.inputs[1].id.into();
+
+        let lhs_mult = if node_info.inputs[0].is_initializer {
+            BaseField::zero()
+        } else {
+            -BaseField::one()
+        };
+        let rhs_mult = if node_info.inputs[1].is_initializer {
+            BaseField::zero()
+        } else {
+            -BaseField::one()
+        };
+        let out_mult = if node_info.output.is_final_output {
+            BaseField::zero()
+        } else {
+            BaseField::one() * BaseField::from_u32_unchecked(node_info.num_consumers)
+        };
+
+        for (idx, (lhs_val, rhs_val, out_val, borrow, diff)) in
+            intermediate_values.into_iter().enumerate()
+        {
+            let is_last_idx: u32 = if idx == (output_size - 1) { 1 } else { 0 };
+
+            // Decompose diff into four 8-bit limbs
+            let diff_u32 = diff as u32;
+            let limb0 = (diff_u32 & 0xFF) as u32;
+            let limb1 = ((diff_u32 >> 8) & 0xFF) as u32;
+            let limb2 = ((diff_u32 >> 16) & 0xFF) as u32;
+            let limb3 = ((diff_u32 >> 24) & 0xFF) as u32;
+
+            table.add_row(LessThanTraceTableRow {
+                node_id,
+                lhs_id,
+                rhs_id,
+                idx: idx.into(),
+                is_last_idx: (is_last_idx).into(),
+                next_idx: (idx + 1).into(),
+                next_node_id: node_id,
+                next_lhs_id: lhs_id,
+                next_rhs_id: rhs_id,
+                lhs: lhs_val.to_m31(),
+                rhs: rhs_val.to_m31(),
+                out: out_val.to_m31(),
+                borrow: M31::from_u32_unchecked(borrow as u32),
+                diff: M31::from_u32_unchecked(diff as u32),
+                limb0: M31::from_u32_unchecked(limb0),
+                limb1: M31::from_u32_unchecked(limb1),
+                limb2: M31::from_u32_unchecked(limb2),
+                limb3: M31::from_u32_unchecked(limb3),
+                lhs_mult,
+                rhs_mult,
+                out_mult,
+                range_check_mult: M31::one(),
+            });
+
+            // Update multiplicities of the lookup for each limb
+            lookup.multiplicities.increase_at(limb0 as usize);
+            lookup.multiplicities.increase_at(limb1 as usize);
+            lookup.multiplicities.increase_at(limb2 as usize);
+            lookup.multiplicities.increase_at(limb3 as usize);
+        }
+
+        vec![Tensor::new(StwoData(Arc::new(out_data)))]
+    }
+}
+
+impl Operator for LuminairLessThan {
+    fn process(&mut self, inp: Vec<(InputTensor, ShapeTracker)>) -> Vec<Tensor> {
+        let (out_data, _) = self.compute(&inp, false);
+        vec![Tensor::new(StwoData(Arc::new(out_data)))]
+    }
+}
+
 // ================== REDUCE ==================
 
 /// LuminAIR operator for sum reduction along a specified dimension.
@@ -732,8 +1081,13 @@ impl Operator for LuminairMul {
 /// Implements both the standard `Operator` trait for graph execution and the
 /// `LuminairOperator` trait to generate trace entries for `SumReduceTraceTable`,
 /// capturing the accumulation process step-by-step.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Clone, Default, PartialEq)]
 struct LuminairSumReduce(pub usize);
+impl core::fmt::Debug for LuminairSumReduce {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "SumReduce({:?})", self.0)
+    }
+}
 
 impl LuminairSumReduce {
     /// Creates a new `LuminairSumReduce` operator instance for the given reduction dimension.
@@ -876,9 +1230,13 @@ impl Operator for LuminairSumReduce {
 /// Implements both the standard `Operator` trait for graph execution and the
 /// `LuminairOperator` trait to generate trace entries for `MaxReduceTraceTable`,
 /// capturing the comparison and update process step-by-step.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Clone, Default, PartialEq)]
 struct LuminairMaxReduce(pub usize);
-
+impl core::fmt::Debug for LuminairMaxReduce {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "MaxReduce({:?})", self.0)
+    }
+}
 impl LuminairMaxReduce {
     /// Creates a new `LuminairMaxReduce` operator instance for the given reduction dimension.
     pub fn new(value: usize) -> Self {
@@ -1317,6 +1675,12 @@ impl Compiler for PrimitiveCompiler {
                 *op_ref = LuminairSqrt::new().into_operator()
             } else if is::<luminal::op::Mod>(op) {
                 *op_ref = LuminairRem::new().into_operator()
+            } else if is::<luminal::op::Exp2>(op) {
+                *op_ref = LuminairExp2::new().into_operator()
+            } else if is::<luminal::op::LessThan>(op) {
+                *op_ref = LuminairLessThan::new().into_operator()
+            } else if is::<luminal::op::Contiguous>(op) {
+                *op_ref = Box::new(LuminairContiguous::new());
             }
         }
     }

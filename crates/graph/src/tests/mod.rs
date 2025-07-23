@@ -26,7 +26,7 @@ macro_rules! single_unary_test {
                 let mut settings = cx.gen_circuit_settings();
                 c.drop();
                 let trace = cx.gen_trace(&mut settings).expect("Trace generation failed");
-                let proof = prove(trace, settings.clone()).expect("Proof generation failed");
+                 let proof =prove(trace, settings.clone()).expect("Proof generation failed");
                 verify(proof, settings.clone()).expect("Proof verification failed");
                 // Retrieve output data
                 let stwo_output = c.data();
@@ -119,7 +119,7 @@ macro_rules! single_binary_test {
                 let mut settings = cx.gen_circuit_settings();
                 c.drop();
                 let trace = cx.gen_trace(&mut settings).expect("Trace generation failed");
-                let proof = prove(trace, settings.clone()).expect("Proof generation failed");
+                 let proof =prove(trace, settings.clone()).expect("Proof generation failed");
                 verify(proof, settings).expect("Proof verification failed");
                 // Retrieve output data
                 let stwo_output = c.data();

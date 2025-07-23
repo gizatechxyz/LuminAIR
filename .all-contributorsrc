@@ -68,6 +68,24 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "bruhhgnik",
+      "name": "Agnik",
+      "avatar_url": "https://avatars.githubusercontent.com/u/146652064?v=4",
+      "profile": "https://github.com/bruhhgnik",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "raizo07",
+      "name": "Wolf",
+      "avatar_url": "https://avatars.githubusercontent.com/u/81079370?v=4",
+      "profile": "https://github.com/raizo07",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,

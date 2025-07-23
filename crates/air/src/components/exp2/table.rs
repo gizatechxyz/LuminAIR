@@ -8,24 +8,23 @@ use stwo_prover::core::{
     fields::m31::M31,
 };
 
+use super::witness::N_TRACE_COLUMNS;
 use crate::components::TraceColumn;
 
-use super::witness::N_TRACE_COLUMNS;
-
-/// Represents the raw trace data collected for Sine (`sin(x)`) operations.
+/// Represents the raw trace data collected for Exp2 (`exp2(x)`) operations.
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
-pub struct SinTraceTable {
-    /// Vector containing all rows of the Sin trace.
-    pub table: Vec<SinTraceTableRow>,
+pub struct Exp2TraceTable {
+    /// Vector containing all rows of the Exp2 trace.
+    pub table: Vec<Exp2TraceTableRow>,
 }
 
-/// Represents a single row in the `SinTraceTable`.
+/// Represents a single row in the `Exp2TraceTable`.
 ///
-/// Contains values for evaluating Sin AIR constraints: current/next state IDs,
+/// Contains values for evaluating Exp2 AIR constraints: current/next state IDs,
 /// input/output values, and multiplicities for LogUp (input/output) and LUT interaction.
 #[derive(Debug, Copy, Clone, serde::Serialize, serde::Deserialize)]
-pub struct SinTraceTableRow {
-    /// ID of the current Sin node.
+pub struct Exp2TraceTableRow {
+    /// ID of the current Exp2 node.
     pub node_id: M31,
     /// ID of the node providing the input.
     pub input_id: M31,
@@ -33,7 +32,7 @@ pub struct SinTraceTableRow {
     pub idx: M31,
     /// Flag indicating if this is the last element processed for this node (1 if true, 0 otherwise).
     pub is_last_idx: M31,
-    /// ID of the *next* Sin node processed in the trace.
+    /// ID of the *next* Exp2 node processed in the trace.
     pub next_node_id: M31,
     /// ID of the *next* input provider node.
     pub next_input_id: M31,
@@ -41,18 +40,18 @@ pub struct SinTraceTableRow {
     pub next_idx: M31,
     /// Value of the input (`x`).
     pub input: M31,
-    /// Value of the output (`sin(x)`).
+    /// Value of the output (`exp2(x)`).
     pub out: M31,
     /// Multiplicity contribution for the LogUp argument (input).
     pub input_mult: M31,
     /// Multiplicity contribution for the LogUp argument (output).
     pub out_mult: M31,
-    /// Multiplicity contribution for the Sine Lookup Table interaction.
+    /// Multiplicity contribution for the Exp2 Lookup Table interaction.
     pub lookup_mult: M31,
 }
 
-impl SinTraceTableRow {
-    /// Creates a default padding row for the Sin trace.
+impl Exp2TraceTableRow {
+    /// Creates a default padding row for the Exp2 trace.
     pub(crate) fn padding() -> Self {
         Self {
             node_id: M31::zero(),
@@ -71,9 +70,9 @@ impl SinTraceTableRow {
     }
 }
 
-/// SIMD-packed representation of a `SinTraceTableRow`.
+/// SIMD-packed representation of a `Exp2TraceTableRow`.
 #[derive(Debug, Copy, Clone)]
-pub struct PackedSinTraceTableRow {
+pub struct PackedExp2TraceTableRow {
     /// Packed `node_id` values.
     pub node_id: PackedM31,
     /// Packed `input_id` values.
@@ -100,11 +99,11 @@ pub struct PackedSinTraceTableRow {
     pub lookup_mult: PackedM31,
 }
 
-impl Pack for SinTraceTableRow {
-    type SimdType = PackedSinTraceTableRow;
+impl Pack for Exp2TraceTableRow {
+    type SimdType = PackedExp2TraceTableRow;
 
     fn pack(inputs: [Self; N_LANES]) -> Self::SimdType {
-        PackedSinTraceTableRow {
+        PackedExp2TraceTableRow {
             node_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].node_id)),
             input_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].input_id)),
             idx: PackedM31::from_array(std::array::from_fn(|i| inputs[i].idx)),
@@ -121,8 +120,8 @@ impl Pack for SinTraceTableRow {
     }
 }
 
-impl Unpack for PackedSinTraceTableRow {
-    type CpuType = SinTraceTableRow;
+impl Unpack for PackedExp2TraceTableRow {
+    type CpuType = Exp2TraceTableRow;
 
     fn unpack(self) -> [Self::CpuType; N_LANES] {
         let (
@@ -153,7 +152,7 @@ impl Unpack for PackedSinTraceTableRow {
             self.lookup_mult.to_array(),
         );
 
-        std::array::from_fn(|i| SinTraceTableRow {
+        std::array::from_fn(|i| Exp2TraceTableRow {
             node_id: node_id[i],
             input_id: input_id[i],
             idx: idx[i],
@@ -170,22 +169,22 @@ impl Unpack for PackedSinTraceTableRow {
     }
 }
 
-impl SinTraceTable {
-    /// Creates a new, empty `SinTraceTable`.
+impl Exp2TraceTable {
+    /// Creates a new, empty `Exp2TraceTable`.
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Appends a single row to the trace table.
-    pub fn add_row(&mut self, row: SinTraceTableRow) {
+    pub fn add_row(&mut self, row: Exp2TraceTableRow) {
         self.table.push(row);
     }
 }
 
-/// Enum defining the columns of the Sin AIR component's trace.
+/// Enum defining the columns of the Exp2 AIR component's trace.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum SinColumn {
-    /// ID of the current Sin node.
+pub enum Exp2Column {
+    /// ID of the current Exp2 node.
     NodeId,
     /// ID of the node providing the input.
     InputId,
@@ -193,7 +192,7 @@ pub enum SinColumn {
     Idx,
     /// Flag indicating if this is the last element processed for this node.
     IsLastIdx,
-    /// ID of the *next* Sin node processed in the trace.
+    /// ID of the *next* Exp2 node processed in the trace.
     NextNodeId,
     /// ID of the *next* input provider node.
     NextInputId,
@@ -201,18 +200,18 @@ pub enum SinColumn {
     NextIdx,
     /// Value of the input (`x`).
     Input,
-    /// Value of the output (`sin(x)`).
+    /// Value of the output (`exp2(x)`).
     Out,
     /// Multiplicity for the LogUp argument (input).
     InputMult,
     /// Multiplicity for the LogUp argument (output).
     OutMult,
-    /// Multiplicity for the Sine Lookup Table interaction.
+    /// Multiplicity for the Exp2 Lookup Table interaction.
     LookupMult,
 }
 
-impl SinColumn {
-    /// Returns the 0-based index for this column within the Sin trace segment.
+impl Exp2Column {
+    /// Returns the 0-based index for this column within the Exp2 trace segment.
     pub const fn index(self) -> usize {
         match self {
             Self::NodeId => 0,
@@ -231,9 +230,9 @@ impl SinColumn {
     }
 }
 
-/// Implements the `TraceColumn` trait for `SinColumn`.
-impl TraceColumn for SinColumn {
-    /// Specifies the number of columns used by the Sin component.
+/// Implements the `TraceColumn` trait for `Exp2Column`.
+impl TraceColumn for Exp2Column {
+    /// Specifies the number of columns used by the Exp2 component.
     /// Returns `(N_TRACE_COLUMNS, 3)`, indicating the number of main trace columns
     /// and 3 interaction trace columns (input LogUp, output LogUp, LUT interaction).
     fn count() -> (usize, usize) {

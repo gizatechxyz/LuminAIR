@@ -2,10 +2,17 @@
 
 use ::serde::{Deserialize, Serialize};
 use components::{
-    add, lookups, max_reduce, mul, recip, sin, sqrt, sum_reduce, rem, AddClaim, InteractionClaim,
-    MaxReduceClaim, MulClaim, RecipClaim, SinClaim, SinLookupClaim, SqrtClaim, SumReduceClaim, RemClaim,
+    add, add, exp2, lookups, lookups, max_reduce, max_reduce, mul, mul, recip, recip, rem, sin,
+    sin, sqrt, sqrt, sum_reduce, sum_reduce, AddClaim, AddClaim, InteractionClaim,
+    InteractionClaim, MaxReduceClaim, MaxReduceClaim, MulClaim, MulClaim, RecipClaim, RecipClaim,
+    RemClaim, SinClaim, SinClaim, SinLookupClaim, SinLookupClaim, SqrtClaim, SqrtClaim,
+    SumReduceClaim, SumReduceClaim,
 };
 use stwo_prover::core::{channel::Channel, pcs::TreeVec};
+
+use crate::components::{
+    less_than, Exp2Claim, Exp2LookupClaim, LessThanClaim, RangeCheckLookupClaim,
+};
 
 pub mod components;
 pub mod pie;
@@ -15,6 +22,9 @@ pub mod utils;
 
 // TODO (@raphaelDkhn): We should parametizing the fixed pointscale.
 pub const DEFAULT_FP_SCALE: u32 = 12;
+pub const DEFAULT_FP_SCALE_FACTOR: u32 = 1 << DEFAULT_FP_SCALE;
+
+const TWO_POW_31_MINUS_1: u32 = (1u32 << 31) - 1;
 
 /// Container for claims related to the main execution trace of LuminAIR components.
 ///
@@ -42,6 +52,14 @@ pub struct LuminairClaim {
     /// Claim for the Rem component's trace.
     pub rem: Option<RemClaim>,
 
+    /// Claim for the Exp2 component's trace.
+    pub exp2: Option<Exp2Claim>,
+    /// Claim for the Exp2 Lookup component's trace.
+    pub exp2_lookup: Option<Exp2LookupClaim>,
+    /// Claim for the LessThan component's trace.
+    pub less_than: Option<LessThanClaim>,
+    /// Claim for the LessThan Lookup component's trace.
+    pub range_check_lookup: Option<RangeCheckLookupClaim>,
 }
 
 impl LuminairClaim {
@@ -71,6 +89,18 @@ impl LuminairClaim {
             claim.mix_into(channel);
         }
         if let Some(ref claim) = self.sqrt {
+            claim.mix_into(channel);
+        }
+        if let Some(ref claim) = self.exp2 {
+            claim.mix_into(channel);
+        }
+        if let Some(ref claim) = self.exp2_lookup {
+            claim.mix_into(channel);
+        }
+        if let Some(ref claim) = self.less_than {
+            claim.mix_into(channel);
+        }
+        if let Some(ref claim) = self.range_check_lookup {
             claim.mix_into(channel);
         }
     }
@@ -105,6 +135,18 @@ impl LuminairClaim {
         if let Some(ref claim) = self.sqrt {
             log_sizes.push(claim.log_sizes());
         }
+        if let Some(ref claim) = self.exp2 {
+            log_sizes.push(claim.log_sizes());
+        }
+        if let Some(ref claim) = self.exp2_lookup {
+            log_sizes.push(claim.log_sizes());
+        }
+        if let Some(ref claim) = self.less_than {
+            log_sizes.push(claim.log_sizes());
+        }
+        if let Some(ref claim) = self.range_check_lookup {
+            log_sizes.push(claim.log_sizes());
+        }
         TreeVec::concat_cols(log_sizes.into_iter())
     }
 }
@@ -134,6 +176,14 @@ pub struct LuminairInteractionClaimGenerator {
     pub sqrt: Option<sqrt::witness::InteractionClaimGenerator>,
     /// Generator for the Rem component's interaction claim.
     pub rem: Option<rem::witness::InteractionClaimGenerator>,
+    /// Generator for the Exp2 component's interaction claim.
+    pub exp2: Option<exp2::witness::InteractionClaimGenerator>,
+    /// Generator for the Exp2 Lookup component's interaction claim.
+    pub exp2_lookup: Option<lookups::exp2::witness::InteractionClaimGenerator>,
+    /// Generator for the LessThan component's interaction claim.
+    pub less_than: Option<less_than::witness::InteractionClaimGenerator>,
+    /// Generator for the RangeCheck Lookup component's interaction claim.
+    pub range_check_lookup: Option<lookups::range_check::witness::InteractionClaimGenerator<1>>,
 }
 
 /// Container for claims related to the interaction trace of LuminAIR components.
@@ -162,6 +212,14 @@ pub struct LuminairInteractionClaim {
     pub sqrt: Option<InteractionClaim>,
     /// Interaction claim for the Rem component.
     pub rem: Option<InteractionClaim>,
+    /// Interaction claim for the Exp2 component.
+    pub exp2: Option<InteractionClaim>,
+    /// Interaction claim for the Exp2 Lookup component.
+    pub exp2_lookup: Option<InteractionClaim>,
+    /// Interaction claim for the LessThan component.
+    pub less_than: Option<InteractionClaim>,
+    /// Interaction claim for the RangeCheck Lookup component.
+    pub range_check_lookup: Option<InteractionClaim>,
 }
 
 impl LuminairInteractionClaim {
@@ -193,6 +251,18 @@ impl LuminairInteractionClaim {
             claim.mix_into(channel);
         }
         if let Some(ref claim) = self.rem {
+            claim.mix_into(channel);
+        }
+        if let Some(ref claim) = self.exp2 {
+            claim.mix_into(channel);
+        }
+        if let Some(ref claim) = self.exp2_lookup {
+            claim.mix_into(channel);
+        }
+        if let Some(ref claim) = self.less_than {
+            claim.mix_into(channel);
+        }
+        if let Some(ref claim) = self.range_check_lookup {
             claim.mix_into(channel);
         }
     }

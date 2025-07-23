@@ -1,10 +1,9 @@
 "use client";
 
-import React, { useState, useCallback, useEffect, useRef } from "react";
-import { Button } from "./ui/button";
-import { Check, Loader2, X, AlertCircle } from "lucide-react";
+import { useState, useCallback, useEffect, useRef } from "react";
+import { Info } from "lucide-react";
 import { cn } from "../lib/utils";
-import { getSharedButtonStyles } from "../lib/shared-styles";
+import { Badge } from "./ui/badge";
 import init, { verify } from "@gizatech/luminair-web";
 import {
   VerificationModal,
@@ -13,7 +12,7 @@ import {
   type StepStatus,
 } from "./VerificationModal";
 
-export interface VerifyButtonProps {
+export interface VerifyBadgeProps {
   /** Path to the proof file (required) */
   proofPath: string;
   /** Path to the settings file (required) */
@@ -22,29 +21,32 @@ export interface VerifyButtonProps {
   graphPath: string;
   /** Title displayed in the modal (default: "Can't be evil.") */
   title?: string;
-  /** Text displayed on the button (default: "VERIFY") */
-  buttonText?: string;
+  /** Text displayed on the badge (default: "VERIFIED COMPUTE") */
+  labelText?: string;
   /** Author name displayed in the modal (default: "Giza") */
   author?: string;
   /** Model description displayed in the modal (default: "Demo model") */
   modelDescription?: string;
   /** Author URL (default: "https://www.gizatech.xyz/") */
   authorUrl?: string;
-  /** Custom className for the button */
+  /** Custom className for the badge */
   className?: string;
+  /** Badge variant (default: "default") */
+  variant?: "default" | "secondary" | "destructive" | "outline";
 }
 
-export function VerifyButton({
+export function VerifyBadge({
   proofPath,
   settingsPath,
   graphPath,
   title = "Can't be evil.",
-  buttonText = "VERIFY",
+  labelText = "VERIFIED COMPUTE",
   author = "Giza",
   modelDescription = "Demo model",
   authorUrl = "https://www.gizatech.xyz/",
   className,
-}: VerifyButtonProps) {
+  variant = "default",
+}: VerifyBadgeProps) {
   const [state, setState] = useState<VerificationState>({
     isOpen: false,
     isVerifying: false,
@@ -61,6 +63,7 @@ export function VerifyButton({
   const originalConsoleLog = useRef<any>(null);
   const originalConsoleInfo = useRef<any>(null);
   const stepTimestamps = useRef<Record<string, number>>({});
+  const verificationStarted = useRef(false);
 
   const updateStepStatus = useCallback(
     (stepId: string, status: StepStatus, message?: string) => {
@@ -162,25 +165,16 @@ export function VerifyButton({
     };
   }, [state.isVerifying, updateStepWithDelay]);
 
-  const resetVerification = useCallback(() => {
-    setState({
-      isOpen: false,
-      isVerifying: false,
-      allStepsCompleted: false,
-      steps: VERIFICATION_STEPS.reduce(
-        (acc, step) => ({
-          ...acc,
-          [step.id]: { status: "pending" as StepStatus },
-        }),
-        {}
-      ),
-      result: undefined,
-    });
+  // Auto-start verification on component mount
+  useEffect(() => {
+    if (!verificationStarted.current) {
+      verificationStarted.current = true;
+      startVerification();
+    }
   }, []);
 
-  const handleVerifyClick = async () => {
-    resetVerification();
-    setState((prev) => ({ ...prev, isOpen: true, isVerifying: true }));
+  const startVerification = async () => {
+    setState((prev) => ({ ...prev, isVerifying: true }));
 
     try {
       await init();
@@ -234,43 +228,145 @@ export function VerifyButton({
     }
   };
 
+  const handleLabelClick = () => {
+    setState((prev) => ({ ...prev, isOpen: true }));
+  };
+
+  const getOverallStatus = () => {
+    if (state.result && !state.result.success) {
+      return "error";
+    }
+
+    if (state.result && state.result.success && state.allStepsCompleted) {
+      return "completed";
+    }
+
+    if (
+      state.isVerifying ||
+      (state.result && state.result.success && !state.allStepsCompleted)
+    ) {
+      return "in-progress";
+    }
+
+    return "pending";
+  };
+
+  const getGizaLogoWithStatus = () => {
+    const status = getOverallStatus();
+
+    // Get logo color based on status - light green but darker than background
+    const getLogoColor = () => {
+      switch (status) {
+        case "completed":
+          return "text-green-800 dark:text-green-300";
+        case "error":
+          return "text-red-300 dark:text-red-300";
+        case "in-progress":
+          return "text-amber-300 dark:text-amber-300";
+        default:
+          return "text-amber-300 dark:text-amber-300";
+      }
+    };
+
+    const logoColorClass = getLogoColor();
+
+    return (
+      <div className="relative mr-2">
+        <svg
+          className={cn("h-4 w-4", logoColorClass)}
+          viewBox="0 0 18 20"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            fillRule="evenodd"
+            clipRule="evenodd"
+            d="M8.65331 0L0 14.9659L8.65331 20L17.3132 14.9659L8.65331 0ZM7.2009 8.60339C8.12395 7.67922 8.6235 6.33476 8.65835 4.68359C8.72707 7.93945 10.6026 10.0027 13.9692 10.0027C12.3099 10.0027 11.0129 10.5039 10.1158 11.4021C9.19275 12.3263 8.6932 13.6707 8.65835 15.3219C8.58963 12.066 6.71409 10.0027 3.34753 10.0027C5.00678 10.0027 6.30384 9.50154 7.2009 8.60339Z"
+            fill="currentColor"
+          />
+        </svg>
+      </div>
+    );
+  };
+
+  const getStatusText = () => {
+    const status = getOverallStatus();
+
+    switch (status) {
+      case "completed":
+        return labelText;
+      case "in-progress":
+        return "VERIFYING...";
+      case "error":
+        return "VERIFICATION FAILED";
+      default:
+        return "VERIFYING...";
+    }
+  };
+
+  const getBadgeVariant = () => {
+    const status = getOverallStatus();
+
+    switch (status) {
+      case "completed":
+        return variant;
+      case "error":
+        return "destructive";
+      case "in-progress":
+        return "default";
+      default:
+        return "default";
+    }
+  };
+
+  // Get badge colors based on status
+  const getBadgeColors = () => {
+    const status = getOverallStatus();
+
+    switch (status) {
+      case "completed":
+        return "bg-green-100 dark:bg-green-950/50 text-green-800 dark:text-green-300 border-green-800 dark:border-green-300 hover:bg-green-200 dark:hover:bg-green-900";
+      case "error":
+        return "bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-500 border-red-600 dark:border-red-500 hover:bg-red-100 dark:hover:bg-red-900";
+      case "in-progress":
+        return "bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-500 border-amber-600 dark:border-amber-500 hover:bg-amber-100 dark:hover:bg-amber-900";
+      default:
+        return "bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-500 border-amber-600 dark:border-amber-500 hover:bg-amber-100 dark:hover:bg-amber-900";
+    }
+  };
+
   return (
     <>
-      <Button
-        onClick={handleVerifyClick}
-        disabled={state.isVerifying}
-        className={cn(getSharedButtonStyles(), className)}
-      >
-        {state.isVerifying ? (
-          <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            VERIFYING...
-          </>
-        ) : (
-          <>
-            {buttonText}
-            <svg
-              className="ml-2 h-4 w-4"
-              viewBox="0 0 18 20"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                fillRule="evenodd"
-                clipRule="evenodd"
-                d="M8.65331 0L0 14.9659L8.65331 20L17.3132 14.9659L8.65331 0ZM7.2009 8.60339C8.12395 7.67922 8.6235 6.33476 8.65835 4.68359C8.72707 7.93945 10.6026 10.0027 13.9692 10.0027C12.3099 10.0027 11.0129 10.5039 10.1158 11.4021C9.19275 12.3263 8.6932 13.6707 8.65835 15.3219C8.58963 12.066 6.71409 10.0027 3.34753 10.0027C5.00678 10.0027 6.30384 9.50154 7.2009 8.60339Z"
-                fill="currentColor"
-              />
-            </svg>
-          </>
+      <Badge
+        onClick={handleLabelClick}
+        variant={getBadgeVariant()}
+        className={cn(
+          "cursor-pointer hover:shadow-md transition-all duration-200 px-3 py-1 text-xs font-mono rounded-md",
+          "flex items-center justify-between min-w-0 w-fit max-w-xs border",
+          getBadgeColors(),
+          state.isVerifying && "opacity-75",
+          className
         )}
-      </Button>
+      >
+        <div className="flex items-center min-w-0 flex-1">
+          {getGizaLogoWithStatus()}
+
+          <div className="flex flex-col items-start min-w-0 flex-1">
+            <span className="font-mono text-xs leading-tight font-medium">
+              {getStatusText()}
+            </span>
+          </div>
+        </div>
+
+        {/* Info indicator */}
+        <Info className="h-3 w-3 ml-2 flex-shrink-0" />
+      </Badge>
 
       <VerificationModal
         isOpen={state.isOpen}
         onOpenChange={(open) => {
           if (!open && !state.isVerifying) {
-            resetVerification();
+            setState((prev) => ({ ...prev, isOpen: false }));
           }
         }}
         verificationState={state}

@@ -20,6 +20,8 @@ luminair_utils = { path = "../utils" }
 luminair_prover = { path = "../prover" }
 luminair_verifier = { path = "../verifiers/rust" }
 itertools = "0.14.0"
+regex = "1.11.1"
+rustc-hash = "2.1.1"
 
 [dev-dependencies]
 luminal_cpu = { git = "https://github.com/raphaelDkhn/luminal.git", rev = "80ae0fd" }

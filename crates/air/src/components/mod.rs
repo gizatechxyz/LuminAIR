@@ -56,17 +56,43 @@ use rem::{
     table::RemColumn,
 };
 
+use crate::{
+    components::{
+        exp2::{
+            component::{Exp2Component, Exp2Eval},
+            table::Exp2Column,
+        },
+        less_than::{
+            component::{LessThanComponent, LessThanEval},
+            table::LessThanColumn,
+        },
+        lookups::{
+            exp2::{
+                component::{Exp2LookupComponent, Exp2LookupEval},
+                table::Exp2LookupColumn,
+            },
+            range_check::{
+                component::{RangeCheckLookupComponent, RangeCheckLookupEval},
+                table::RangeCheckLookupColumn,
+            },
+        },
+    },
+    preprocessed::PreProcessedTrace,
+    LuminairClaim, LuminairInteractionClaim,
+};
 use crate::{preprocessed::PreProcessedTrace, LuminairClaim, LuminairInteractionClaim};
 
 pub mod add;
+pub mod exp2;
+pub mod less_than;
 pub mod lookups;
 pub mod max_reduce;
 pub mod mul;
 pub mod recip;
+pub mod rem;
 pub mod sin;
 pub mod sqrt;
 pub mod sum_reduce;
-pub mod rem;
 
 /// Type alias for a vector of circle evaluations representing trace columns.
 /// Used commonly as the format for trace data passed to the STWO prover/verifier.
@@ -90,6 +116,14 @@ pub type MaxReduceClaim = Claim<MaxReduceColumn>;
 pub type SqrtClaim = Claim<SqrtColumn>;
 /// Type alias for the claim associated with the Sqrt component's trace.
 pub type RemClaim = Claim<RemColumn>;
+/// Type alias for the claim associated with the Exp2 component's trace.
+pub type Exp2Claim = Claim<Exp2Column>;
+/// Type alias for the claim associated with the Exp2Lookup component's trace.
+pub type Exp2LookupClaim = Claim<Exp2LookupColumn>;
+/// Type alias for the claim associated with the LessThan component's trace.
+pub type LessThanClaim = Claim<LessThanColumn>;
+/// Type alias for the claim associated with the RangeCheckLookup component's trace.
+pub type RangeCheckLookupClaim = Claim<RangeCheckLookupColumn>;
 
 /// Trait implemented by trace column definitions (e.g., `AddColumn`).
 /// Provides metadata about the number of columns used by the component.
@@ -160,6 +194,14 @@ pub enum ClaimType {
     Sqrt(Claim<SqrtColumn>),
     /// Claim for a Rem component trace.
     Rem(Claim<RemColumn>),
+    /// Claim for a Exp2 component trace.
+    Exp2(Claim<Exp2Column>),
+    /// Claim for a Exp2Lookup component trace.
+    Exp2Lookup(Claim<Exp2LookupColumn>),
+    /// Claim for a LessThan component trace.
+    LessThan(Claim<LessThanColumn>),
+    /// Claim for a RangeCheckLookup component trace.
+    RangeCheckLookup(Claim<RangeCheckLookupColumn>),
 }
 
 /// Represents the claim resulting from the interaction phase (e.g., LogUp protocol).
@@ -233,6 +275,14 @@ pub struct LuminairComponents {
     sqrt: Option<SqrtComponent>,
     /// Optional Rem component instance.
     rem: Option<RemComponent>,
+    /// Optional Exp2 component instance.
+    exp2: Option<Exp2Component>,
+    /// Optional Exp2Lookup component instance.
+    exp2_lookup: Option<Exp2LookupComponent>,
+    /// Optional LessThan component instance.
+    less_than: Option<LessThanComponent>,
+    /// Optional RangeCheckLookup component instance.
+    range_check_lookup: Option<RangeCheckLookupComponent>,
 }
 
 impl LuminairComponents {
@@ -363,6 +413,79 @@ impl LuminairComponents {
             None
         };
 
+        let exp2 = if let Some(ref exp2_claim) = claim.exp2 {
+            let lut_log_size = lookups.exp2.as_ref().map(|s| s.layout.log_size).unwrap();
+            Some(Exp2Component::new(
+                tree_span_provider,
+                Exp2Eval::new(
+                    &exp2_claim,
+                    interaction_elements.node_elements.clone(),
+                    interaction_elements.lookup_elements.exp2.clone(),
+                    lut_log_size,
+                ),
+                interaction_claim.exp2.as_ref().unwrap().claimed_sum,
+            ))
+        } else {
+            None
+        };
+
+        let exp2_lookup = if let Some(ref exp2_lookup_claim) = claim.exp2_lookup {
+            Some(Exp2LookupComponent::new(
+                tree_span_provider,
+                Exp2LookupEval::new(
+                    &exp2_lookup_claim,
+                    interaction_elements.lookup_elements.exp2.clone(),
+                ),
+                interaction_claim.exp2_lookup.as_ref().unwrap().claimed_sum,
+            ))
+        } else {
+            None
+        };
+
+        let less_than = if let Some(ref less_than_claim) = claim.less_than {
+            let lut_log_size = lookups
+                .range_check
+                .as_ref()
+                .map(|s| s.layout.log_size)
+                .unwrap();
+            Some(LessThanComponent::new(
+                tree_span_provider,
+                LessThanEval::new(
+                    &less_than_claim,
+                    interaction_elements.node_elements.clone(),
+                    interaction_elements.lookup_elements.range_check.clone(),
+                    lut_log_size,
+                ),
+                interaction_claim.less_than.as_ref().unwrap().claimed_sum,
+            ))
+        } else {
+            None
+        };
+
+        let range_check_lookup =
+            if let Some(ref range_check_lookup_claim) = claim.range_check_lookup {
+                let bit_length = lookups
+                    .range_check
+                    .as_ref()
+                    .map(|s| s.layout.ranges[0])
+                    .unwrap();
+                Some(RangeCheckLookupComponent::new(
+                    tree_span_provider,
+                    RangeCheckLookupEval::new(
+                        bit_length,
+                        &range_check_lookup_claim,
+                        interaction_elements.lookup_elements.range_check.clone(),
+                    ),
+                    interaction_claim
+                        .range_check_lookup
+                        .as_ref()
+                        .unwrap()
+                        .claimed_sum,
+                ))
+            } else {
+                None
+            };
+
         Self {
             add,
             mul,
@@ -373,6 +496,10 @@ impl LuminairComponents {
             max_reduce,
             sqrt,
             rem,
+            exp2,
+            exp2_lookup,
+            less_than,
+            range_check_lookup,
         }
     }
 
@@ -416,6 +543,22 @@ impl LuminairComponents {
         if let Some(ref component) = self.rem {
             components.push(component);
         }
+        if let Some(ref component) = self.exp2 {
+            components.push(component);
+        }
+
+        if let Some(ref component) = self.exp2_lookup {
+            components.push(component);
+        }
+
+        if let Some(ref component) = self.less_than {
+            components.push(component);
+        }
+
+        if let Some(ref component) = self.range_check_lookup {
+            components.push(component);
+        }
+
         components
     }
 

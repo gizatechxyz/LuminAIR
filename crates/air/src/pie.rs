@@ -2,10 +2,20 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     components::{
-        add::table::AddTraceTable, lookups::sin::table::SinLookupTraceTable,
-        max_reduce::table::MaxReduceTraceTable, mul::table::MulTraceTable,
-        recip::table::RecipTraceTable, sin::table::SinTraceTable, sqrt::table::SqrtTraceTable,
-        sum_reduce::table::SumReduceTraceTable, rem::table::RemTraceTable,
+        add::table::AddTraceTable,
+        exp2::table::Exp2TraceTable,
+        less_than::table::LessThanTraceTable,
+        lookups::{
+            exp2::table::Exp2LookupTraceTable, range_check::table::RangeCheckLookupTraceTable,
+            sin::table::SinLookupTraceTable,
+        },
+        max_reduce::table::MaxReduceTraceTable,
+        mul::table::MulTraceTable,
+        recip::table::RecipTraceTable,
+        rem::table::RemTraceTableRow,
+        sin::table::SinTraceTable,
+        sqrt::table::SqrtTraceTable,
+        sum_reduce::table::SumReduceTraceTable,
     },
     utils::AtomicMultiplicityColumn,
 };
@@ -35,6 +45,14 @@ pub enum TraceTable {
     Sqrt { table: SqrtTraceTable },
     /// Trace table for Rem operations.
     Rem { table: RemTraceTable },
+    /// Trace table for Exp2 operations.
+    Exp2 { table: Exp2TraceTable },
+    /// Trace table for Exp2 lookup operations.
+    Exp2Lookup { table: Exp2LookupTraceTable },
+    /// Trace table for LessThan operations.
+    LessThan { table: LessThanTraceTable },
+    /// Trace table for RangeCheck lookup operations.
+    RangeCheckLookup { table: RangeCheckLookupTraceTable },
 }
 
 impl TraceTable {
@@ -74,6 +92,22 @@ impl TraceTable {
     pub fn from_rem(table: RemTraceTable) -> Self {
         Self::Rem { table }
     }
+    /// Creates a `TraceTable::Exp2` variant.
+    pub fn from_exp2(table: Exp2TraceTable) -> Self {
+        Self::Exp2 { table }
+    }
+    /// Creates a `TraceTable::Exp2Lookup` variant.
+    pub fn from_exp2_lookup(table: Exp2LookupTraceTable) -> Self {
+        Self::Exp2Lookup { table }
+    }
+    /// Creates a `TraceTable::LessThan` variant.
+    pub fn from_less_than(table: LessThanTraceTable) -> Self {
+        Self::LessThan { table }
+    }
+    /// Creates a `TraceTable::RangeCheckLookup` variant.
+    pub fn from_range_check_lookup(table: RangeCheckLookupTraceTable) -> Self {
+        Self::RangeCheckLookup { table }
+    }
 }
 
 /// Primary container for the PIE generated during trace execution.
@@ -86,6 +120,13 @@ pub struct LuminairPie {
     /// A collection of trace tables, one entry for each AIR component instance used.
     pub trace_tables: Vec<TraceTable>,
     /// Metadata about the execution, such as trace dimensions and operation counts.
+    pub metadata: Metadata,
+}
+
+/// Metadata of the computational graph being proved.
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Metadata {
+    /// Metadata about the execution, such as trace dimensions and operation counts.
     pub execution_resources: ExecutionResources,
 }
 
@@ -93,6 +134,8 @@ pub struct LuminairPie {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LUTMultiplicities {
     pub sin: AtomicMultiplicityColumn,
+    pub exp2: AtomicMultiplicityColumn,
+    pub range_check: AtomicMultiplicityColumn,
 }
 
 /// Holds resource usage metadata gathered during graph execution.
@@ -126,6 +169,10 @@ pub struct OpCounter {
     pub sqrt: usize,
     /// Number of Rem operations.
     pub rem: usize,
+    /// Number of Exp2 operations.
+    pub exp2: usize,
+    /// Number of LessThan operations.
+    pub less_than: usize,
 }
 
 /// Metadata about a specific input to a graph node.
