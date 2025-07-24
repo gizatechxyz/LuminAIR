@@ -1,0 +1,95 @@
+use crate::components::{ContiguousClaim, NodeElements};
+use num_traits::One;
+use stwo_prover::constraint_framework::{
+    EvalAtRow, FrameworkComponent, FrameworkEval, RelationEntry,
+};
+
+pub type ContiguousComponent = FrameworkComponent<ContiguousEval>;
+
+pub struct ContiguousEval {
+    log_size: u32,
+    node_elements: NodeElements,
+}
+
+impl ContiguousEval {
+    pub fn new(claim: &ContiguousClaim, node_elements: NodeElements) -> Self {
+        Self {
+            log_size: claim.log_size,
+            node_elements,
+        }
+    }
+}
+
+impl FrameworkEval for ContiguousEval {
+    fn log_size(&self) -> u32 {
+        self.log_size
+    }
+
+    fn max_constraint_log_degree_bound(&self) -> u32 {
+        self.log_size + 1
+    }
+
+    fn evaluate<E: EvalAtRow>(&self, mut eval: E) -> E {
+        // IDs
+        let node_id = eval.next_trace_mask(); // ID of the node in the computational graph.
+        let input_id = eval.next_trace_mask(); // ID of the input tensor.
+        let idx = eval.next_trace_mask(); // Index in the flattened tensor.
+        let is_last_idx = eval.next_trace_mask(); // Flag if this is the last index for this operation.
+
+        // Next IDs for transition constraints
+        let next_node_id = eval.next_trace_mask();
+        let next_input_id = eval.next_trace_mask();
+        let next_idx = eval.next_trace_mask();
+
+        let val = eval.next_trace_mask(); // Value from the tensor at index.
+
+        // Multiplicities for interaction constraints
+        let input_mult = eval.next_trace_mask();
+        let out_mult = eval.next_trace_mask();
+
+        // ┌─────────────────────────────┐
+        // │   Consistency Constraints   │
+        // └─────────────────────────────┘
+
+        // The is_last_idx flag is either 0 or 1.
+        eval.add_constraint(is_last_idx.clone() * (is_last_idx.clone() - E::F::one()));
+
+        // ┌────────────────────────────┐
+        // │   Transition Constraints   │
+        // └────────────────────────────┘
+
+        // If this is not the last index for this operation, then:
+        // 1. The next row should be for the same operation on the same tensors.
+        // 2. The index should increment by 1.
+        let not_last = E::F::one() - is_last_idx;
+
+        // Same node ID
+        eval.add_constraint(not_last.clone() * (next_node_id - node_id.clone()));
+
+        // Same tensor IDs
+        eval.add_constraint(not_last.clone() * (next_input_id - input_id.clone()));
+
+        // Index increment by 1
+        eval.add_constraint(not_last * (next_idx - idx - E::F::one()));
+
+        // ┌─────────────────────────────┐
+        // │   Interaction Constraints   │
+        // └─────────────────────────────┘
+
+        eval.add_to_relation(RelationEntry::new(
+            &self.node_elements,
+            input_mult.into(),
+            &[val.clone(), input_id],
+        ));
+
+        eval.add_to_relation(RelationEntry::new(
+            &self.node_elements,
+            out_mult.into(),
+            &[val, node_id],
+        ));
+
+        eval.finalize_logup();
+
+        eval
+    }
+}

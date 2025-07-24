@@ -9,6 +9,7 @@ use itertools::Itertools;
 use luminair_air::{
     components::{
         add::table::{AddColumn, AddTraceTable},
+        contiguous::table::{ContiguousColumn, ContiguousTraceTable},
         exp2::table::{Exp2Column, Exp2TraceTable},
         inputs::table::{InputsColumn, InputsTraceTable},
         less_than::table::{LessThanColumn, LessThanTraceTable},
@@ -185,6 +186,7 @@ impl LuminairGraph for Graph {
         let mut less_than_table = LessThanTraceTable::new();
         let mut range_check_lookup_table = RangeCheckLookupTraceTable::new();
         let mut inputs_table = InputsTraceTable::new();
+        let mut contiguous_table = ContiguousTraceTable::new();
 
         for (node, src_ids) in self.linearized_graph.as_ref().unwrap() {
             if self.tensors.contains_key(&(*node, 0)) {
@@ -420,6 +422,26 @@ impl LuminairGraph for Graph {
                         node_op, srcs, &mut inputs_table, &node_info, &mut ()
                     ).unwrap()
                     }
+                    _ if <Box<dyn Operator> as HasProcessTrace<
+                        ContiguousColumn,
+                        ContiguousTraceTable,
+                        (),
+                    >>::has_process_trace(node_op) =>
+                    {
+                        op_counter.contiguous += 1;
+                        <Box<dyn Operator> as HasProcessTrace<
+                            ContiguousColumn,
+                            ContiguousTraceTable,
+                            (),
+                        >>::call_process_trace(
+                            node_op,
+                            srcs,
+                            &mut contiguous_table,
+                            &node_info,
+                            &mut (),
+                        )
+                        .unwrap()
+                    }
 
                     _ => node_op.process(srcs),
                 };
@@ -510,6 +532,11 @@ impl LuminairGraph for Graph {
             let log_size = calculate_log_size(inputs_table.table.len());
             max_log_size = max_log_size.max(log_size);
             trace_tables.push(TraceTable::from_inputs(inputs_table));
+        }
+        if !contiguous_table.table.is_empty() {
+            let log_size = calculate_log_size(contiguous_table.table.len());
+            max_log_size = max_log_size.max(log_size);
+            trace_tables.push(TraceTable::from_contiguous(contiguous_table));
         }
 
         Ok(LuminairPie {

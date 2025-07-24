@@ -1,6 +1,7 @@
 use luminair_air::{
     components::{
         add::table::{AddColumn, AddTraceTable, AddTraceTableRow},
+        contiguous::table::{ContiguousColumn, ContiguousTraceTable, ContiguousTraceTableRow},
         exp2::table::{Exp2Column, Exp2TraceTable, Exp2TraceTableRow},
         inputs::table::{InputsColumn, InputsTraceTable, InputsTraceTableRow},
         less_than::table::{LessThanColumn, LessThanTraceTable, LessThanTraceTableRow},
@@ -213,6 +214,55 @@ impl core::fmt::Debug for LuminairContiguous {
 impl LuminairContiguous {
     pub fn new() -> Self {
         Self {}
+    }
+}
+
+impl LuminairOperator<ContiguousColumn, ContiguousTraceTable, ()> for LuminairContiguous {
+    fn process_trace(
+        &mut self,
+        inp: Vec<(InputTensor, ShapeTracker)>,
+        table: &mut ContiguousTraceTable,
+        node_info: &NodeInfo,
+        _lookup: &mut (),
+    ) -> Vec<Tensor> {
+        // Copy data over to new tensor
+        let inp_data = get_buffer_from_tensor(&inp[0].0).unwrap();
+        let expr = (inp[0].1.index_expression(), inp[0].1.valid_expression());
+
+        let node_id: BaseField = node_info.id.into();
+        let input_id: BaseField = node_info.inputs[0].id.into();
+        let output_size = inp[0].1.n_elements().to_usize().unwrap();
+
+        let out_mult = if node_info.output.is_final_output {
+            BaseField::zero()
+        } else {
+            BaseField::one() * BaseField::from_u32_unchecked(node_info.num_consumers)
+        };
+
+        let mut stack: Vec<i64> = vec![];
+        let mut out_data =
+            vec![Fixed::<DEFAULT_FP_SCALE>::zero(); inp[0].1.n_elements().to_usize().unwrap()];
+
+        for (i, out) in out_data.iter_mut().enumerate() {
+            let is_last_idx: u32 = if i == (output_size - 1) { 1 } else { 0 };
+
+            table.add_row(ContiguousTraceTableRow {
+                node_id,
+                input_id,
+                idx: i.into(),
+                is_last_idx: is_last_idx.into(),
+                next_node_id: node_id,
+                next_input_id: input_id,
+                next_idx: (i + 1).into(),
+                val: out.to_m31(),
+                input_mult: -BaseField::one(),
+                out_mult,
+            });
+
+            *out = get_index(inp_data, &expr, &mut stack, i);
+        }
+
+        vec![Tensor::new(StwoData(Arc::new(out_data)))]
     }
 }
 
@@ -1571,7 +1621,7 @@ impl Compiler for PrimitiveCompiler {
             } else if is::<luminal::op::LessThan>(op) {
                 *op_ref = LuminairLessThan::new().into_operator()
             } else if is::<luminal::op::Contiguous>(op) {
-                *op_ref = Box::new(LuminairContiguous::new());
+                *op_ref = LuminairContiguous::new().into_operator()
             }
         }
     }
