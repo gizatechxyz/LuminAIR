@@ -41,7 +41,8 @@ impl FrameworkEval for ContiguousEval {
         let next_input_id = eval.next_trace_mask();
         let next_idx = eval.next_trace_mask();
 
-        let val = eval.next_trace_mask(); // Value from the tensor at index.
+        let input = eval.next_trace_mask();
+        let out = eval.next_trace_mask();
 
         // Multiplicities for interaction constraints
         let input_mult = eval.next_trace_mask();
@@ -79,13 +80,13 @@ impl FrameworkEval for ContiguousEval {
         eval.add_to_relation(RelationEntry::new(
             &self.node_elements,
             input_mult.into(),
-            &[val.clone(), input_id],
+            &[input.clone(), input_id],
         ));
 
         eval.add_to_relation(RelationEntry::new(
             &self.node_elements,
             out_mult.into(),
-            &[val, node_id],
+            &[out, node_id],
         ));
 
         eval.finalize_logup();

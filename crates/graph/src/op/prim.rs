@@ -254,7 +254,8 @@ impl LuminairOperator<ContiguousColumn, ContiguousTraceTable, ()> for LuminairCo
                 next_node_id: node_id,
                 next_input_id: input_id,
                 next_idx: (i + 1).into(),
-                val: out.to_m31(),
+                input: out.to_m31(),
+                out: out.to_m31(),
                 input_mult: -BaseField::one(),
                 out_mult,
             });

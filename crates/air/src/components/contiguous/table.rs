@@ -26,7 +26,8 @@ pub struct ContiguousTraceTableRow {
     pub next_node_id: M31,
     pub next_input_id: M31,
     pub next_idx: M31,
-    pub val: M31,
+    pub input: M31,
+    pub out: M31,
     pub input_mult: M31,
     pub out_mult: M31,
 }
@@ -41,7 +42,8 @@ impl ContiguousTraceTableRow {
             next_node_id: M31::zero(),
             next_input_id: M31::zero(),
             next_idx: M31::zero(),
-            val: M31::zero(),
+            input: M31::zero(),
+            out: M31::zero(),
             input_mult: M31::zero(),
             out_mult: M31::zero(),
         }
@@ -57,7 +59,8 @@ pub struct PackedContiguousTraceTableRow {
     pub next_node_id: PackedM31,
     pub next_input_id: PackedM31,
     pub next_idx: PackedM31,
-    pub val: PackedM31,
+    pub input: PackedM31,
+    pub out: PackedM31,
     pub input_mult: PackedM31,
     pub out_mult: PackedM31,
 }
@@ -74,7 +77,8 @@ impl Pack for ContiguousTraceTableRow {
             next_node_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].next_node_id)),
             next_input_id: PackedM31::from_array(std::array::from_fn(|i| inputs[i].next_input_id)),
             next_idx: PackedM31::from_array(std::array::from_fn(|i| inputs[i].next_idx)),
-            val: PackedM31::from_array(std::array::from_fn(|i: usize| inputs[i].val)),
+            input: PackedM31::from_array(std::array::from_fn(|i: usize| inputs[i].input)),
+            out: PackedM31::from_array(std::array::from_fn(|i: usize| inputs[i].out)),
             input_mult: PackedM31::from_array(std::array::from_fn(|i| inputs[i].input_mult)),
             out_mult: PackedM31::from_array(std::array::from_fn(|i| inputs[i].out_mult)),
         }
@@ -93,7 +97,8 @@ impl Unpack for PackedContiguousTraceTableRow {
             next_node_id,
             next_input_id,
             next_idx,
-            val,
+            input,
+            out,
             input_mult,
             out_mult,
         ) = (
@@ -104,7 +109,8 @@ impl Unpack for PackedContiguousTraceTableRow {
             self.next_node_id.to_array(),
             self.next_input_id.to_array(),
             self.next_idx.to_array(),
-            self.val.to_array(),
+            self.input.to_array(),
+            self.out.to_array(),
             self.input_mult.to_array(),
             self.out_mult.to_array(),
         );
@@ -117,7 +123,8 @@ impl Unpack for PackedContiguousTraceTableRow {
             next_node_id: next_node_id[i],
             next_input_id: next_input_id[i],
             next_idx: next_idx[i],
-            val: val[i],
+            input: input[i],
+            out: out[i],
             input_mult: input_mult[i],
             out_mult: out_mult[i],
         })
@@ -143,7 +150,8 @@ pub enum ContiguousColumn {
     NextNodeId,
     NextInputId,
     NextIdx,
-    Val,
+    Input,
+    Out,
     InputMult,
     OutMult,
 }
@@ -159,9 +167,10 @@ impl ContiguousColumn {
             Self::NextNodeId => 4,
             Self::NextInputId => 5,
             Self::NextIdx => 6,
-            Self::Val => 7,
-            Self::InputMult => 8,
-            Self::OutMult => 9,
+            Self::Input => 7,
+            Self::Out => 8,
+            Self::InputMult => 9,
+            Self::OutMult => 10,
         }
     }
 }

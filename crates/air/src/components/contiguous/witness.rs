@@ -20,7 +20,7 @@ use super::table::{
     ContiguousColumn, ContiguousTraceTable, ContiguousTraceTableRow, PackedContiguousTraceTableRow,
 };
 
-pub(crate) const N_TRACE_COLUMNS: usize = 10;
+pub(crate) const N_TRACE_COLUMNS: usize = 11;
 
 pub struct ClaimGenerator {
     pub inputs: ContiguousTraceTable,
@@ -90,13 +90,14 @@ fn write_trace_simd(
             *row[ContiguousColumn::NextNodeId.index()] = input.next_node_id;
             *row[ContiguousColumn::NextInputId.index()] = input.next_input_id;
             *row[ContiguousColumn::NextIdx.index()] = input.next_idx;
-            *row[ContiguousColumn::Val.index()] = input.val;
+            *row[ContiguousColumn::Input.index()] = input.input;
+            *row[ContiguousColumn::Out.index()] = input.out;
             *row[ContiguousColumn::InputMult.index()] = input.input_mult;
             *row[ContiguousColumn::OutMult.index()] = input.out_mult;
 
-            *lookup_data.input = [input.val, input.input_id];
+            *lookup_data.input = [input.input, input.input_id];
             *lookup_data.input_mult = input.input_mult;
-            *lookup_data.out = [input.val, input.node_id];
+            *lookup_data.out = [input.out, input.node_id];
             *lookup_data.out_mult = input.out_mult;
         });
 
