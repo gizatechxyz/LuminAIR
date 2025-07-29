@@ -53,6 +53,10 @@ use sum_reduce::{
 
 use crate::{
     components::{
+        contiguous::{
+            component::{ContiguousComponent, ContiguousEval},
+            table::ContiguousColumn,
+        },
         exp2::{
             component::{Exp2Component, Exp2Eval},
             table::Exp2Column,
@@ -81,6 +85,7 @@ use crate::{
 };
 
 pub mod add;
+pub mod contiguous;
 pub mod exp2;
 pub mod inputs;
 pub mod less_than;
@@ -122,6 +127,8 @@ pub type LessThanClaim = Claim<LessThanColumn>;
 pub type RangeCheckLookupClaim = Claim<RangeCheckLookupColumn>;
 /// Type alias for the claim associated with the Inputs component's trace.
 pub type InputsClaim = Claim<InputsColumn>;
+/// Type alias for the claim associated with the Contiguous component's trace.
+pub type ContiguousClaim = Claim<ContiguousColumn>;
 
 /// Trait implemented by trace column definitions (e.g., `AddColumn`).
 /// Provides metadata about the number of columns used by the component.
@@ -200,6 +207,8 @@ pub enum ClaimType {
     RangeCheckLookup(Claim<RangeCheckLookupColumn>),
     /// Claim for a Inputs component trace.
     Inputs(Claim<InputsColumn>),
+    /// Claim for a Contiguous component trace.
+    Contiguous(Claim<ContiguousColumn>),
 }
 
 /// Represents the claim resulting from the interaction phase (e.g., LogUp protocol).
@@ -281,6 +290,8 @@ pub struct LuminairComponents {
     range_check_lookup: Option<RangeCheckLookupComponent>,
     /// Optional Inputs component instance.
     inputs: Option<InputsComponent>,
+    /// Optional Contiguous component instance.
+    contiguous: Option<ContiguousComponent>,
 }
 
 impl LuminairComponents {
@@ -484,6 +495,19 @@ impl LuminairComponents {
             None
         };
 
+        let contiguous = if let Some(ref contiguous_claim) = claim.contiguous {
+            Some(ContiguousComponent::new(
+                tree_span_provider,
+                ContiguousEval::new(
+                    &contiguous_claim,
+                    interaction_elements.node_elements.clone(),
+                ),
+                interaction_claim.contiguous.as_ref().unwrap().claimed_sum,
+            ))
+        } else {
+            None
+        };
+
         Self {
             add,
             mul,
@@ -498,6 +522,7 @@ impl LuminairComponents {
             less_than,
             range_check_lookup,
             inputs,
+            contiguous,
         }
     }
 
@@ -555,6 +580,10 @@ impl LuminairComponents {
         }
 
         if let Some(ref component) = self.inputs {
+            components.push(component);
+        }
+
+        if let Some(ref component) = self.contiguous {
             components.push(component);
         }
 

@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     components::{
         add::table::AddTraceTable,
+        contiguous::table::ContiguousTraceTable,
         exp2::table::Exp2TraceTable,
         inputs::table::InputsTraceTable,
         less_than::table::LessThanTraceTable,
@@ -53,6 +54,8 @@ pub enum TraceTable {
     RangeCheckLookup { table: RangeCheckLookupTraceTable },
     /// Trace table for Inputs operations.
     Inputs { table: InputsTraceTable },
+    /// Trace table for Contiguous operations.
+    Contiguous { table: ContiguousTraceTable },
 }
 
 impl TraceTable {
@@ -107,6 +110,10 @@ impl TraceTable {
     /// Creates a `TraceTable::Inputs` variant.
     pub fn from_inputs(table: InputsTraceTable) -> Self {
         Self::Inputs { table }
+    }
+    /// Creates a `TraceTable::Contiguous` variant.
+    pub fn from_contiguous(table: ContiguousTraceTable) -> Self {
+        Self::Contiguous { table }
     }
 }
 
@@ -173,6 +180,8 @@ pub struct OpCounter {
     pub less_than: usize,
     /// Number of Inputs operations.
     pub inputs: usize,
+    /// Number of Contiguous operations.
+    pub contiguous: usize,
 }
 
 /// Metadata about a specific input to a graph node.

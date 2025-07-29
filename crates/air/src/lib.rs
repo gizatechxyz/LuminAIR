@@ -8,8 +8,8 @@ use components::{
 use stwo_prover::core::{channel::Channel, pcs::TreeVec};
 
 use crate::components::{
-    inputs, less_than, Exp2Claim, Exp2LookupClaim, InputsClaim, LessThanClaim,
-    RangeCheckLookupClaim,
+    contiguous, inputs, less_than, ContiguousClaim, Exp2Claim, Exp2LookupClaim, InputsClaim,
+    LessThanClaim, RangeCheckLookupClaim,
 };
 
 pub mod components;
@@ -57,6 +57,8 @@ pub struct LuminairClaim {
     pub range_check_lookup: Option<RangeCheckLookupClaim>,
     /// Claim for the Inputs component's trace.
     pub inputs: Option<InputsClaim>,
+    /// Claim for the Contiguous component's trace.
+    pub contiguous: Option<ContiguousClaim>,
 }
 
 impl LuminairClaim {
@@ -101,6 +103,9 @@ impl LuminairClaim {
             claim.mix_into(channel);
         }
         if let Some(ref claim) = self.inputs {
+            claim.mix_into(channel);
+        }
+        if let Some(ref claim) = self.contiguous {
             claim.mix_into(channel);
         }
     }
@@ -150,6 +155,9 @@ impl LuminairClaim {
         if let Some(ref claim) = self.inputs {
             log_sizes.push(claim.log_sizes());
         }
+        if let Some(ref claim) = self.contiguous {
+            log_sizes.push(claim.log_sizes());
+        }
         TreeVec::concat_cols(log_sizes.into_iter())
     }
 }
@@ -187,6 +195,8 @@ pub struct LuminairInteractionClaimGenerator {
     pub range_check_lookup: Option<lookups::range_check::witness::InteractionClaimGenerator<1>>,
     /// Generator for the Inputs component's interaction claim.
     pub inputs: Option<inputs::witness::InteractionClaimGenerator>,
+    /// Generator for the Contiguous component's interaction claim.
+    pub contiguous: Option<contiguous::witness::InteractionClaimGenerator>,
 }
 
 /// Container for claims related to the interaction trace of LuminAIR components.
@@ -223,6 +233,8 @@ pub struct LuminairInteractionClaim {
     pub range_check_lookup: Option<InteractionClaim>,
     /// Interaction claim for the Inputs component.
     pub inputs: Option<InteractionClaim>,
+    /// Interaction claim for the Contiguous component.
+    pub contiguous: Option<InteractionClaim>,
 }
 
 impl LuminairInteractionClaim {
@@ -266,6 +278,9 @@ impl LuminairInteractionClaim {
             claim.mix_into(channel);
         }
         if let Some(ref claim) = self.inputs {
+            claim.mix_into(channel);
+        }
+        if let Some(ref claim) = self.contiguous {
             claim.mix_into(channel);
         }
     }

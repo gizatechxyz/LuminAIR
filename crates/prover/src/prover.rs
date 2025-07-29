@@ -1,7 +1,7 @@
 use luminair_air::{
     components::{
-        add, exp2, inputs, less_than, lookups, max_reduce, mul, recip, sin, sqrt, sum_reduce,
-        LuminairComponents, LuminairInteractionElements,
+        add, contiguous, exp2, inputs, less_than, lookups, max_reduce, mul, recip, sin, sqrt,
+        sum_reduce, LuminairComponents, LuminairInteractionElements,
     },
     pie::{LuminairPie, TraceTable},
     preprocessed::{
@@ -155,6 +155,12 @@ pub fn prove(
                 main_claim.inputs = Some(cl.clone());
                 interaction_claim_gen.inputs = Some(in_cl_gen);
             }
+            TraceTable::Contiguous { table } => {
+                let claim_gen = contiguous::witness::ClaimGenerator::new(table);
+                let (cl, in_cl_gen) = claim_gen.write_trace(&mut tree_builder)?;
+                main_claim.contiguous = Some(cl.clone());
+                interaction_claim_gen.contiguous = Some(in_cl_gen);
+            }
         }
     }
     // Mix the claim into the Fiat-Shamir channel.
@@ -250,6 +256,10 @@ pub fn prove(
     if let Some(claim_gen) = interaction_claim_gen.inputs {
         let claim = claim_gen.write_interaction_trace(&mut tree_builder, node_elements);
         interaction_claim.inputs = Some(claim)
+    }
+    if let Some(claim_gen) = interaction_claim_gen.contiguous {
+        let claim = claim_gen.write_interaction_trace(&mut tree_builder, node_elements);
+        interaction_claim.contiguous = Some(claim)
     }
 
     // Mix the interaction claim into the Fiat-Shamir channel.
