@@ -2,6 +2,7 @@ use luminair_air::{
     components::{
         add::table::{AddColumn, AddTraceTable, AddTraceTableRow},
         exp2::table::{Exp2Column, Exp2TraceTable, Exp2TraceTableRow},
+        inputs::table::{InputsColumn, InputsTraceTable, InputsTraceTableRow},
         less_than::table::{LessThanColumn, LessThanTraceTable, LessThanTraceTableRow},
         lookups::{exp2::Exp2Lookup, range_check::RangeCheckLookup, sin::SinLookup},
         max_reduce::table::{MaxReduceColumn, MaxReduceTraceTable, MaxReduceTraceTableRow},
@@ -40,6 +41,44 @@ impl CopyToStwo {
     /// Creates a new `CopyToStwo` operator instance.
     pub fn new() -> Self {
         Self {}
+    }
+}
+
+impl LuminairOperator<InputsColumn, InputsTraceTable, ()> for CopyToStwo {
+    fn process_trace(
+        &mut self,
+        inp: Vec<(InputTensor, ShapeTracker)>,
+        table: &mut InputsTraceTable,
+        node_info: &NodeInfo,
+        _lookup: &mut (),
+    ) -> Vec<Tensor> {
+        // Convert Vec<f32> to StwoData
+        let data = StwoData::from_f32(inp[0].0.borrowed().downcast_ref::<Vec<f32>>().unwrap());
+
+        let node_id: BaseField = node_info.id.into();
+        let output_size = inp[0].1.n_elements().to_usize().unwrap();
+
+        let multiplicity = if node_info.output.is_final_output {
+            BaseField::zero()
+        } else {
+            BaseField::one() * BaseField::from_u32_unchecked(node_info.num_consumers)
+        };
+
+        for (idx, val) in data.0.to_vec().into_iter().enumerate() {
+            let is_last_idx: u32 = if idx == (output_size - 1) { 1 } else { 0 };
+
+            table.add_row(InputsTraceTableRow {
+                node_id,
+                idx: idx.into(),
+                is_last_idx: is_last_idx.into(),
+                next_node_id: node_id,
+                next_idx: (idx + 1).into(),
+                val: val.to_m31(),
+                multiplicity,
+            });
+        }
+
+        vec![Tensor::new(data)]
     }
 }
 
@@ -100,6 +139,48 @@ impl LuminairConstant {
     /// Creates a new `LuminairConstant` operator holding the specified value.
     pub fn new(value: ConstantValue) -> Self {
         Self { value }
+    }
+}
+
+impl LuminairOperator<InputsColumn, InputsTraceTable, ()> for LuminairConstant {
+    fn process_trace(
+        &mut self,
+        _inp: Vec<(InputTensor, ShapeTracker)>,
+        table: &mut InputsTraceTable,
+        node_info: &NodeInfo,
+        _lookup: &mut (),
+    ) -> Vec<Tensor> {
+        // Create a new tensor with the constant value
+        let value = match &self.value {
+            ConstantValue::Float(f) => *f,
+            ConstantValue::Expression(_expr) => {
+                panic!("Dynamic expressions not yet supported")
+            }
+        };
+
+        // Create and return a single element with the constant value
+        let mut data = Vec::with_capacity(1);
+        data.push(Fixed::<DEFAULT_FP_SCALE>::from_f64(value as f64));
+
+        let node_id: BaseField = node_info.id.into();
+
+        let multiplicity = if node_info.output.is_final_output {
+            BaseField::zero()
+        } else {
+            BaseField::one() * BaseField::from_u32_unchecked(node_info.num_consumers)
+        };
+
+        table.add_row(InputsTraceTableRow {
+            node_id,
+            idx: M31::zero(),
+            is_last_idx: M31::one(),
+            next_node_id: node_id,
+            next_idx: M31::zero(),
+            val: data[0].to_m31(),
+            multiplicity,
+        });
+
+        vec![Tensor::new(StwoData(Arc::new(data)))]
     }
 }
 
@@ -230,11 +311,6 @@ impl LuminairOperator<RecipColumn, RecipTraceTable, ()> for LuminairRecip {
         let input_id: BaseField = node_info.inputs[0].id.into();
         let output_size = inp[0].1.n_elements().to_usize().unwrap();
 
-        let input_mult = if node_info.inputs[0].is_initializer {
-            BaseField::zero()
-        } else {
-            -BaseField::one()
-        };
         let out_mult = if node_info.output.is_final_output {
             BaseField::zero()
         } else {
@@ -256,7 +332,7 @@ impl LuminairOperator<RecipColumn, RecipTraceTable, ()> for LuminairRecip {
                 out: out_val.to_m31(),
                 rem: rem_val.to_m31(),
                 scale: M31::from_u32_unchecked(1 << DEFAULT_FP_SCALE),
-                input_mult,
+                input_mult: -BaseField::one(),
                 out_mult,
             });
         }
@@ -346,11 +422,6 @@ impl LuminairOperator<SinColumn, SinTraceTable, SinLookup> for LuminairSin {
         let input_id: BaseField = node_info.inputs[0].id.into();
         let output_size = inp[0].1.n_elements().to_usize().unwrap();
 
-        let input_mult = if node_info.inputs[0].is_initializer {
-            BaseField::zero()
-        } else {
-            -BaseField::one()
-        };
         let out_mult = if node_info.output.is_final_output {
             BaseField::zero()
         } else {
@@ -370,7 +441,7 @@ impl LuminairOperator<SinColumn, SinTraceTable, SinLookup> for LuminairSin {
                 next_input_id: input_id,
                 input: input_val.to_m31(),
                 out: out_val.to_m31(),
-                input_mult,
+                input_mult: -BaseField::one(),
                 out_mult,
                 lookup_mult: M31::one(),
             });
@@ -473,11 +544,6 @@ impl LuminairOperator<SqrtColumn, SqrtTraceTable, ()> for LuminairSqrt {
         let input_id: BaseField = node_info.inputs[0].id.into();
         let output_size = inp[0].1.n_elements().to_usize().unwrap();
 
-        let input_mult = if node_info.inputs[0].is_initializer {
-            BaseField::zero()
-        } else {
-            -BaseField::one()
-        };
         let out_mult = if node_info.output.is_final_output {
             BaseField::zero()
         } else {
@@ -499,7 +565,7 @@ impl LuminairOperator<SqrtColumn, SqrtTraceTable, ()> for LuminairSqrt {
                 out: out_val.to_m31(),
                 rem: rem_val.to_m31(),
                 scale: M31::from_u32_unchecked(1 << DEFAULT_FP_SCALE),
-                input_mult,
+                input_mult: -BaseField::one(),
                 out_mult,
             });
         }
@@ -589,11 +655,6 @@ impl LuminairOperator<Exp2Column, Exp2TraceTable, Exp2Lookup> for LuminairExp2 {
         let input_id: BaseField = node_info.inputs[0].id.into();
         let output_size = inp[0].1.n_elements().to_usize().unwrap();
 
-        let input_mult = if node_info.inputs[0].is_initializer {
-            BaseField::zero()
-        } else {
-            -BaseField::one()
-        };
         let out_mult = if node_info.output.is_final_output {
             BaseField::zero()
         } else {
@@ -613,7 +674,7 @@ impl LuminairOperator<Exp2Column, Exp2TraceTable, Exp2Lookup> for LuminairExp2 {
                 next_input_id: input_id,
                 input: input_val.to_m31(),
                 out: out_val.to_m31(),
-                input_mult,
+                input_mult: -BaseField::one(),
                 out_mult,
                 lookup_mult: M31::one(),
             });
@@ -723,16 +784,6 @@ impl LuminairOperator<AddColumn, AddTraceTable, ()> for LuminairAdd {
         let lhs_id: BaseField = node_info.inputs[0].id.into();
         let rhs_id: BaseField = node_info.inputs[1].id.into();
 
-        let lhs_mult = if node_info.inputs[0].is_initializer {
-            BaseField::zero()
-        } else {
-            -BaseField::one()
-        };
-        let rhs_mult = if node_info.inputs[1].is_initializer {
-            BaseField::zero()
-        } else {
-            -BaseField::one()
-        };
         let out_mult = if node_info.output.is_final_output {
             BaseField::zero()
         } else {
@@ -755,8 +806,8 @@ impl LuminairOperator<AddColumn, AddTraceTable, ()> for LuminairAdd {
                 lhs: lhs_val.to_m31(),
                 rhs: rhs_val.to_m31(),
                 out: out_val.to_m31(),
-                lhs_mult,
-                rhs_mult,
+                lhs_mult: -BaseField::one(),
+                rhs_mult: -BaseField::one(),
                 out_mult,
             })
         }
@@ -857,16 +908,6 @@ impl LuminairOperator<MulColumn, MulTraceTable, ()> for LuminairMul {
         let lhs_id: BaseField = node_info.inputs[0].id.into();
         let rhs_id: BaseField = node_info.inputs[1].id.into();
 
-        let lhs_mult = if node_info.inputs[0].is_initializer {
-            BaseField::zero()
-        } else {
-            -BaseField::one()
-        };
-        let rhs_mult = if node_info.inputs[1].is_initializer {
-            BaseField::zero()
-        } else {
-            -BaseField::one()
-        };
         let out_mult = if node_info.output.is_final_output {
             BaseField::zero()
         } else {
@@ -892,8 +933,8 @@ impl LuminairOperator<MulColumn, MulTraceTable, ()> for LuminairMul {
                 rhs: rhs_val.to_m31(),
                 out: out_val.to_m31(),
                 rem: rem_val.to_m31(),
-                lhs_mult,
-                rhs_mult,
+                lhs_mult: -BaseField::one(),
+                rhs_mult: -BaseField::one(),
                 out_mult,
             })
         }
@@ -1002,16 +1043,6 @@ impl LuminairOperator<LessThanColumn, LessThanTraceTable, RangeCheckLookup<1>>
         let lhs_id: BaseField = node_info.inputs[0].id.into();
         let rhs_id: BaseField = node_info.inputs[1].id.into();
 
-        let lhs_mult = if node_info.inputs[0].is_initializer {
-            BaseField::zero()
-        } else {
-            -BaseField::one()
-        };
-        let rhs_mult = if node_info.inputs[1].is_initializer {
-            BaseField::zero()
-        } else {
-            -BaseField::one()
-        };
         let out_mult = if node_info.output.is_final_output {
             BaseField::zero()
         } else {
@@ -1049,8 +1080,8 @@ impl LuminairOperator<LessThanColumn, LessThanTraceTable, RangeCheckLookup<1>>
                 limb1: M31::from_u32_unchecked(limb1),
                 limb2: M31::from_u32_unchecked(limb2),
                 limb3: M31::from_u32_unchecked(limb3),
-                lhs_mult,
-                rhs_mult,
+                lhs_mult: -BaseField::one(),
+                rhs_mult: -BaseField::one(),
                 out_mult,
                 range_check_mult: M31::one(),
             });
@@ -1177,11 +1208,6 @@ impl LuminairOperator<SumReduceColumn, SumReduceTraceTable, ()> for LuminairSumR
         let input_id: BaseField = node_info.inputs[0].id.into();
         let output_size = out_data.len();
 
-        let input_mult = if node_info.inputs[0].is_initializer {
-            BaseField::zero()
-        } else {
-            -BaseField::one()
-        };
         let out_mult = if node_info.output.is_final_output {
             BaseField::zero()
         } else {
@@ -1208,7 +1234,7 @@ impl LuminairOperator<SumReduceColumn, SumReduceTraceTable, ()> for LuminairSumR
                 acc: acc.to_m31(),
                 next_acc: next_acc.to_m31(),
                 is_last_step,
-                input_mult,
+                input_mult: -BaseField::one(),
                 out_mult,
             });
         }
@@ -1352,12 +1378,6 @@ impl LuminairOperator<MaxReduceColumn, MaxReduceTraceTable, ()> for LuminairMaxR
         let input_id: BaseField = node_info.inputs[0].id.into();
         let output_size = out_data.len();
 
-        let input_mult = if node_info.inputs[0].is_initializer {
-            BaseField::zero()
-        } else {
-            -BaseField::one()
-        };
-
         let out_mult = if node_info.output.is_final_output {
             BaseField::zero()
         } else {
@@ -1385,7 +1405,7 @@ impl LuminairOperator<MaxReduceColumn, MaxReduceTraceTable, ()> for LuminairMaxR
                 next_max_val: next_max_val.to_m31(),
                 is_max,
                 is_last_step: is_last_step_flag,
-                input_mult,
+                input_mult: -BaseField::one(),
                 out_mult,
             });
         }
@@ -1511,7 +1531,15 @@ impl Compiler for PrimitiveCompiler {
             let op_ref = graph.graph.node_weight_mut(id).unwrap();
 
             if let Some(c) = op_ref.as_any().downcast_ref::<luminal::op::Constant>() {
-                *op_ref = Box::new(LuminairConstant::new(c.0.clone()));
+                *op_ref =
+                    <LuminairConstant as IntoOperator<InputsColumn, InputsTraceTable, ()>>::into_operator(
+                        LuminairConstant::new(c.0.clone()),
+                    );
+            } else if op_ref.as_any().is::<CopyToStwo>() {
+                *op_ref =
+                    <CopyToStwo as IntoOperator<InputsColumn, InputsTraceTable, ()>>::into_operator(
+                        CopyToStwo::new(),
+                    );
             } else if is::<luminal::op::Add>(op) {
                 *op_ref = LuminairAdd::new().into_operator()
             } else if is::<luminal::op::Mul>(op) {
