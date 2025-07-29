@@ -1,3 +1,4 @@
+use itertools::{EitherOrBoth, Itertools};
 use luminair_air::{
     components::{
         add::table::{AddColumn, AddTraceTable, AddTraceTableRow},
@@ -225,7 +226,6 @@ impl LuminairOperator<ContiguousColumn, ContiguousTraceTable, ()> for LuminairCo
         node_info: &NodeInfo,
         _lookup: &mut (),
     ) -> Vec<Tensor> {
-        // Copy data over to new tensor
         let inp_data = get_buffer_from_tensor(&inp[0].0).unwrap();
         let expr = (inp[0].1.index_expression(), inp[0].1.valid_expression());
 
@@ -239,28 +239,53 @@ impl LuminairOperator<ContiguousColumn, ContiguousTraceTable, ()> for LuminairCo
             BaseField::one() * BaseField::from_u32_unchecked(node_info.num_consumers)
         };
 
-        let mut stack: Vec<i64> = vec![];
-        let mut out_data =
-            vec![Fixed::<DEFAULT_FP_SCALE>::zero(); inp[0].1.n_elements().to_usize().unwrap()];
+        let mut stack: Vec<i64> = Vec::new();
+        let mut out_data = vec![Fixed::<DEFAULT_FP_SCALE>::zero(); output_size];
 
-        for (i, out) in out_data.iter_mut().enumerate() {
-            let is_last_idx: u32 = if i == (output_size - 1) { 1 } else { 0 };
+        // zip_longest will run until *both* iterators are exhausted:
+        //  - for idx < output_size → Both or Right
+        //  - for idx >= output_size && idx < input_size → Left
+        let mut idx = 0usize;
+        for pair in inp_data.0.iter().cloned().zip_longest(out_data.iter_mut()) {
+            // compute and assign (or use a temp) depending on which side is present
+            let (input_val, output_val) = match pair {
+                EitherOrBoth::Both(input_val, output_ref) => {
+                    let computed = get_index(&inp_data, &expr, &mut stack, idx);
+                    *output_ref = computed;
+                    (input_val, *output_ref)
+                }
+                EitherOrBoth::Left(input_val) => {
+                    // no output slot here—use a temp zero-initialized placeholder
+                    let computed = get_index(&inp_data, &expr, &mut stack, idx);
+                    let temp_out = computed;
+                    (input_val, temp_out)
+                }
+                EitherOrBoth::Right(output_ref) => {
+                    // no input left → input is zero
+                    let input_val = Fixed::<DEFAULT_FP_SCALE>::zero();
+                    let computed = get_index(&inp_data, &expr, &mut stack, idx);
+                    *output_ref = computed;
+                    (input_val, *output_ref)
+                }
+            };
+
+            let is_last_idx: u32 = if idx == inp_data.0.len() - 1 { 1 } else { 0 };
 
             table.add_row(ContiguousTraceTableRow {
                 node_id,
                 input_id,
-                idx: i.into(),
+                idx: idx.into(),
                 is_last_idx: is_last_idx.into(),
                 next_node_id: node_id,
                 next_input_id: input_id,
-                next_idx: (i + 1).into(),
-                input: out.to_m31(),
-                out: out.to_m31(),
+                next_idx: (idx + 1).into(),
+                input: input_val.to_m31(),
+                out: output_val.to_m31(),
                 input_mult: -BaseField::one(),
                 out_mult,
             });
 
-            *out = get_index(inp_data, &expr, &mut stack, i);
+            idx += 1;
         }
 
         vec![Tensor::new(StwoData(Arc::new(out_data)))]
@@ -269,17 +294,23 @@ impl LuminairOperator<ContiguousColumn, ContiguousTraceTable, ()> for LuminairCo
 
 impl Operator for LuminairContiguous {
     fn process(&mut self, inp: Vec<(InputTensor, ShapeTracker)>) -> Vec<Tensor> {
-        // Copy data over to new tensor
+        // Get input data and shape expressions
         let inp_data = get_buffer_from_tensor(&inp[0].0).unwrap();
         let expr = (inp[0].1.index_expression(), inp[0].1.valid_expression());
 
         let mut stack: Vec<i64> = vec![];
-        let mut out_data =
-            vec![Fixed::<DEFAULT_FP_SCALE>::zero(); inp[0].1.n_elements().to_usize().unwrap()];
+        let output_size = inp[0].1.n_elements().to_usize().unwrap();
+        let mut out_data = vec![Fixed::<DEFAULT_FP_SCALE>::zero(); output_size];
 
-        for (i, out) in out_data.iter_mut().enumerate() {
-            *out = get_index(inp_data, &expr, &mut stack, i);
+        // Process each output element
+        for (output_idx, out) in out_data.iter_mut().enumerate() {
+            // Get the input value at the corresponding index
+            let input_val = get_index(inp_data, &expr, &mut stack, output_idx);
+
+            // Copy the value to output (this is what contiguous does - it makes the data contiguous)
+            *out = input_val;
         }
+
         vec![Tensor::new(StwoData(Arc::new(out_data)))]
     }
 }
