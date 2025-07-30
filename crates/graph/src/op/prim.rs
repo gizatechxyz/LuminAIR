@@ -1460,8 +1460,7 @@ impl LuminairRem {
             // For remainder operation, we need both quotient and remainder
             // lhs_val = quotient * rhs_val + remainder
             // Use integer division and modulo on the underlying i64 values
-            let quotient = Fixed::<DEFAULT_FP_SCALE>(lhs_val.0 / rhs_val.0);
-            let rem_val = Fixed::<DEFAULT_FP_SCALE>(lhs_val.0 % rhs_val.0);
+            let (quotient, rem_val) = lhs_val.div_rem(rhs_val);
             let out_val = rem_val; // The output is the remainder
             
 

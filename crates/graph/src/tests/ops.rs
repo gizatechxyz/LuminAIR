@@ -1,7 +1,7 @@
 use super::{assert_close, random_vec_rng};
 use crate::graph::LuminairGraph;
 use crate::StwoCompiler;
-use crate::{binary_test, binary_test_no_broadcast, unary_test};
+use crate::{binary_test, unary_test};
 use luminair_prover::prover::prove;
 use luminair_verifier::verifier::verify;
 use luminal::prelude::*;
@@ -21,7 +21,7 @@ unary_test!(|a| a.exp2(), test_exp2, f32, true);
 
 binary_test!(|a, b| a + b, test_add, f32, false);
 binary_test!(|a, b| a * b, test_mul, f32, false);
-binary_test_no_broadcast!(|a, b| a % b, test_rem, f32, true);
+binary_test!(|a, b| a % b, test_rem, f32, true);
 
 // =============== REDUCE ===============
 
