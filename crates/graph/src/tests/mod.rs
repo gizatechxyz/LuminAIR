@@ -189,6 +189,8 @@ macro_rules! binary_test {
     };
 }
 
+
+
 #[allow(dead_code)]
 pub fn assert_op_in_graph<T: Operator + 'static>(graph: &Graph) {
     assert!(

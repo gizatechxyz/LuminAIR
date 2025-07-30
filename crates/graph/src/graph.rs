@@ -25,6 +25,7 @@ use luminair_air::{
         sin::table::{SinColumn, SinTraceTable},
         sqrt::table::{SqrtColumn, SqrtTraceTable},
         sum_reduce::table::{SumReduceColumn, SumReduceTraceTable},
+        rem::table::{RemColumn, RemTraceTable},
     },
     pie::{
         ExecutionResources, InputInfo, LuminairPie, Metadata, NodeInfo, OpCounter, OutputInfo,
@@ -181,6 +182,7 @@ impl LuminairGraph for Graph {
         let mut sum_reduce_table = SumReduceTraceTable::new();
         let mut max_reduce_table = MaxReduceTraceTable::new();
         let mut sqrt_table = SqrtTraceTable::new();
+        let mut rem_table = RemTraceTable::new();
         let mut exp2_table = Exp2TraceTable::new();
         let mut exp2_lookup_table = Exp2LookupTraceTable::new();
         let mut less_than_table = LessThanTraceTable::new();
@@ -365,6 +367,18 @@ impl LuminairGraph for Graph {
                         node_op, srcs, &mut sqrt_table, &node_info, &mut ()
                     ).unwrap()
                     }
+                    _
+                        if <Box<dyn Operator> as HasProcessTrace<
+                            RemColumn,
+                            RemTraceTable,
+                            (),
+                        >>::has_process_trace(node_op) =>
+                    {
+                        op_counter.rem += 1;
+                        <Box<dyn Operator> as HasProcessTrace<RemColumn, RemTraceTable, ()>>::call_process_trace(
+                        node_op, srcs, &mut rem_table, &node_info, &mut ()
+                    ).unwrap()
+                    }
                     _ if <Box<dyn Operator> as HasProcessTrace<
                         Exp2Column,
                         Exp2TraceTable,
@@ -503,6 +517,11 @@ impl LuminairGraph for Graph {
             let log_size = calculate_log_size(sqrt_table.table.len());
             max_log_size = max_log_size.max(log_size);
             trace_tables.push(TraceTable::from_sqrt(sqrt_table));
+        }
+        if !rem_table.table.is_empty() {
+            let log_size = calculate_log_size(rem_table.table.len());
+            max_log_size = max_log_size.max(log_size);
+            trace_tables.push(TraceTable::from_rem(rem_table));
         }
         if !exp2_table.table.is_empty() {
             let log_size = calculate_log_size(exp2_table.table.len());
