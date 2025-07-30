@@ -1595,16 +1595,6 @@ impl LuminairOperator<RemColumn, RemTraceTable, ()> for LuminairRem {
         let lhs_id: BaseField = node_info.inputs[0].id.into();
         let rhs_id: BaseField = node_info.inputs[1].id.into();
 
-        let lhs_mult = if node_info.inputs[0].is_initializer {
-            BaseField::zero()
-        } else {
-            -BaseField::one()
-        };
-        let rhs_mult = if node_info.inputs[1].is_initializer {
-            BaseField::zero()
-        } else {
-            -BaseField::one()
-        };
         let out_mult = if node_info.output.is_final_output {
             BaseField::zero()
         } else {
@@ -1631,8 +1621,8 @@ impl LuminairOperator<RemColumn, RemTraceTable, ()> for LuminairRem {
                 out: out_val.to_m31(),
                 rem: rem_val.to_m31(),
                 quotient: quotient.to_m31(),
-                lhs_mult,
-                rhs_mult,
+                lhs_mult: -BaseField::one(),
+                rhs_mult: -BaseField::one(),
                 out_mult,
             })
         }
