@@ -1,6 +1,6 @@
 use crate::{
     op::{
-        prim::{CopyFromStwo, CopyToStwo, LuminairConstant, LuminairContiguous},
+        prim::{CopyFromStwo, LuminairContiguous},
         HasProcessTrace,
     },
     utils::compute_padded_range_from_srcs,
@@ -9,7 +9,9 @@ use itertools::Itertools;
 use luminair_air::{
     components::{
         add::table::{AddColumn, AddTraceTable},
+        contiguous::table::{ContiguousColumn, ContiguousTraceTable},
         exp2::table::{Exp2Column, Exp2TraceTable},
+        inputs::table::{InputsColumn, InputsTraceTable},
         less_than::table::{LessThanColumn, LessThanTraceTable},
         lookups::{
             exp2::{table::Exp2LookupTraceTable, Exp2Lookup},
@@ -185,6 +187,8 @@ impl LuminairGraph for Graph {
         let mut exp2_lookup_table = Exp2LookupTraceTable::new();
         let mut less_than_table = LessThanTraceTable::new();
         let mut range_check_lookup_table = RangeCheckLookupTraceTable::new();
+        let mut inputs_table = InputsTraceTable::new();
+        let mut contiguous_table = ContiguousTraceTable::new();
 
         for (node, src_ids) in self.linearized_graph.as_ref().unwrap() {
             if self.tensors.contains_key(&(*node, 0)) {
@@ -202,13 +206,8 @@ impl LuminairGraph for Graph {
             // Gather input source information
             let input_info: Vec<InputInfo> = src_ids
                 .iter()
-                .map(|(id, _, _)| {
-                    let is_initializer = is_initializer(self, *id);
-
-                    InputInfo {
-                        is_initializer,
-                        id: id.index() as u32,
-                    }
+                .map(|(id, _, _)| InputInfo {
+                    id: id.index() as u32,
                 })
                 .collect();
 
@@ -426,6 +425,37 @@ impl LuminairGraph for Graph {
                             None => unreachable!("RangeCheck lookup table must be initialised"),
                         }
                     }
+                    _ if <Box<dyn Operator> as HasProcessTrace<
+                        InputsColumn,
+                        InputsTraceTable,
+                        (),
+                    >>::has_process_trace(node_op) =>
+                    {
+                        op_counter.inputs += 1;
+                        <Box<dyn Operator> as HasProcessTrace<InputsColumn, InputsTraceTable, ()>>::call_process_trace(
+                        node_op, srcs, &mut inputs_table, &node_info, &mut ()
+                    ).unwrap()
+                    }
+                    _ if <Box<dyn Operator> as HasProcessTrace<
+                        ContiguousColumn,
+                        ContiguousTraceTable,
+                        (),
+                    >>::has_process_trace(node_op) =>
+                    {
+                        op_counter.contiguous += 1;
+                        <Box<dyn Operator> as HasProcessTrace<
+                            ContiguousColumn,
+                            ContiguousTraceTable,
+                            (),
+                        >>::call_process_trace(
+                            node_op,
+                            srcs,
+                            &mut contiguous_table,
+                            &node_info,
+                            &mut (),
+                        )
+                        .unwrap()
+                    }
 
                     _ => node_op.process(srcs),
                 };
@@ -516,6 +546,16 @@ impl LuminairGraph for Graph {
                     range_check_lookup_table,
                 ))
             } // TODO (@raphaelDkhn): though error if LUT not present.
+        }
+        if !inputs_table.table.is_empty() {
+            let log_size = calculate_log_size(inputs_table.table.len());
+            max_log_size = max_log_size.max(log_size);
+            trace_tables.push(TraceTable::from_inputs(inputs_table));
+        }
+        if !contiguous_table.table.is_empty() {
+            let log_size = calculate_log_size(contiguous_table.table.len());
+            max_log_size = max_log_size.max(log_size);
+            trace_tables.push(TraceTable::from_contiguous(contiguous_table));
         }
 
         Ok(LuminairPie {
@@ -618,40 +658,6 @@ fn coalesce_ranges(mut ranges: Vec<Range>) -> Vec<Range> {
 
     result.push(current_range);
     result
-}
-
-/// Helper function to recursively check if a node is an initializer
-fn is_initializer(graph: &Graph, node_id: NodeIndex) -> bool {
-    let node_weight = graph.node_weight(node_id).unwrap();
-
-    // Check if the node itself is an initializer
-    let is_function = node_weight.as_any().is::<Function>();
-    let is_constant = node_weight.as_any().is::<LuminairConstant>()
-        || node_weight.as_any().is::<luminal::op::Constant>();
-    let is_copy_to = node_weight.as_any().is::<CopyToStwo>();
-
-    if is_function || is_constant {
-        return true;
-    }
-
-    // Check if this is a CopyToStwo that wraps an initializer
-    if is_copy_to {
-        return graph
-            .get_sources(node_id)
-            .iter()
-            .any(|(src_id, _, _)| is_initializer(graph, *src_id));
-    }
-
-    // Check if this is a Contiguous operator that comes after an initializer
-    let is_contiguous = node_weight.as_any().is::<LuminairContiguous>();
-    if is_contiguous {
-        return graph
-            .get_sources(node_id)
-            .iter()
-            .any(|(src_id, _, _)| is_initializer(graph, *src_id));
-    }
-
-    false
 }
 
 /// Helper function to recursively check if a node is a final output

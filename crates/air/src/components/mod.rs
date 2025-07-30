@@ -58,9 +58,17 @@ use rem::{
 
 use crate::{
     components::{
+        contiguous::{
+            component::{ContiguousComponent, ContiguousEval},
+            table::ContiguousColumn,
+        },
         exp2::{
             component::{Exp2Component, Exp2Eval},
             table::Exp2Column,
+        },
+        inputs::{
+            components::{InputsComponent, InputsEval},
+            table::InputsColumn,
         },
         less_than::{
             component::{LessThanComponent, LessThanEval},
@@ -82,7 +90,9 @@ use crate::{
 };
 
 pub mod add;
+pub mod contiguous;
 pub mod exp2;
+pub mod inputs;
 pub mod less_than;
 pub mod lookups;
 pub mod max_reduce;
@@ -123,6 +133,10 @@ pub type Exp2LookupClaim = Claim<Exp2LookupColumn>;
 pub type LessThanClaim = Claim<LessThanColumn>;
 /// Type alias for the claim associated with the RangeCheckLookup component's trace.
 pub type RangeCheckLookupClaim = Claim<RangeCheckLookupColumn>;
+/// Type alias for the claim associated with the Inputs component's trace.
+pub type InputsClaim = Claim<InputsColumn>;
+/// Type alias for the claim associated with the Contiguous component's trace.
+pub type ContiguousClaim = Claim<ContiguousColumn>;
 
 /// Trait implemented by trace column definitions (e.g., `AddColumn`).
 /// Provides metadata about the number of columns used by the component.
@@ -201,6 +215,10 @@ pub enum ClaimType {
     LessThan(Claim<LessThanColumn>),
     /// Claim for a RangeCheckLookup component trace.
     RangeCheckLookup(Claim<RangeCheckLookupColumn>),
+    /// Claim for a Inputs component trace.
+    Inputs(Claim<InputsColumn>),
+    /// Claim for a Contiguous component trace.
+    Contiguous(Claim<ContiguousColumn>),
 }
 
 /// Represents the claim resulting from the interaction phase (e.g., LogUp protocol).
@@ -282,6 +300,10 @@ pub struct LuminairComponents {
     less_than: Option<LessThanComponent>,
     /// Optional RangeCheckLookup component instance.
     range_check_lookup: Option<RangeCheckLookupComponent>,
+    /// Optional Inputs component instance.
+    inputs: Option<InputsComponent>,
+    /// Optional Contiguous component instance.
+    contiguous: Option<ContiguousComponent>,
 }
 
 impl LuminairComponents {
@@ -485,6 +507,29 @@ impl LuminairComponents {
                 None
             };
 
+        let inputs = if let Some(ref inputs_claim) = claim.inputs {
+            Some(InputsComponent::new(
+                tree_span_provider,
+                InputsEval::new(&inputs_claim, interaction_elements.node_elements.clone()),
+                interaction_claim.inputs.as_ref().unwrap().claimed_sum,
+            ))
+        } else {
+            None
+        };
+
+        let contiguous = if let Some(ref contiguous_claim) = claim.contiguous {
+            Some(ContiguousComponent::new(
+                tree_span_provider,
+                ContiguousEval::new(
+                    &contiguous_claim,
+                    interaction_elements.node_elements.clone(),
+                ),
+                interaction_claim.contiguous.as_ref().unwrap().claimed_sum,
+            ))
+        } else {
+            None
+        };
+
         Self {
             add,
             mul,
@@ -499,6 +544,8 @@ impl LuminairComponents {
             exp2_lookup,
             less_than,
             range_check_lookup,
+            inputs,
+            contiguous,
         }
     }
 
@@ -555,6 +602,14 @@ impl LuminairComponents {
         }
 
         if let Some(ref component) = self.range_check_lookup {
+            components.push(component);
+        }
+
+        if let Some(ref component) = self.inputs {
+            components.push(component);
+        }
+
+        if let Some(ref component) = self.contiguous {
             components.push(component);
         }
 

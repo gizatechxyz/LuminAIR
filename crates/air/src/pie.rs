@@ -3,7 +3,9 @@ use serde::{Deserialize, Serialize};
 use crate::{
     components::{
         add::table::AddTraceTable,
+        contiguous::table::ContiguousTraceTable,
         exp2::table::Exp2TraceTable,
+        inputs::table::InputsTraceTable,
         less_than::table::LessThanTraceTable,
         lookups::{
             exp2::table::Exp2LookupTraceTable, range_check::table::RangeCheckLookupTraceTable,
@@ -53,6 +55,10 @@ pub enum TraceTable {
     LessThan { table: LessThanTraceTable },
     /// Trace table for RangeCheck lookup operations.
     RangeCheckLookup { table: RangeCheckLookupTraceTable },
+    /// Trace table for Inputs operations.
+    Inputs { table: InputsTraceTable },
+    /// Trace table for Contiguous operations.
+    Contiguous { table: ContiguousTraceTable },
 }
 
 impl TraceTable {
@@ -107,6 +113,14 @@ impl TraceTable {
     /// Creates a `TraceTable::RangeCheckLookup` variant.
     pub fn from_range_check_lookup(table: RangeCheckLookupTraceTable) -> Self {
         Self::RangeCheckLookup { table }
+    }
+    /// Creates a `TraceTable::Inputs` variant.
+    pub fn from_inputs(table: InputsTraceTable) -> Self {
+        Self::Inputs { table }
+    }
+    /// Creates a `TraceTable::Contiguous` variant.
+    pub fn from_contiguous(table: ContiguousTraceTable) -> Self {
+        Self::Contiguous { table }
     }
 }
 
@@ -173,14 +187,16 @@ pub struct OpCounter {
     pub exp2: usize,
     /// Number of LessThan operations.
     pub less_than: usize,
+    /// Number of Inputs operations.
+    pub inputs: usize,
+    /// Number of Contiguous operations.
+    pub contiguous: usize,
 }
 
 /// Metadata about a specific input to a graph node.
 /// Indicates if a node input is an initializer (i.e., from initial input).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct InputInfo {
-    /// True if the input originates from a graph input or a constant (not an intermediate value).
-    pub is_initializer: bool,
     /// The unique ID of the node providing this input.
     pub id: u32,
 }

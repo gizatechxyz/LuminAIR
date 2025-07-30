@@ -220,3 +220,36 @@ fn test_less_than_3x4_3x4() {
     // Assert outputs are close
     assert_close(&c.data(), &c_cpu.data());
 }
+
+#[test]
+fn test_contiguous() {
+    // Graph setup
+    let mut cx = Graph::new();
+    let mut rng = StdRng::seed_from_u64(1);
+    let a_data = random_vec_rng(2 * 2, &mut rng, false);
+    let a = cx.tensor((2, 2));
+    a.set(a_data.clone());
+    let sliced = a.slice((.., 0..1));
+    let mut b = sliced.contiguous().retrieve();
+
+    // Compilation and execution using StwoCompiler
+    cx.compile(<(GenericCompiler, StwoCompiler)>::default(), &mut b);
+    let mut settings = cx.gen_circuit_settings();
+    b.drop();
+    let trace = cx
+        .gen_trace(&mut settings)
+        .expect("Trace generation failed");
+    let proof = prove(trace, settings.clone()).expect("Proof generation failed");
+    verify(proof, settings).expect("Proof verification failed");
+
+    // CPUCompiler comparison
+    let mut cx_cpu = Graph::new();
+    let a_cpu = cx_cpu.tensor((2, 2)).set(a_data.clone());
+    let sliced = a_cpu.slice((.., 0..1));
+    let mut b_cpu = sliced.contiguous().retrieve();
+    cx_cpu.compile(<(GenericCompiler, CPUCompiler)>::default(), &mut b_cpu);
+    cx_cpu.execute();
+
+    // Assert outputs are close
+    assert_close(&b.data(), &b_cpu.data());
+}
