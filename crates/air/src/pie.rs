@@ -14,6 +14,7 @@ use crate::{
         max_reduce::table::MaxReduceTraceTable,
         mul::table::MulTraceTable,
         recip::table::RecipTraceTable,
+        rem::table::RemTraceTable,
         sin::table::SinTraceTable,
         sqrt::table::SqrtTraceTable,
         sum_reduce::table::SumReduceTraceTable,
@@ -44,6 +45,8 @@ pub enum TraceTable {
     MaxReduce { table: MaxReduceTraceTable },
     /// Trace table for Sqrt operations.
     Sqrt { table: SqrtTraceTable },
+    /// Trace table for Rem operations.
+    Rem { table: RemTraceTable },
     /// Trace table for Exp2 operations.
     Exp2 { table: Exp2TraceTable },
     /// Trace table for Exp2 lookup operations.
@@ -90,6 +93,10 @@ impl TraceTable {
     /// Creates a `TraceTable::Sqrt` variant.
     pub fn from_sqrt(table: SqrtTraceTable) -> Self {
         Self::Sqrt { table }
+    }
+    /// Creates a `TraceTable::Sqrt` variant.
+    pub fn from_rem(table: RemTraceTable) -> Self {
+        Self::Rem { table }
     }
     /// Creates a `TraceTable::Exp2` variant.
     pub fn from_exp2(table: Exp2TraceTable) -> Self {
@@ -174,6 +181,8 @@ pub struct OpCounter {
     pub max_reduce: usize,
     /// Number of Sqrt operations.
     pub sqrt: usize,
+    /// Number of Rem operations.
+    pub rem: usize,
     /// Number of Exp2 operations.
     pub exp2: usize,
     /// Number of LessThan operations.

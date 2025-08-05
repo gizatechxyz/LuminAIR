@@ -1,7 +1,7 @@
 use luminair_air::{
     components::{
         add, contiguous, exp2, inputs, less_than, lookups, max_reduce, mul, recip, sin, sqrt,
-        sum_reduce, LuminairComponents, LuminairInteractionElements,
+        sum_reduce, rem, LuminairComponents, LuminairInteractionElements,
     },
     pie::{LuminairPie, TraceTable},
     preprocessed::{
@@ -125,6 +125,12 @@ pub fn prove(
                 main_claim.sqrt = Some(cl.clone());
                 interaction_claim_gen.sqrt = Some(in_cl_gen);
             }
+            TraceTable::Rem { table } => {
+                let claim_gen = rem::witness::ClaimGenerator::new(table);
+                let (cl, in_cl_gen) = claim_gen.write_trace(&mut tree_builder)?;
+                main_claim.rem = Some(cl.clone());
+                interaction_claim_gen.rem = Some(in_cl_gen);
+            }
             TraceTable::Exp2 { table } => {
                 let claim_gen = exp2::witness::ClaimGenerator::new(table);
                 let (cl, in_cl_gen) = claim_gen.write_trace(&mut tree_builder)?;
@@ -217,6 +223,10 @@ pub fn prove(
     if let Some(claim_gen) = interaction_claim_gen.sqrt {
         let claim = claim_gen.write_interaction_trace(&mut tree_builder, node_elements);
         interaction_claim.sqrt = Some(claim)
+    }
+    if let Some(claim_gen) = interaction_claim_gen.rem {
+        let claim = claim_gen.write_interaction_trace(&mut tree_builder, node_elements);
+        interaction_claim.rem = Some(claim)
     }
     if let Some(claim_gen) = interaction_claim_gen.exp2 {
         let claim = claim_gen.write_interaction_trace(

@@ -51,6 +51,11 @@ use sum_reduce::{
     table::SumReduceColumn,
 };
 
+use rem::{
+    component::{RemComponent, RemEval},
+    table::RemColumn,
+};
+
 use crate::{
     components::{
         contiguous::{
@@ -93,6 +98,7 @@ pub mod lookups;
 pub mod max_reduce;
 pub mod mul;
 pub mod recip;
+pub mod rem;
 pub mod sin;
 pub mod sqrt;
 pub mod sum_reduce;
@@ -117,6 +123,8 @@ pub type SumReduceClaim = Claim<SumReduceColumn>;
 pub type MaxReduceClaim = Claim<MaxReduceColumn>;
 /// Type alias for the claim associated with the Sqrt component's trace.
 pub type SqrtClaim = Claim<SqrtColumn>;
+/// Type alias for the claim associated with the Sqrt component's trace.
+pub type RemClaim = Claim<RemColumn>;
 /// Type alias for the claim associated with the Exp2 component's trace.
 pub type Exp2Claim = Claim<Exp2Column>;
 /// Type alias for the claim associated with the Exp2Lookup component's trace.
@@ -197,6 +205,8 @@ pub enum ClaimType {
     MaxReduce(Claim<MaxReduceColumn>),
     /// Claim for a Sqrt component trace.
     Sqrt(Claim<SqrtColumn>),
+    /// Claim for a Rem component trace.
+    Rem(Claim<RemColumn>),
     /// Claim for a Exp2 component trace.
     Exp2(Claim<Exp2Column>),
     /// Claim for a Exp2Lookup component trace.
@@ -280,6 +290,8 @@ pub struct LuminairComponents {
     max_reduce: Option<MaxReduceComponent>,
     /// Optional Sqrt component instance.
     sqrt: Option<SqrtComponent>,
+    /// Optional Rem component instance.
+    rem: Option<RemComponent>,
     /// Optional Exp2 component instance.
     exp2: Option<Exp2Component>,
     /// Optional Exp2Lookup component instance.
@@ -412,6 +424,16 @@ impl LuminairComponents {
             None
         };
 
+        let rem = if let Some(ref rem_claim) = claim.rem {
+            Some(RemComponent::new(
+                tree_span_provider,
+                RemEval::new(&rem_claim, interaction_elements.node_elements.clone()),
+                interaction_claim.rem.as_ref().unwrap().claimed_sum,
+            ))
+        } else {
+            None
+        };
+
         let exp2 = if let Some(ref exp2_claim) = claim.exp2 {
             let lut_log_size = lookups.exp2.as_ref().map(|s| s.layout.log_size).unwrap();
             Some(Exp2Component::new(
@@ -517,6 +539,7 @@ impl LuminairComponents {
             sum_reduce,
             max_reduce,
             sqrt,
+            rem,
             exp2,
             exp2_lookup,
             less_than,
@@ -563,6 +586,9 @@ impl LuminairComponents {
             components.push(component);
         }
 
+        if let Some(ref component) = self.rem {
+            components.push(component);
+        }
         if let Some(ref component) = self.exp2 {
             components.push(component);
         }

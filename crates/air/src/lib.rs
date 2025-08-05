@@ -2,8 +2,9 @@
 
 use ::serde::{Deserialize, Serialize};
 use components::{
-    add, exp2, lookups, max_reduce, mul, recip, sin, sqrt, sum_reduce, AddClaim, InteractionClaim,
-    MaxReduceClaim, MulClaim, RecipClaim, SinClaim, SinLookupClaim, SqrtClaim, SumReduceClaim,
+    add, exp2, lookups, max_reduce, mul, recip, rem, sin, sqrt, sum_reduce, AddClaim,
+    InteractionClaim, MaxReduceClaim, MulClaim, RecipClaim, RemClaim, SinClaim, SinLookupClaim,
+    SqrtClaim, SumReduceClaim,
 };
 use stwo_prover::core::{channel::Channel, pcs::TreeVec};
 
@@ -47,6 +48,9 @@ pub struct LuminairClaim {
     pub max_reduce: Option<MaxReduceClaim>,
     /// Claim for the Sqrt component's trace.
     pub sqrt: Option<SqrtClaim>,
+    /// Claim for the Rem component's trace.
+    pub rem: Option<RemClaim>,
+
     /// Claim for the Exp2 component's trace.
     pub exp2: Option<Exp2Claim>,
     /// Claim for the Exp2 Lookup component's trace.
@@ -88,6 +92,9 @@ impl LuminairClaim {
             claim.mix_into(channel);
         }
         if let Some(ref claim) = self.sqrt {
+            claim.mix_into(channel);
+        }
+        if let Some(ref claim) = self.rem {
             claim.mix_into(channel);
         }
         if let Some(ref claim) = self.exp2 {
@@ -140,6 +147,9 @@ impl LuminairClaim {
         if let Some(ref claim) = self.sqrt {
             log_sizes.push(claim.log_sizes());
         }
+        if let Some(ref claim) = self.rem {
+            log_sizes.push(claim.log_sizes());
+        }
         if let Some(ref claim) = self.exp2 {
             log_sizes.push(claim.log_sizes());
         }
@@ -185,6 +195,8 @@ pub struct LuminairInteractionClaimGenerator {
     pub max_reduce: Option<max_reduce::witness::InteractionClaimGenerator>,
     /// Generator for the Sqrt component's interaction claim.
     pub sqrt: Option<sqrt::witness::InteractionClaimGenerator>,
+    /// Generator for the Rem component's interaction claim.
+    pub rem: Option<rem::witness::InteractionClaimGenerator>,
     /// Generator for the Exp2 component's interaction claim.
     pub exp2: Option<exp2::witness::InteractionClaimGenerator>,
     /// Generator for the Exp2 Lookup component's interaction claim.
@@ -223,6 +235,8 @@ pub struct LuminairInteractionClaim {
     pub max_reduce: Option<InteractionClaim>,
     /// Interaction claim for the Sqrt component.
     pub sqrt: Option<InteractionClaim>,
+    /// Interaction claim for the Rem component.
+    pub rem: Option<InteractionClaim>,
     /// Interaction claim for the Exp2 component.
     pub exp2: Option<InteractionClaim>,
     /// Interaction claim for the Exp2 Lookup component.
@@ -263,6 +277,9 @@ impl LuminairInteractionClaim {
             claim.mix_into(channel);
         }
         if let Some(ref claim) = self.sqrt {
+            claim.mix_into(channel);
+        }
+        if let Some(ref claim) = self.rem {
             claim.mix_into(channel);
         }
         if let Some(ref claim) = self.exp2 {

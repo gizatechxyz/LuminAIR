@@ -793,6 +793,81 @@ fn benchmark_less_than(c: &mut Criterion) {
     group.finish();
 }
 
+fn benchmark_rem(c: &mut Criterion) {
+    let mut group = c.benchmark_group("Rem Operator");
+    group
+        .plot_config(PlotConfiguration::default().summary_scale(criterion::AxisScale::Logarithmic));
+
+    let sizes = [(32, 32)];
+
+    for &size in &sizes {
+        let (rows, cols) = size;
+
+        // Trace generation
+        let params = BenchParams {
+            stage: Stage::TraceGeneration,
+            size,
+        };
+        group.bench_function(params.to_string(), |b| {
+            b.iter_with_setup(
+                || {
+                    let mut graph = create_binary!(|a, b| a * b, (rows, cols), (rows, cols), false);
+                    let settings = graph.gen_circuit_settings();
+                    (graph, settings)
+                },
+                |(mut graph, mut settings)| {
+                    let _trace = graph.gen_trace(&mut settings);
+                },
+            )
+        });
+
+        // Proof generation
+        let params = BenchParams {
+            stage: Stage::Proving,
+            size,
+        };
+        group.bench_function(params.to_string(), |b| {
+            b.iter_with_setup(
+                || {
+                    let mut graph = create_binary!(|a, b| a * b, (rows, cols), (rows, cols), false);
+                    let mut settings = graph.gen_circuit_settings();
+                    let trace = graph
+                        .gen_trace(&mut settings)
+                        .expect("Trace generation failed");
+                    (settings, trace)
+                },
+                |(settings, trace)| {
+                    let _proof = prove(trace, settings).expect("Proof generation failed");
+                },
+            )
+        });
+
+        // Verification
+        let params = BenchParams {
+            stage: Stage::Verification,
+            size,
+        };
+        group.bench_function(params.to_string(), |b| {
+            b.iter_with_setup(
+                || {
+                    let mut graph = create_binary!(|a, b| a * b, (rows, cols), (rows, cols), false);
+                    let mut settings = graph.gen_circuit_settings();
+                    let trace = graph
+                        .gen_trace(&mut settings)
+                        .expect("Trace generation failed");
+                    let proof = prove(trace, settings.clone()).expect("Proof generation failed");
+                    (settings, proof)
+                },
+                |(settings, proof)| {
+                    verify(proof, settings).expect("Proof verification failed");
+                },
+            )
+        });
+    }
+
+    group.finish();
+}
+
 criterion_group!(
     benches,
     benchmark_add,
@@ -803,6 +878,7 @@ criterion_group!(
     benchmark_sin,
     benchmark_sqrt,
     benchmark_exp2,
-    benchmark_less_than
+    benchmark_less_than,
+    benchmark_rem,
 );
 criterion_main!(benches);
