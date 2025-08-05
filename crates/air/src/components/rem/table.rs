@@ -30,7 +30,6 @@ pub struct RemTraceTableRow {
     pub next_idx: M31,
     pub lhs: M31,
     pub rhs: M31,
-    pub out: M31,
     pub rem: M31,
     pub quotient: M31,
     pub lhs_mult: M31, 
@@ -52,7 +51,6 @@ impl RemTraceTableRow {
             next_idx: M31::zero(),
             lhs: M31::zero(),
             rhs: M31::zero(),
-            out: M31::zero(),
             rem: M31::zero(),
             quotient: M31::zero(),
             lhs_mult: M31::zero(),
@@ -87,8 +85,6 @@ pub struct PackedRemTraceTableRow {
     pub lhs: PackedM31,
     /// Packed `rhs` values.
     pub rhs: PackedM31,
-    /// Packed `out` values.
-    pub out: PackedM31,
     /// Packed `rem` values.
     pub rem: PackedM31,
     /// Packed `quotient` values.
@@ -117,7 +113,6 @@ impl Pack for RemTraceTableRow {
             next_idx: PackedM31::from_array(std::array::from_fn(|i| inputs[i].next_idx)),
             lhs: PackedM31::from_array(std::array::from_fn(|i| inputs[i].lhs)),
             rhs: PackedM31::from_array(std::array::from_fn(|i| inputs[i].rhs)),
-            out: PackedM31::from_array(std::array::from_fn(|i| inputs[i].out)),
             rem: PackedM31::from_array(std::array::from_fn(|i| inputs[i].rem)),
             quotient: PackedM31::from_array(std::array::from_fn(|i| inputs[i].quotient)),
             lhs_mult: PackedM31::from_array(std::array::from_fn(|i| inputs[i].lhs_mult)),
@@ -143,7 +138,6 @@ impl Unpack for PackedRemTraceTableRow {
             next_idx,
             lhs,
             rhs,
-            out,
             rem,
             quotient,
             lhs_mult,
@@ -161,7 +155,6 @@ impl Unpack for PackedRemTraceTableRow {
             self.next_idx.to_array(),
             self.lhs.to_array(),
             self.rhs.to_array(),
-            self.out.to_array(),
             self.rem.to_array(),
             self.quotient.to_array(),
             self.lhs_mult.to_array(),
@@ -181,7 +174,6 @@ impl Unpack for PackedRemTraceTableRow {
             next_idx: next_idx[i],
             lhs: lhs[i],
             rhs: rhs[i],
-            out: out[i],
             rem: rem[i],
             quotient: quotient[i],
             lhs_mult: lhs_mult[i],
@@ -229,8 +221,6 @@ pub enum RemColumn {
     Lhs,
     /// Value of the right-hand side input.
     Rhs,
-    /// Value of the output (`lhs % rhs`).
-    Out,
     /// Remainder from fixed-point division.
     Rem,
     /// Quotient from fixed-point division.
@@ -258,12 +248,11 @@ impl RemColumn {
             Self::NextIdx => 8,
             Self::Lhs => 9,
             Self::Rhs => 10,
-            Self::Out => 11,
-            Self::Rem => 12,
-            Self::Quotient => 13,
-            Self::LhsMult => 14,
-            Self::RhsMult => 15,
-            Self::OutMult => 16,
+            Self::Rem => 11,
+            Self::Quotient => 12,
+            Self::LhsMult => 13,
+            Self::RhsMult => 14,
+            Self::OutMult => 15,
         }
     }
 }

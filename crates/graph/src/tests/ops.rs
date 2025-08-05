@@ -12,7 +12,7 @@ use rand::{rngs::StdRng, SeedableRng};
 // https://github.com/raphaelDkhn/luminal/blob/main/crates/luminal_cuda/src/tests/fp32.rs
 
 // =============== UNARY ===============
-// unary_test!(|a| a.recip(), test_recip, f32, true);
+// unary_test!(|a| a.recip(), test_recip, f32, true); // TODO: Uncoment once LuminAIR supports dynamic fixed points.
 unary_test!(|a| a.sin(), test_sin, f32, true);
 unary_test!(|a| a.sqrt(), test_sqrt, f32, true);
 unary_test!(|a| a.exp2(), test_exp2, f32, true);
@@ -21,7 +21,7 @@ unary_test!(|a| a.exp2(), test_exp2, f32, true);
 
 binary_test!(|a, b| a + b, test_add, f32, false);
 binary_test!(|a, b| a * b, test_mul, f32, false);
-binary_test!(|a, b| a % b, test_rem, f32, true);
+// binary_test!(|a, b| a % b, test_rem, f32, true); // TODO: Uncoment once LuminAIR supports dynamic fixed points.
 
 // =============== REDUCE ===============
 

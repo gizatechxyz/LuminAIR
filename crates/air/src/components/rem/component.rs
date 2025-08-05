@@ -47,7 +47,6 @@ impl FrameworkEval for RemEval {
         // Values for consistency constraints
         let lhs_val = eval.next_trace_mask();
         let rhs_val = eval.next_trace_mask();
-        let out_val = eval.next_trace_mask();
         let rem_val = eval.next_trace_mask();
         let quotient = eval.next_trace_mask();
 
@@ -71,9 +70,6 @@ impl FrameworkEval for RemEval {
             quotient.clone(),
             rem_val.clone(),
         );
-        
-        // Constraint: out_val should equal rem_val (the remainder is our output)
-        eval.add_constraint(out_val.clone() - rem_val);
 
         // ┌────────────────────────────┐
         // │   Transition Constraints   │
@@ -84,14 +80,14 @@ impl FrameworkEval for RemEval {
         // 2. The index should increment by 1.
         let not_last = E::F::one() - is_last_idx;
 
-        // Same node ID 
+        // Same node ID
         eval.add_constraint(not_last.clone() * (next_node_id - node_id.clone()));
 
         // Same Tensor IDs
         eval.add_constraint(not_last.clone() * (next_lhs_id - lhs_id.clone()));
         eval.add_constraint(not_last.clone() * (next_rhs_id - rhs_id.clone()));
 
-        // Index increment by 1 
+        // Index increment by 1
         eval.add_constraint(not_last * (next_idx - idx - E::F::one()));
 
         // ┌─────────────────────────────┐
@@ -101,17 +97,19 @@ impl FrameworkEval for RemEval {
         eval.add_to_relation(RelationEntry::new(
             &self.node_elements,
             lhs_mult.into(),
-            &[lhs_val, lhs_id]));
-        
+            &[lhs_val, lhs_id],
+        ));
+
         eval.add_to_relation(RelationEntry::new(
             &self.node_elements,
             rhs_mult.into(),
-            &[rhs_val, rhs_id]));
-        
+            &[rhs_val, rhs_id],
+        ));
+
         eval.add_to_relation(RelationEntry::new(
             &self.node_elements,
             out_mult.into(),
-            &[out_val, node_id],
+            &[rem_val, node_id],
         ));
 
         eval.finalize_logup();
