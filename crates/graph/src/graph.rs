@@ -13,8 +13,10 @@ use luminair_air::{
         exp2::table::{Exp2Column, Exp2TraceTable},
         inputs::table::{InputsColumn, InputsTraceTable},
         less_than::table::{LessThanColumn, LessThanTraceTable},
+        log2::table::{Log2Column, Log2TraceTable},
         lookups::{
             exp2::{table::Exp2LookupTraceTable, Exp2Lookup},
+            log2::{table::Log2LookupTraceTable, Log2Lookup},
             range_check::{table::RangeCheckLookupTraceTable, RangeCheckLayout, RangeCheckLookup},
             sin::{table::SinLookupTraceTable, SinLookup},
             Lookups,
@@ -75,6 +77,7 @@ impl LuminairGraph for Graph {
         // Accumulate ranges per non-linear op
         let mut sin_ranges: Vec<Range> = Vec::new();
         let mut exp2_ranges: Vec<Range> = Vec::new();
+        let mut log2_ranges: Vec<Range> = Vec::new();
 
         let mut range_check_8_required = false;
 
@@ -98,6 +101,9 @@ impl LuminairGraph for Graph {
             }
             if <Box<dyn Operator> as HasProcessTrace<Exp2Column, Exp2TraceTable, Exp2Lookup>>::has_process_trace(op) {
                 exp2_ranges.push(compute_padded_range_from_srcs(&srcs));
+            }
+            if <Box<dyn Operator> as HasProcessTrace<Log2Column, Log2TraceTable, Log2Lookup>>::has_process_trace(op) {
+                log2_ranges.push(compute_padded_range_from_srcs(&srcs));
             }
             if <Box<dyn Operator> as HasProcessTrace<
                 LessThanColumn,
@@ -134,6 +140,12 @@ impl LuminairGraph for Graph {
         } else {
             None
         };
+        let log2_lookup = if !log2_ranges.is_empty() {
+            let layout = LookupLayout::new(coalesce_ranges(log2_ranges));
+            Some(Log2Lookup::new(&layout))
+        } else {
+            None
+        };
 
         let range_check_lookup = if range_check_8_required {
             Some(RangeCheckLookup::new(&RangeCheckLayout {
@@ -148,6 +160,7 @@ impl LuminairGraph for Graph {
             lookups: Lookups {
                 sin: sin_lookup,
                 exp2: exp2_lookup,
+                log2: log2_lookup,
                 range_check: range_check_lookup,
             },
         }
@@ -185,6 +198,8 @@ impl LuminairGraph for Graph {
         let mut rem_table = RemTraceTable::new();
         let mut exp2_table = Exp2TraceTable::new();
         let mut exp2_lookup_table = Exp2LookupTraceTable::new();
+        let mut log2_table = Log2TraceTable::new();
+        let mut log2_lookup_table = Log2LookupTraceTable::new();
         let mut less_than_table = LessThanTraceTable::new();
         let mut range_check_lookup_table = RangeCheckLookupTraceTable::new();
         let mut inputs_table = InputsTraceTable::new();
@@ -403,6 +418,29 @@ impl LuminairGraph for Graph {
                         }
                     }
                     _ if <Box<dyn Operator> as HasProcessTrace<
+                        Log2Column,
+                        Log2TraceTable,
+                        Log2Lookup,
+                    >>::has_process_trace(node_op) =>
+                    {
+                        op_counter.log2 += 1;
+                        match settings.lookups.log2.as_mut() {
+                            Some(lookup) => <Box<dyn Operator> as HasProcessTrace<
+                                Log2Column,
+                                Log2TraceTable,
+                                Log2Lookup,
+                            >>::call_process_trace(
+                                node_op,
+                                srcs,
+                                &mut log2_table,
+                                &node_info,
+                                lookup,
+                            )
+                            .unwrap(),
+                            None => unreachable!("Log2 lookup table must be initialised"),
+                        }
+                    }
+                    _ if <Box<dyn Operator> as HasProcessTrace<
                         LessThanColumn,
                         LessThanTraceTable,
                         RangeCheckLookup<1>,
@@ -532,6 +570,18 @@ impl LuminairGraph for Graph {
                 lookup.add_multiplicities_to_table(&mut exp2_lookup_table);
                 max_log_size = max_log_size.max(lookup.layout.log_size);
                 trace_tables.push(TraceTable::from_exp2_lookup(exp2_lookup_table))
+            } // TODO (@raphaelDkhn): though error if LUT not present.
+        }
+        if !log2_table.table.is_empty() {
+            op_counter.log2 = log2_table.table.len();
+            let log_size = calculate_log_size(log2_table.table.len());
+            max_log_size = max_log_size.max(log_size);
+            trace_tables.push(TraceTable::from_log2(log2_table));
+
+            if let Some(lookup) = settings.lookups.log2.as_ref() {
+                lookup.add_multiplicities_to_table(&mut log2_lookup_table);
+                max_log_size = max_log_size.max(lookup.layout.log_size);
+                trace_tables.push(TraceTable::from_log2_lookup(log2_lookup_table))
             } // TODO (@raphaelDkhn): though error if LUT not present.
         }
         if !less_than_table.table.is_empty() {

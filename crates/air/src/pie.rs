@@ -7,8 +7,9 @@ use crate::{
         exp2::table::Exp2TraceTable,
         inputs::table::InputsTraceTable,
         less_than::table::LessThanTraceTable,
+        log2::table::Log2TraceTable,
         lookups::{
-            exp2::table::Exp2LookupTraceTable, range_check::table::RangeCheckLookupTraceTable,
+            exp2::table::Exp2LookupTraceTable, log2::table::Log2LookupTraceTable, range_check::table::RangeCheckLookupTraceTable,
             sin::table::SinLookupTraceTable,
         },
         max_reduce::table::MaxReduceTraceTable,
@@ -51,6 +52,10 @@ pub enum TraceTable {
     Exp2 { table: Exp2TraceTable },
     /// Trace table for Exp2 lookup operations.
     Exp2Lookup { table: Exp2LookupTraceTable },
+    /// Trace table for Log2 operations.
+    Log2 { table: Log2TraceTable },
+    /// Trace table for Log2 lookup operations.
+    Log2Lookup { table: Log2LookupTraceTable },
     /// Trace table for LessThan operations.
     LessThan { table: LessThanTraceTable },
     /// Trace table for RangeCheck lookup operations.
@@ -106,6 +111,14 @@ impl TraceTable {
     pub fn from_exp2_lookup(table: Exp2LookupTraceTable) -> Self {
         Self::Exp2Lookup { table }
     }
+    /// Creates a `TraceTable::Log2` variant.
+    pub fn from_log2(table: Log2TraceTable) -> Self {
+        Self::Log2 { table }
+    }
+    /// Creates a `TraceTable::Log2Lookup` variant.
+    pub fn from_log2_lookup(table: Log2LookupTraceTable) -> Self {
+        Self::Log2Lookup { table }
+    }
     /// Creates a `TraceTable::LessThan` variant.
     pub fn from_less_than(table: LessThanTraceTable) -> Self {
         Self::LessThan { table }
@@ -149,6 +162,7 @@ pub struct Metadata {
 pub struct LUTMultiplicities {
     pub sin: AtomicMultiplicityColumn,
     pub exp2: AtomicMultiplicityColumn,
+    pub log2: AtomicMultiplicityColumn,
     pub range_check: AtomicMultiplicityColumn,
 }
 
@@ -185,6 +199,8 @@ pub struct OpCounter {
     pub rem: usize,
     /// Number of Exp2 operations.
     pub exp2: usize,
+    /// Number of Log2 operations.
+    pub log2: usize,
     /// Number of LessThan operations.
     pub less_than: usize,
     /// Number of Inputs operations.

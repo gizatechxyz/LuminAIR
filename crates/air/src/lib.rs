@@ -2,7 +2,7 @@
 
 use ::serde::{Deserialize, Serialize};
 use components::{
-    add, exp2, lookups, max_reduce, mul, recip, rem, sin, sqrt, sum_reduce, AddClaim,
+    add, exp2, log2, lookups, max_reduce, mul, recip, rem, sin, sqrt, sum_reduce, AddClaim,
     InteractionClaim, MaxReduceClaim, MulClaim, RecipClaim, RemClaim, SinClaim, SinLookupClaim,
     SqrtClaim, SumReduceClaim,
 };
@@ -10,7 +10,7 @@ use stwo_prover::core::{channel::Channel, pcs::TreeVec};
 
 use crate::components::{
     contiguous, inputs, less_than, ContiguousClaim, Exp2Claim, Exp2LookupClaim, InputsClaim,
-    LessThanClaim, RangeCheckLookupClaim,
+    LessThanClaim, Log2Claim, Log2LookupClaim, RangeCheckLookupClaim,
 };
 
 pub mod components;
@@ -55,6 +55,10 @@ pub struct LuminairClaim {
     pub exp2: Option<Exp2Claim>,
     /// Claim for the Exp2 Lookup component's trace.
     pub exp2_lookup: Option<Exp2LookupClaim>,
+    /// Claim for the Log2 component's trace.
+    pub log2: Option<Log2Claim>,
+    /// Claim for the Log2 Lookup component's trace.
+    pub log2_lookup: Option<Log2LookupClaim>,
     /// Claim for the LessThan component's trace.
     pub less_than: Option<LessThanClaim>,
     /// Claim for the LessThan Lookup component's trace.
@@ -101,6 +105,12 @@ impl LuminairClaim {
             claim.mix_into(channel);
         }
         if let Some(ref claim) = self.exp2_lookup {
+            claim.mix_into(channel);
+        }
+        if let Some(ref claim) = self.log2 {
+            claim.mix_into(channel);
+        }
+        if let Some(ref claim) = self.log2_lookup {
             claim.mix_into(channel);
         }
         if let Some(ref claim) = self.less_than {
@@ -156,6 +166,12 @@ impl LuminairClaim {
         if let Some(ref claim) = self.exp2_lookup {
             log_sizes.push(claim.log_sizes());
         }
+        if let Some(ref claim) = self.log2 {
+            log_sizes.push(claim.log_sizes());
+        }
+        if let Some(ref claim) = self.log2_lookup {
+            log_sizes.push(claim.log_sizes());
+        }
         if let Some(ref claim) = self.less_than {
             log_sizes.push(claim.log_sizes());
         }
@@ -201,6 +217,10 @@ pub struct LuminairInteractionClaimGenerator {
     pub exp2: Option<exp2::witness::InteractionClaimGenerator>,
     /// Generator for the Exp2 Lookup component's interaction claim.
     pub exp2_lookup: Option<lookups::exp2::witness::InteractionClaimGenerator>,
+    /// Generator for the Log2 component's interaction claim.
+    pub log2: Option<log2::witness::InteractionClaimGenerator>,
+    /// Generator for the Log2 Lookup component's interaction claim.
+    pub log2_lookup: Option<lookups::log2::witness::InteractionClaimGenerator>,
     /// Generator for the LessThan component's interaction claim.
     pub less_than: Option<less_than::witness::InteractionClaimGenerator>,
     /// Generator for the RangeCheck Lookup component's interaction claim.
@@ -241,6 +261,10 @@ pub struct LuminairInteractionClaim {
     pub exp2: Option<InteractionClaim>,
     /// Interaction claim for the Exp2 Lookup component.
     pub exp2_lookup: Option<InteractionClaim>,
+    /// Interaction claim for the Log2 component.
+    pub log2: Option<InteractionClaim>,
+    /// Interaction claim for the Log2 Lookup component.
+    pub log2_lookup: Option<InteractionClaim>,
     /// Interaction claim for the LessThan component.
     pub less_than: Option<InteractionClaim>,
     /// Interaction claim for the RangeCheck Lookup component.
@@ -286,6 +310,12 @@ impl LuminairInteractionClaim {
             claim.mix_into(channel);
         }
         if let Some(ref claim) = self.exp2_lookup {
+            claim.mix_into(channel);
+        }
+        if let Some(ref claim) = self.log2 {
+            claim.mix_into(channel);
+        }
+        if let Some(ref claim) = self.log2_lookup {
             claim.mix_into(channel);
         }
         if let Some(ref claim) = self.less_than {

@@ -53,6 +53,8 @@ pub fn log_sum_valid(interaction_claim: &LuminairInteractionClaim) -> bool {
         &interaction_claim.rem,
         &interaction_claim.exp2,
         &interaction_claim.exp2_lookup,
+        &interaction_claim.log2,
+        &interaction_claim.log2_lookup,
         &interaction_claim.less_than,
         &interaction_claim.range_check_lookup,
         &interaction_claim.inputs,

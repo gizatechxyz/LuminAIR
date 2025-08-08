@@ -74,10 +74,18 @@ use crate::{
             component::{LessThanComponent, LessThanEval},
             table::LessThanColumn,
         },
+        log2::{
+            component::{Log2Component, Log2Eval},
+            table::Log2Column,
+        },
         lookups::{
             exp2::{
                 component::{Exp2LookupComponent, Exp2LookupEval},
                 table::Exp2LookupColumn,
+            },
+            log2::{
+                component::{Log2LookupComponent, Log2LookupEval},
+                table::Log2LookupColumn,
             },
             range_check::{
                 component::{RangeCheckLookupComponent, RangeCheckLookupEval},
@@ -94,6 +102,7 @@ pub mod contiguous;
 pub mod exp2;
 pub mod inputs;
 pub mod less_than;
+pub mod log2;
 pub mod lookups;
 pub mod max_reduce;
 pub mod mul;
@@ -129,6 +138,10 @@ pub type RemClaim = Claim<RemColumn>;
 pub type Exp2Claim = Claim<Exp2Column>;
 /// Type alias for the claim associated with the Exp2Lookup component's trace.
 pub type Exp2LookupClaim = Claim<Exp2LookupColumn>;
+/// Type alias for the claim associated with the Log2 component's trace.
+pub type Log2Claim = Claim<Log2Column>;
+/// Type alias for the claim associated with the Log2Lookup component's trace.
+pub type Log2LookupClaim = Claim<Log2LookupColumn>;
 /// Type alias for the claim associated with the LessThan component's trace.
 pub type LessThanClaim = Claim<LessThanColumn>;
 /// Type alias for the claim associated with the RangeCheckLookup component's trace.
@@ -211,6 +224,10 @@ pub enum ClaimType {
     Exp2(Claim<Exp2Column>),
     /// Claim for a Exp2Lookup component trace.
     Exp2Lookup(Claim<Exp2LookupColumn>),
+    /// Claim for a Log2 component trace.
+    Log2(Claim<Log2Column>),
+    /// Claim for a Log2Lookup component trace.
+    Log2Lookup(Claim<Log2LookupColumn>),
     /// Claim for a LessThan component trace.
     LessThan(Claim<LessThanColumn>),
     /// Claim for a RangeCheckLookup component trace.
@@ -296,6 +313,10 @@ pub struct LuminairComponents {
     exp2: Option<Exp2Component>,
     /// Optional Exp2Lookup component instance.
     exp2_lookup: Option<Exp2LookupComponent>,
+    /// Optional Log2 component instance.
+    log2: Option<Log2Component>,
+    /// Optional Log2Lookup component instance.
+    log2_lookup: Option<Log2LookupComponent>,
     /// Optional LessThan component instance.
     less_than: Option<LessThanComponent>,
     /// Optional RangeCheckLookup component instance.
@@ -463,6 +484,35 @@ impl LuminairComponents {
             None
         };
 
+        let log2 = if let Some(ref log2_claim) = claim.log2 {
+            let lut_log_size = lookups.log2.as_ref().map(|s| s.layout.log_size).unwrap();
+            Some(Log2Component::new(
+                tree_span_provider,
+                Log2Eval::new(
+                    &log2_claim,
+                    interaction_elements.node_elements.clone(),
+                    interaction_elements.lookup_elements.log2.clone(),
+                    lut_log_size,
+                ),
+                interaction_claim.log2.as_ref().unwrap().claimed_sum,
+            ))
+        } else {
+            None
+        };
+
+        let log2_lookup = if let Some(ref log2_lookup_claim) = claim.log2_lookup {
+            Some(Log2LookupComponent::new(
+                tree_span_provider,
+                Log2LookupEval::new(
+                    &log2_lookup_claim,
+                    interaction_elements.lookup_elements.log2.clone(),
+                ),
+                interaction_claim.log2_lookup.as_ref().unwrap().claimed_sum,
+            ))
+        } else {
+            None
+        };
+
         let less_than = if let Some(ref less_than_claim) = claim.less_than {
             let lut_log_size = lookups
                 .range_check
@@ -542,6 +592,8 @@ impl LuminairComponents {
             rem,
             exp2,
             exp2_lookup,
+            log2,
+            log2_lookup,
             less_than,
             range_check_lookup,
             inputs,
@@ -594,6 +646,14 @@ impl LuminairComponents {
         }
 
         if let Some(ref component) = self.exp2_lookup {
+            components.push(component);
+        }
+
+        if let Some(ref component) = self.log2 {
+            components.push(component);
+        }
+
+        if let Some(ref component) = self.log2_lookup {
             components.push(component);
         }
 

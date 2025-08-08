@@ -4,10 +4,12 @@ use stwo_prover::core::channel::Channel;
 
 use crate::components::lookups::{
     exp2::{Exp2Lookup, Exp2LookupElements},
+    log2::{Log2Lookup, Log2LookupElements},
     range_check::{RangeCheckLookup, RangeCheckLookupElements},
 };
 
 pub mod exp2;
+pub mod log2;
 pub mod range_check;
 pub mod sin;
 
@@ -22,6 +24,8 @@ pub struct Lookups {
     pub sin: Option<SinLookup>,
     /// Configuration for the Exp2 lookup argument, if active.
     pub exp2: Option<Exp2Lookup>,
+    /// Configuration for the Log2 lookup argument, if active.
+    pub log2: Option<Log2Lookup>,
     /// Configuration for the RangeCheck lookup argument, if active.
     pub range_check: Option<RangeCheckLookup<1>>,
 }
@@ -36,6 +40,8 @@ pub struct LookupElements {
     pub sin: SinLookupElements,
     /// Interaction elements for the Exp2 lookup.
     pub exp2: Exp2LookupElements,
+    /// Interaction elements for the Log2 lookup.
+    pub log2: Log2LookupElements,
     /// Interaction elements for the RangeCheck lookup.
     pub range_check: RangeCheckLookupElements,
 }
@@ -46,6 +52,7 @@ impl LookupElements {
         Self {
             sin: SinLookupElements::draw(channel),
             exp2: Exp2LookupElements::draw(channel),
+            log2: Log2LookupElements::draw(channel),
             range_check: RangeCheckLookupElements::draw(channel),
         }
     }

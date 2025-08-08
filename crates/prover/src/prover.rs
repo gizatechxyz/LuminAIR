@@ -1,11 +1,11 @@
 use luminair_air::{
     components::{
-        add, contiguous, exp2, inputs, less_than, lookups, max_reduce, mul, recip, sin, sqrt,
+        add, contiguous, exp2, inputs, less_than, log2, lookups, max_reduce, mul, recip, sin, sqrt,
         sum_reduce, rem, LuminairComponents, LuminairInteractionElements,
     },
     pie::{LuminairPie, TraceTable},
     preprocessed::{
-        lookups_to_preprocessed_column, Exp2PreProcessed, PreProcessedTrace,
+        lookups_to_preprocessed_column, Exp2PreProcessed, Log2PreProcessed, PreProcessedTrace,
         RangeCheckPreProcessed, SinPreProcessed,
     },
     settings::CircuitSettings,
@@ -143,6 +143,18 @@ pub fn prove(
                 main_claim.exp2_lookup = Some(cl.clone());
                 interaction_claim_gen.exp2_lookup = Some(in_cl_gen);
             }
+            TraceTable::Log2 { table } => {
+                let claim_gen = log2::witness::ClaimGenerator::new(table);
+                let (cl, in_cl_gen) = claim_gen.write_trace(&mut tree_builder)?;
+                main_claim.log2 = Some(cl.clone());
+                interaction_claim_gen.log2 = Some(in_cl_gen);
+            }
+            TraceTable::Log2Lookup { table } => {
+                let claim_gen = lookups::log2::witness::ClaimGenerator::new(table);
+                let (cl, in_cl_gen) = claim_gen.write_trace(&mut tree_builder)?;
+                main_claim.log2_lookup = Some(cl.clone());
+                interaction_claim_gen.log2_lookup = Some(in_cl_gen);
+            }
             TraceTable::LessThan { table } => {
                 let claim_gen = less_than::witness::ClaimGenerator::new(table);
                 let (cl, in_cl_gen) = claim_gen.write_trace(&mut tree_builder)?;
@@ -243,6 +255,22 @@ pub fn prove(
         let claim =
             claim_gen.write_interaction_trace(&mut tree_builder, &lookup_elements.exp2, &exp2_luts);
         interaction_claim.exp2_lookup = Some(claim)
+    }
+    if let Some(claim_gen) = interaction_claim_gen.log2 {
+        let claim = claim_gen.write_interaction_trace(
+            &mut tree_builder,
+            node_elements,
+            &lookup_elements.log2,
+        );
+        interaction_claim.log2 = Some(claim)
+    }
+    if let Some(claim_gen) = interaction_claim_gen.log2_lookup {
+        let mut log2_luts = preprocessed_trace.columns_of::<Log2PreProcessed>();
+        log2_luts.sort_by_key(|c| c.col_index);
+
+        let claim =
+            claim_gen.write_interaction_trace(&mut tree_builder, &lookup_elements.log2, &log2_luts);
+        interaction_claim.log2_lookup = Some(claim)
     }
     if let Some(claim_gen) = interaction_claim_gen.less_than {
         let claim = claim_gen.write_interaction_trace(
