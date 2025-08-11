@@ -8,11 +8,11 @@ LuminAIR Web is a WebAssembly-based verifier that allows you to verify LuminAIR 
 ## Installation
 
 ```bash
-npm install luminair-web
+npm install @gizatech/luminair-web
 # or
-yarn add luminair-web
+yarn add @gizatech/luminair-web
 # or
-pnpm add luminair-web
+pnpm add @gizatech/luminair-web
 ```
 
 ## Usage
@@ -20,7 +20,7 @@ pnpm add luminair-web
 Before using any verification functions, you need to initialize the WASM module:
 
 ```typescript
-import init from 'luminair-web';
+import init from '@gizatech/luminair-web';
 
 // Initialize the WASM module
 await init();
@@ -31,7 +31,7 @@ await init();
 The simplest way to verify a proof is using the `verify` function:
 
 ```typescript
-import { verify } from 'luminair-web';
+import { verify } from '@gizatech/luminair-web';
 
 const result = verify(proofBytes, settingsBytes);
 if (result.success) {
@@ -46,7 +46,7 @@ if (result.success) {
 The package provides additional utilities and configuration options for more advanced use cases:
 
 ```typescript
-import { verify, VerificationOptions, LuminairUtils } from 'luminair-web';
+import { verify, VerificationOptions, LuminairUtils } from '@gizatech/luminair-web';
 
 // Configure verification options
 const options: VerificationOptions = {
