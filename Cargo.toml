@@ -7,7 +7,7 @@ members = [
     "crates/utils",
     "crates/verifiers/rust",
     "crates/verifiers/wasm",
-    "examples/simple",
+    "examples/*",
     "crates/prelude",
 ]
 
