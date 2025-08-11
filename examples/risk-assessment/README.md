@@ -5,7 +5,6 @@ A verifiable DeFi protocol risk assessment using Zero-Knowledge proofs to calcul
 ## Overview
 
 This example demonstrates how DeFi lending protocols can use LuminAIR to:
-- Calculate risk metrics for collateralized positions
 - Generate ZK proofs of risk calculations  
 - Enable transparent and verifiable risk management
 
