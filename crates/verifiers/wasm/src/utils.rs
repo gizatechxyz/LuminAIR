@@ -1,6 +1,7 @@
 use tracing::{error, info, warn};
 use wasm_bindgen::prelude::*;
 
+/// Sets up panic hook for better error messages in WASM
 pub fn set_panic_hook() {
     // When the `console_error_panic_hook` feature is enabled, we can call the
     // `set_panic_hook` function at least once during initialization, and then
@@ -18,22 +19,26 @@ extern "C" {
     fn log(s: &str);
 }
 
+/// Logs an error message to both console and tracing
 pub fn console_error(message: &str) {
     web_sys::console::error_1(&message.into());
     error!("{}", message);
 }
 
+/// Logs an info message to both console and tracing
 pub fn console_info(message: &str) {
     web_sys::console::info_1(&message.into());
     info!("{}", message);
 }
 
+/// Logs a warning message to both console and tracing
 #[allow(dead_code)]
 pub fn console_warn(message: &str) {
     web_sys::console::warn_1(&message.into());
     warn!("{}", message);
 }
 
+/// Sets the tracing level for WASM verification
 #[wasm_bindgen]
 pub fn set_tracing_level(level: &str) -> bool {
     match level.to_lowercase().as_str() {
@@ -69,6 +74,7 @@ pub fn set_tracing_level(level: &str) -> bool {
     }
 }
 
+/// Returns a JSON description of all verification phases
 #[wasm_bindgen]
 pub fn get_verification_phases() -> String {
     r#"

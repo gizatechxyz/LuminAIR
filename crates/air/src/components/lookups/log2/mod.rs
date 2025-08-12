@@ -17,6 +17,7 @@ pub mod witness;
 // Drawn from the channel, used to combine `(input, output)` pairs from the Log2 LUT.
 relation!(Log2LookupElements, 2);
 
+/// Logarithm base-2 lookup table structure for storing layout and multiplicities
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Log2Lookup {
     pub layout: LookupLayout,
@@ -24,6 +25,7 @@ pub struct Log2Lookup {
 }
 
 impl Log2Lookup {
+    /// Creates a new Log2Lookup with the given layout
     pub fn new(layout: &LookupLayout) -> Self {
         let multiplicities = AtomicMultiplicityColumn::new(1 << layout.log_size);
         Self {
@@ -32,6 +34,7 @@ impl Log2Lookup {
         }
     }
 
+    /// Adds multiplicities to the trace table
     pub fn add_multiplicities_to_table(&self, table: &mut Log2LookupTraceTable) {
         for mult in &self.multiplicities.data {
             table.add_row(Log2LookupTraceTableRow {

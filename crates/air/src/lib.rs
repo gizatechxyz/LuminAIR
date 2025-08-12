@@ -25,6 +25,7 @@ pub const DEFAULT_FP_SCALE_FACTOR: u32 = 1 << DEFAULT_FP_SCALE;
 
 const TWO_POW_31_MINUS_1: u32 = (1u32 << 31) - 1;
 
+/// Main claim structure containing all component claims for LuminAIR
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct LuminairClaim {
     pub add: Option<AddClaim>,
@@ -36,7 +37,6 @@ pub struct LuminairClaim {
     pub max_reduce: Option<MaxReduceClaim>,
     pub sqrt: Option<SqrtClaim>,
     pub rem: Option<RemClaim>,
-
     pub exp2: Option<Exp2Claim>,
     pub exp2_lookup: Option<Exp2LookupClaim>,
     pub log2: Option<Log2Claim>,
@@ -48,6 +48,7 @@ pub struct LuminairClaim {
 }
 
 impl LuminairClaim {
+    /// Mixes all component claims into the given channel
     pub fn mix_into(&self, channel: &mut impl Channel) {
         if let Some(ref claim) = self.add {
             claim.mix_into(channel);
@@ -102,6 +103,7 @@ impl LuminairClaim {
         }
     }
 
+    /// Returns the log sizes for all component claims
     pub fn log_sizes(&self) -> TreeVec<Vec<u32>> {
         let mut log_sizes = vec![];
 
@@ -160,6 +162,7 @@ impl LuminairClaim {
     }
 }
 
+/// Generator for interaction claims across all components
 #[derive(Default)]
 pub struct LuminairInteractionClaimGenerator {
     pub add: Option<add::witness::InteractionClaimGenerator>,
@@ -181,6 +184,7 @@ pub struct LuminairInteractionClaimGenerator {
     pub contiguous: Option<contiguous::witness::InteractionClaimGenerator>,
 }
 
+/// Collection of interaction claims for all components
 #[derive(Serialize, Deserialize, Default, Debug)]
 pub struct LuminairInteractionClaim {
     pub add: Option<InteractionClaim>,
@@ -203,6 +207,7 @@ pub struct LuminairInteractionClaim {
 }
 
 impl LuminairInteractionClaim {
+    /// Mixes all interaction claims into the given channel
     pub fn mix_into(&self, channel: &mut impl Channel) {
         if let Some(ref claim) = self.add {
             claim.mix_into(channel);

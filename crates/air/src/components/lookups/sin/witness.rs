@@ -27,15 +27,18 @@ use super::{
 
 pub(crate) const N_TRACE_COLUMNS: usize = 1;
 
+/// Generator for sine lookup table claims
 pub struct ClaimGenerator {
     pub inputs: SinLookupTraceTable,
 }
 
 impl ClaimGenerator {
+    /// Creates a new ClaimGenerator with the given inputs
     pub fn new(inputs: SinLookupTraceTable) -> Self {
         Self { inputs }
     }
 
+    /// Writes the trace and generates claims
     pub fn write_trace(
         mut self,
         tree_builder: &mut impl TreeBuilder<SimdBackend>,
@@ -68,6 +71,7 @@ impl ClaimGenerator {
     }
 }
 
+/// Writes the trace using SIMD operations
 fn write_trace_simd(
     inputs: Vec<PackedSinLookupTraceTableRow>,
 ) -> (ComponentTrace<N_TRACE_COLUMNS>, LookupData) {
@@ -96,17 +100,20 @@ fn write_trace_simd(
     (trace, lookup_data)
 }
 
+/// Data structure for lookup operations
 #[derive(Uninitialized, IterMut, ParIterMut)]
 struct LookupData {
     multiplicities: Vec<PackedM31>,
 }
 
+/// Generator for sine lookup table interaction claims
 pub struct InteractionClaimGenerator {
     log_size: u32,
     lookup_data: LookupData,
 }
 
 impl InteractionClaimGenerator {
+    /// Writes the interaction trace for sine lookup table operations
     pub fn write_interaction_trace(
         self,
         tree_builder: &mut impl TreeBuilder<SimdBackend>,

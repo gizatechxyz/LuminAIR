@@ -5,8 +5,18 @@ use crate::scenario::{scenarios, Scenario};
 
 mod scenario;
 
+/// DeFi Protocol Risk Assessment with ZK Proofs
+/// 
+/// This example demonstrates how to use LuminAIR to create verifiable risk calculations
+/// for DeFi protocols. It computes:
+/// - Value at Risk (VaR): The maximum expected loss at a given confidence level
+/// - Conditional Value at Risk (CVaR): The expected loss in tail scenarios
+/// - Maximum Loss: The worst-case scenario loss
+/// 
+/// All calculations are proven using STARK proofs, ensuring mathematical correctness
+/// and enabling on-chain verification for transparent governance.
 fn main() {
-    println!("=== Verfiable CVaR Risk Assessment ===\n");
+    println!("=== Verfifiable CVaR Risk Assessment ===\n");
     println!("Scenario: Analyzing potential losses from liquidation events");
     println!("during a market downturn and diverse DeFi-specific stressors\n");
 

@@ -15,6 +15,7 @@ pub mod witness;
 // Drawn from the channel, used to combine `(input, output)` pairs from the Sin LUT.
 relation!(SinLookupElements, 2);
 
+/// Sine lookup table structure for storing layout and multiplicities
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct SinLookup {
     pub layout: LookupLayout,
@@ -22,6 +23,7 @@ pub struct SinLookup {
 }
 
 impl SinLookup {
+    /// Creates a new SinLookup with the given layout
     pub fn new(layout: &LookupLayout) -> Self {
         let multiplicities = AtomicMultiplicityColumn::new(1 << layout.log_size);
         Self {
@@ -30,6 +32,7 @@ impl SinLookup {
         }
     }
 
+    /// Adds multiplicities to the trace table
     pub fn add_multiplicities_to_table(&self, table: &mut SinLookupTraceTable) {
         for mult in &self.multiplicities.data {
             table.add_row(SinLookupTraceTableRow {
@@ -39,6 +42,7 @@ impl SinLookup {
     }
 }
 
+/// Data structure for sine lookup table columns
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct SinLookupData {
     pub col_0: Vec<Fixed<DEFAULT_FP_SCALE>>,
@@ -46,6 +50,7 @@ pub struct SinLookupData {
 }
 
 impl SinLookupData {
+    /// Creates new sine lookup table data from the given layout
     pub fn new(layout: &LookupLayout) -> Self {
         let mut uniq = BTreeSet::<i64>::new();
         for range in &layout.ranges {

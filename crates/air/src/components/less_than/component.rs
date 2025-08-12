@@ -11,6 +11,7 @@ use crate::{
 
 pub type LessThanComponent = FrameworkComponent<LessThanEval>;
 
+/// Evaluation structure for less-than comparison operations with range checking
 pub struct LessThanEval {
     log_size: u32,
     range_check_log_size: u32,
@@ -19,6 +20,7 @@ pub struct LessThanEval {
 }
 
 impl LessThanEval {
+    /// Creates a new LessThanEval with the given claim, node elements, range check elements, and range check log size
     pub fn new(
         claim: &LessThanClaim,
         node_elements: NodeElements,
@@ -35,14 +37,17 @@ impl LessThanEval {
 }
 
 impl FrameworkEval for LessThanEval {
+    /// Returns the log size of the evaluation
     fn log_size(&self) -> u32 {
         self.log_size
     }
 
+    /// Returns the maximum constraint log degree bound
     fn max_constraint_log_degree_bound(&self) -> u32 {
         std::cmp::max(self.log_size, self.range_check_log_size) + 1
     }
 
+    /// Evaluates the less-than comparison constraints and relations
     fn evaluate<E: EvalAtRow>(&self, mut eval: E) -> E {
         // Use 31 bits for the constraint (maximum for M31 field)
         let two_pow_k = E::F::from(M31::from_u32_unchecked(TWO_POW_31_MINUS_1));

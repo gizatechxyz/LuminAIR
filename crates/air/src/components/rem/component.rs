@@ -7,12 +7,14 @@ use stwo_prover::constraint_framework::{
 
 pub type RemComponent = FrameworkComponent<RemEval>;
 
+/// Evaluation structure for remainder operations
 pub struct RemEval {
     log_size: u32,
     node_elements: NodeElements,
 }
 
 impl RemEval {
+    /// Creates a new RemEval with the given claim and node elements
     pub fn new(claim: &RemClaim, node_elements: NodeElements) -> Self {
         Self {
             log_size: claim.log_size,
@@ -22,14 +24,17 @@ impl RemEval {
 }
 
 impl FrameworkEval for RemEval {
+    /// Returns the log size of the evaluation
     fn log_size(&self) -> u32 {
         self.log_size
     }
 
+    /// Returns the maximum constraint log degree bound
     fn max_constraint_log_degree_bound(&self) -> u32 {
         self.log_size + 1
     }
 
+    /// Evaluates the remainder constraints and relations
     fn evaluate<E: EvalAtRow>(&self, mut eval: E) -> E {
         //IDs
         let node_id = eval.next_trace_mask();

@@ -1,5 +1,13 @@
 use luminair::prelude::*;
 
+/// Simple example demonstrating LuminAIR usage
+/// 
+/// This example shows how to:
+/// 1. Create a computational graph with basic operations
+/// 2. Compile the graph using the STWO compiler
+/// 3. Generate circuit settings and execution traces
+/// 4. Create and verify a STARK proof
+/// 5. Save and load proof data
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut cx = Graph::new();
 
@@ -41,7 +49,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("Verifying proof...");
     verify(proof, settings)?;
-    println!("Proof verified successfully. Computation integrity ensured. 🎉");
+    println!("Proof verified successfully. Computation integrity ensured. ��");
 
     Ok(())
 }

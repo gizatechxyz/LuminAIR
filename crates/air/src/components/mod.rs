@@ -132,10 +132,12 @@ pub type RangeCheckLookupClaim = Claim<RangeCheckLookupColumn>;
 pub type InputsClaim = Claim<InputsColumn>;
 pub type ContiguousClaim = Claim<ContiguousColumn>;
 
+/// Trait for trace columns to specify their count
 pub trait TraceColumn {
     fn count() -> (usize, usize);
 }
 
+/// Generic claim structure for any trace column type
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Claim<T: TraceColumn> {
     pub log_size: u32,
@@ -143,6 +145,7 @@ pub struct Claim<T: TraceColumn> {
 }
 
 impl<T: TraceColumn> Claim<T> {
+    /// Creates a new claim with the specified log size
     pub const fn new(log_size: u32) -> Self {
         Self {
             log_size,
@@ -150,6 +153,7 @@ impl<T: TraceColumn> Claim<T> {
         }
     }
 
+    /// Returns the log sizes for main and interaction trace columns
     pub fn log_sizes(&self) -> TreeVec<Vec<u32>> {
         let (main_trace_cols, interaction_trace_cols) = T::count();
         let trace_log_sizes = vec![self.log_size; main_trace_cols];
@@ -158,12 +162,14 @@ impl<T: TraceColumn> Claim<T> {
         TreeVec::new(vec![vec![], trace_log_sizes, interaction_trace_log_sizes])
     }
 
+    /// Mixes the claim's log size into the given channel
     pub fn mix_into(&self, channel: &mut impl Channel) {
         // Mix log_size
         channel.mix_u64(self.log_size.into());
     }
 }
 
+/// Enumeration of all possible claim types
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum ClaimType {
     Add(Claim<AddColumn>),
@@ -185,12 +191,14 @@ pub enum ClaimType {
     Contiguous(Claim<ContiguousColumn>),
 }
 
+/// Interaction claim containing a claimed sum
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct InteractionClaim {
     pub claimed_sum: SecureField,
 }
 
 impl InteractionClaim {
+    /// Mixes the claimed sum into the given channel
     pub fn mix_into(&self, channel: &mut impl Channel) {
         channel.mix_felts(&[self.claimed_sum]);
     }
@@ -200,6 +208,7 @@ impl InteractionClaim {
 // Drawn from the channel and used in interaction phase constraints.
 relation!(NodeElements, 2);
 
+/// Collection of interaction elements for LuminAIR
 #[derive(Clone, Debug)]
 pub struct LuminairInteractionElements {
     pub node_elements: NodeElements,
@@ -207,6 +216,7 @@ pub struct LuminairInteractionElements {
 }
 
 impl LuminairInteractionElements {
+    /// Draws interaction elements from the given channel
     pub fn draw(channel: &mut impl Channel) -> Self {
         let node_elements = NodeElements::draw(channel);
         let lookup_elements = LookupElements::draw(channel);
@@ -218,6 +228,7 @@ impl LuminairInteractionElements {
     }
 }
 
+/// Collection of all LuminAIR components
 pub struct LuminairComponents {
     add: Option<AddComponent>,
     mul: Option<MulComponent>,
@@ -239,6 +250,7 @@ pub struct LuminairComponents {
 }
 
 impl LuminairComponents {
+    /// Creates new LuminAIR components from claims and configuration
     pub fn new(
         claim: &LuminairClaim,
         interaction_elements: &LuminairInteractionElements,
@@ -507,6 +519,7 @@ impl LuminairComponents {
         }
     }
 
+    /// Returns all component provers as a vector
     pub fn provers(&self) -> Vec<&dyn ComponentProver<SimdBackend>> {
         let mut components: Vec<&dyn ComponentProver<SimdBackend>> = vec![];
 
@@ -580,6 +593,7 @@ impl LuminairComponents {
         components
     }
 
+    /// Returns all components as a vector
     pub fn components(&self) -> Vec<&dyn Component> {
         self.provers()
             .into_iter()

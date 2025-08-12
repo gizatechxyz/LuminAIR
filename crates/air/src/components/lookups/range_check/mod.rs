@@ -18,12 +18,14 @@ pub mod witness;
 // Interaction elements specifically for the RangeCheck Lookup Table argument.
 relation!(RangeCheckLookupElements, 1);
 
+/// Range check lookup table structure for storing layout and multiplicities
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct RangeCheckLookup<const N: usize> {
     pub layout: RangeCheckLayout<N>,
     pub multiplicities: AtomicMultiplicityColumn,
 }
 
+/// Layout structure for range check lookup tables
 #[serde_as]
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct RangeCheckLayout<const N: usize> {
@@ -33,6 +35,7 @@ pub struct RangeCheckLayout<const N: usize> {
 }
 
 impl<const N: usize> RangeCheckLookup<N> {
+    /// Creates a new RangeCheckLookup with the given layout
     pub fn new(layout: &RangeCheckLayout<N>) -> Self {
         let multiplicities = AtomicMultiplicityColumn::new(1 << layout.log_size);
         Self {
@@ -41,6 +44,7 @@ impl<const N: usize> RangeCheckLookup<N> {
         }
     }
 
+    /// Adds multiplicities to the trace table
     pub fn add_multiplicities_to_table(&self, table: &mut RangeCheckLookupTraceTable) {
         for mult in &self.multiplicities.data {
             table.add_row(RangeCheckLookupTraceTableRow {

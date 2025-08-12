@@ -11,12 +11,14 @@ use stwo_prover::{
 
 pub type MulComponent = FrameworkComponent<MulEval>;
 
+/// Evaluation structure for multiplication operations
 pub struct MulEval {
     log_size: u32,
     node_elements: NodeElements,
 }
 
 impl MulEval {
+    /// Creates a new MulEval with the given claim and node elements
     pub fn new(claim: &MulClaim, node_elements: NodeElements) -> Self {
         Self {
             log_size: claim.log_size,
@@ -26,14 +28,17 @@ impl MulEval {
 }
 
 impl FrameworkEval for MulEval {
+    /// Returns the log size of the evaluation
     fn log_size(&self) -> u32 {
         self.log_size
     }
 
+    /// Returns the maximum constraint log degree bound
     fn max_constraint_log_degree_bound(&self) -> u32 {
         self.log_size + 1
     }
 
+    /// Evaluates the multiplication constraints and relations
     fn evaluate<E: EvalAtRow>(&self, mut eval: E) -> E {
         // IDs
         let node_id = eval.next_trace_mask(); // ID of the node in the computational graph.

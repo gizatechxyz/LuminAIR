@@ -23,6 +23,7 @@ use stwo_prover::core::{
 
 use crate::LuminairProof;
 
+/// Generates a LuminAIR proof from the given PIE and circuit settings
 pub fn prove(
     pie: LuminairPie,
     settings: CircuitSettings,

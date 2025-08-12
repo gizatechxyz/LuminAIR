@@ -29,15 +29,18 @@ use crate::{
 
 pub(crate) const N_TRACE_COLUMNS: usize = 1;
 
+/// Generator for exponential base-2 lookup table claims
 pub struct ClaimGenerator {
     pub inputs: Exp2LookupTraceTable,
 }
 
 impl ClaimGenerator {
+    /// Creates a new ClaimGenerator with the given inputs
     pub fn new(inputs: Exp2LookupTraceTable) -> Self {
         Self { inputs }
     }
 
+    /// Writes the trace and generates claims
     pub fn write_trace(
         mut self,
         tree_builder: &mut impl TreeBuilder<SimdBackend>,
@@ -70,6 +73,7 @@ impl ClaimGenerator {
     }
 }
 
+/// Writes the trace using SIMD operations
 fn write_trace_simd(
     inputs: Vec<PackedExp2LookupTraceTableRow>,
 ) -> (ComponentTrace<N_TRACE_COLUMNS>, LookupData) {
@@ -98,17 +102,20 @@ fn write_trace_simd(
     (trace, lookup_data)
 }
 
+/// Data structure for lookup operations
 #[derive(Uninitialized, IterMut, ParIterMut)]
 struct LookupData {
     multiplicities: Vec<PackedM31>,
 }
 
+/// Generator for exponential base-2 lookup table interaction claims
 pub struct InteractionClaimGenerator {
     log_size: u32,
     lookup_data: LookupData,
 }
 
 impl InteractionClaimGenerator {
+    /// Writes the interaction trace for exponential base-2 lookup table operations
     pub fn write_interaction_trace(
         self,
         tree_builder: &mut impl TreeBuilder<SimdBackend>,

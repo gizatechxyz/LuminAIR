@@ -6,14 +6,24 @@ use luminal::prelude::*;
 use num_traits::Zero;
 use numerair::Fixed;
 
+/// Checks if a TypeId matches the specified type T
+/// 
+/// Utility function for type checking in the graph compilation process
 pub(crate) fn is<T: Any>(type_id: TypeId) -> bool {
     type_id == TypeId::of::<T>()
 }
 
+/// Extracts StwoData buffer from an InputTensor if possible
+/// 
+/// Returns Some(&StwoData) if the tensor contains StwoData, None otherwise
 pub(crate) fn get_buffer_from_tensor<'a>(tensor: &'a InputTensor) -> Option<&'a StwoData> {
     tensor.borrowed().downcast_ref::<StwoData>()
 }
 
+/// Computes the value at a specific index in StwoData using shape expressions
+/// 
+/// Evaluates the index and validity expressions to determine the value at the given index.
+/// Returns Fixed::zero() if the index is invalid according to the validity expression.
 pub(crate) fn get_index(
     data: &StwoData,
     (ind, val): &(Expression, Expression),
@@ -28,6 +38,10 @@ pub(crate) fn get_index(
     }
 }
 
+/// Computes the padded range of values across all source tensors
+/// 
+/// Analyzes all input tensors to determine the global min/max range,
+/// then applies padding for lookup table generation
 pub(crate) fn compute_padded_range_from_srcs(srcs: &Vec<(InputTensor<'_>, ShapeTracker)>) -> Range {
     let mut min = Fixed(i64::MAX);
     let mut max = Fixed(i64::MIN);
@@ -48,6 +62,10 @@ pub(crate) fn compute_padded_range_from_srcs(srcs: &Vec<(InputTensor<'_>, ShapeT
     buffer_range(Range(min, max))
 }
 
+/// Applies padding to a range for lookup table generation
+/// 
+/// Adds a configurable margin (currently 10%) around the min/max values
+/// to ensure lookup tables can handle edge cases
 fn buffer_range(range: Range) -> Range {
     // TODO (@raphaelDkhn): make it parametizeable maybe.
     const RANGE_MARGIN: f64 = 0.10;

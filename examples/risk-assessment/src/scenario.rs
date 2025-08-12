@@ -1,10 +1,28 @@
+/// Represents a market scenario for DeFi risk assessment
+/// 
+/// Each scenario describes a potential market event and its associated loss percentage
+/// Positive values indicate losses, negative values indicate profits
 #[derive(Clone)]
 pub(crate) struct Scenario {
+    /// Human-readable name describing the scenario
     _name: &'static str,
+    /// Category classification for the scenario (e.g., "Bridge/Exploit", "Market/Systemic")
     _category: &'static str,
+    /// Loss percentage for this scenario (positive = loss, negative = profit)
     pub(crate) loss_pct: f32,
 }
 
+/// Generates a comprehensive set of DeFi market scenarios for risk assessment
+/// 
+/// Returns a vector of scenarios sorted by loss percentage (worst to best).
+/// Scenarios cover various risk categories including:
+/// - Bridge exploits and cross-chain issues
+/// - Stablecoin depegs and cascades
+/// - Infrastructure outages and oracle failures
+/// - Market crashes and liquidation events
+/// - MEV and gas-related issues
+/// - Operational and governance risks
+/// - Profitable scenarios (negative losses)
 pub(crate) fn scenarios() -> Vec<Scenario> {
     let scenarios = vec![
         // Ultra-crisis / systemic

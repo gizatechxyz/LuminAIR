@@ -6,12 +6,14 @@ use stwo_prover::constraint_framework::{
 
 pub type SumReduceComponent = FrameworkComponent<SumReduceEval>;
 
+/// Evaluation structure for sum reduction operations
 pub struct SumReduceEval {
     log_size: u32,
     node_elements: NodeElements,
 }
 
 impl SumReduceEval {
+    /// Creates a new SumReduceEval with the given claim and node elements
     pub fn new(claim: &SumReduceClaim, node_elements: NodeElements) -> Self {
         Self {
             log_size: claim.log_size,
@@ -21,14 +23,17 @@ impl SumReduceEval {
 }
 
 impl FrameworkEval for SumReduceEval {
+    /// Returns the log size of the evaluation
     fn log_size(&self) -> u32 {
         self.log_size
     }
 
+    /// Returns the maximum constraint log degree bound
     fn max_constraint_log_degree_bound(&self) -> u32 {
         self.log_size + 1
     }
 
+    /// Evaluates the sum reduction constraints and relations
     fn evaluate<E: EvalAtRow>(&self, mut eval: E) -> E {
         // IDs
         let node_id = eval.next_trace_mask(); // ID of the node in the computational graph.

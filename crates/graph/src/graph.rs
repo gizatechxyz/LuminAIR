@@ -44,15 +44,20 @@ use petgraph::{stable_graph::StableGraph, visit::EdgeRef, Direction};
 use regex::Regex;
 use rustc_hash::FxHashMap;
 
+/// Trait for LuminAIR graph operations
 pub trait LuminairGraph {
+    /// Generates circuit settings for the graph
     fn gen_circuit_settings(&mut self) -> CircuitSettings;
 
+    /// Generates a trace from the graph with the given settings
     fn gen_trace(&mut self, settings: &mut CircuitSettings) -> Result<LuminairPie, LuminairError>;
 
+    /// Generates a graph visualization string
     fn graph_viz(&self) -> String;
 }
 
 impl LuminairGraph for Graph {
+    /// Generates circuit settings by analyzing the graph structure and operations
     fn gen_circuit_settings(&mut self) -> CircuitSettings {
         // Track the number of views pointing to each tensor so we know when to clear
         if self.linearized_graph.is_none() {

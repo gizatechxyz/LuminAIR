@@ -7,6 +7,7 @@ use crate::components::{lookups::range_check::RangeCheckLookupElements, RangeChe
 
 pub type RangeCheckLookupComponent = FrameworkComponent<RangeCheckLookupEval>;
 
+/// Evaluation structure for range check lookup table operations
 pub struct RangeCheckLookupEval {
     n_bit: u32,
     log_size: u32,
@@ -14,6 +15,7 @@ pub struct RangeCheckLookupEval {
 }
 
 impl RangeCheckLookupEval {
+    /// Creates a new RangeCheckLookupEval with the given bit length, claim, and lookup elements
     pub fn new(
         n_bit: u32,
         claim: &RangeCheckLookupClaim,
@@ -28,14 +30,17 @@ impl RangeCheckLookupEval {
 }
 
 impl FrameworkEval for RangeCheckLookupEval {
+    /// Returns the log size of the evaluation
     fn log_size(&self) -> u32 {
         self.log_size
     }
 
+    /// Returns the maximum constraint log degree bound
     fn max_constraint_log_degree_bound(&self) -> u32 {
         self.log_size + 1
     }
 
+    /// Evaluates the range check lookup table constraints and relations
     fn evaluate<E: EvalAtRow>(&self, mut eval: E) -> E {
         let range_check_lut = eval.get_preprocessed_column(PreProcessedColumnId {
             id: format!("range_check_{:?}_column_0", self.n_bit),

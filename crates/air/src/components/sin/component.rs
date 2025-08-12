@@ -11,6 +11,7 @@ use stwo_prover::constraint_framework::{
 
 pub type SinComponent = FrameworkComponent<SinEval>;
 
+/// Evaluation structure for sine operations with lookup table support
 pub struct SinEval {
     log_size: u32,
     lut_log_size: u32,
@@ -19,6 +20,7 @@ pub struct SinEval {
 }
 
 impl SinEval {
+    /// Creates a new SinEval with the given claim, node elements, lookup elements, and LUT log size
     pub fn new(
         claim: &SinClaim,
         node_elements: NodeElements,
@@ -35,14 +37,17 @@ impl SinEval {
 }
 
 impl FrameworkEval for SinEval {
+    /// Returns the log size of the evaluation
     fn log_size(&self) -> u32 {
         self.log_size
     }
 
+    /// Returns the maximum constraint log degree bound
     fn max_constraint_log_degree_bound(&self) -> u32 {
         std::cmp::max(self.log_size, self.lut_log_size) + 1
     }
 
+    /// Evaluates the sine constraints and relations
     fn evaluate<E: EvalAtRow>(&self, mut eval: E) -> E {
         // IDs
         let node_id = eval.next_trace_mask(); // ID of the node in the computational graph.

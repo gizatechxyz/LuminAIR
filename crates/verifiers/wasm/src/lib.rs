@@ -12,6 +12,7 @@ use wasm_bindgen::prelude::*;
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
+/// Initializes the WASM module with panic hook and tracing
 #[wasm_bindgen(start)]
 pub fn main() {
     utils::set_panic_hook();
@@ -31,6 +32,7 @@ extern "C" {
     fn log(s: &str);
 }
 
+/// Macro for logging to the console from WASM
 #[macro_export]
 macro_rules! console_log {
     ($($t:tt)*) => (log(&format_args!($($t)*).to_string()))

@@ -37,9 +37,13 @@ use super::{IntoOperator, LuminairOperator};
 
 // ================== COPY ==================
 
+/// Operator for copying data from Vec<f32> to StwoData format
+/// 
+/// Converts input tensors to the fixed-point format required for STARK proving
 #[derive(Clone, Debug)]
 pub struct CopyToStwo {}
 impl CopyToStwo {
+    /// Creates a new CopyToStwo operator
     pub fn new() -> Self {
         Self {}
     }
@@ -96,9 +100,13 @@ impl Operator for CopyToStwo {
     }
 }
 
+/// Operator for copying data from StwoData format back to Vec<f32>
+/// 
+/// Converts fixed-point data back to the standard format for output
 #[derive(Clone, Debug)]
 pub struct CopyFromStwo {}
 impl CopyFromStwo {
+    /// Creates a new CopyFromStwo operator
     pub fn new() -> Self {
         Self {}
     }
@@ -119,8 +127,12 @@ impl Operator for CopyFromStwo {
 
 // ================== CONSTANT ================
 
+/// Operator for creating constant tensors with fixed-point values
+/// 
+/// Generates tensors with constant values for use in STARK proving
 #[derive(Clone, PartialEq)]
 pub struct LuminairConstant {
+    /// The constant value to be used
     pub value: ConstantValue,
 }
 impl core::fmt::Debug for LuminairConstant {
@@ -130,6 +142,7 @@ impl core::fmt::Debug for LuminairConstant {
 }
 
 impl LuminairConstant {
+    /// Creates a new LuminairConstant with the specified value
     pub fn new(value: ConstantValue) -> Self {
         Self { value }
     }
@@ -196,6 +209,9 @@ impl Operator for LuminairConstant {
 
 // ================== UNARY ==================
 
+/// Operator for making tensor data contiguous in memory
+/// 
+/// Ensures tensor data is stored in a contiguous memory layout for efficient access
 #[derive(Clone, PartialEq)]
 pub struct LuminairContiguous {}
 impl core::fmt::Debug for LuminairContiguous {
@@ -204,6 +220,7 @@ impl core::fmt::Debug for LuminairContiguous {
     }
 }
 impl LuminairContiguous {
+    /// Creates a new LuminairContiguous operator
     pub fn new() -> Self {
         Self {}
     }
@@ -306,6 +323,9 @@ impl Operator for LuminairContiguous {
     }
 }
 
+/// Operator for computing reciprocal (1/x) of tensor elements
+/// 
+/// Performs fixed-point reciprocal operations with remainder tracking for STARK proving
 #[derive(Clone, Default, PartialEq)]
 pub(crate) struct LuminairRecip {}
 impl core::fmt::Debug for LuminairRecip {
@@ -315,6 +335,7 @@ impl core::fmt::Debug for LuminairRecip {
 }
 
 impl LuminairRecip {
+    /// Creates a new LuminairRecip operator
     pub fn new() -> Self {
         Self {}
     }
@@ -416,6 +437,9 @@ impl Operator for LuminairRecip {
     }
 }
 
+/// Operator for computing sine of tensor elements
+/// 
+/// Performs fixed-point sine operations using lookup tables for STARK proving
 #[derive(Clone, Default, PartialEq)]
 pub(crate) struct LuminairSin {}
 impl core::fmt::Debug for LuminairSin {
@@ -425,6 +449,7 @@ impl core::fmt::Debug for LuminairSin {
 }
 
 impl LuminairSin {
+    /// Creates a new LuminairSin operator
     pub fn new() -> Self {
         Self {}
     }
@@ -527,6 +552,9 @@ impl Operator for LuminairSin {
     }
 }
 
+/// Operator for computing square root of tensor elements
+/// 
+/// Performs fixed-point square root operations with remainder tracking for STARK proving
 #[derive(Clone, Default, PartialEq)]
 pub(crate) struct LuminairSqrt {}
 impl core::fmt::Debug for LuminairSqrt {
@@ -536,6 +564,7 @@ impl core::fmt::Debug for LuminairSqrt {
 }
 
 impl LuminairSqrt {
+    /// Creates a new LuminairSqrt operator
     pub fn new() -> Self {
         Self {}
     }
@@ -637,6 +666,9 @@ impl Operator for LuminairSqrt {
     }
 }
 
+/// Operator for computing exponential base-2 of tensor elements
+/// 
+/// Performs fixed-point exponential operations using lookup tables for STARK proving
 #[derive(Clone, Default, PartialEq)]
 pub(crate) struct LuminairExp2 {}
 impl core::fmt::Debug for LuminairExp2 {
@@ -646,6 +678,7 @@ impl core::fmt::Debug for LuminairExp2 {
 }
 
 impl LuminairExp2 {
+    /// Creates a new LuminairExp2 operator
     pub fn new() -> Self {
         Self {}
     }
@@ -748,6 +781,9 @@ impl Operator for LuminairExp2 {
     }
 }
 
+/// Operator for computing logarithm base-2 of tensor elements
+/// 
+/// Performs fixed-point logarithm operations using lookup tables for STARK proving
 #[derive(Clone, Default, PartialEq)]
 pub(crate) struct LuminairLog2 {}
 impl core::fmt::Debug for LuminairLog2 {
@@ -757,6 +793,7 @@ impl core::fmt::Debug for LuminairLog2 {
 }
 
 impl LuminairLog2 {
+    /// Creates a new LuminairLog2 operator
     pub fn new() -> Self {
         Self {}
     }
@@ -861,6 +898,9 @@ impl Operator for LuminairLog2 {
 
 // ================== BINARY ==================
 
+/// Operator for adding two tensors element-wise
+/// 
+/// Performs fixed-point addition operations for STARK proving
 #[derive(Clone, Default, PartialEq)]
 struct LuminairAdd {}
 impl core::fmt::Debug for LuminairAdd {
@@ -870,6 +910,7 @@ impl core::fmt::Debug for LuminairAdd {
 }
 
 impl LuminairAdd {
+    /// Creates a new LuminairAdd operator
     pub fn new() -> Self {
         Self {}
     }
@@ -978,6 +1019,9 @@ impl Operator for LuminairAdd {
     }
 }
 
+/// Operator for multiplying two tensors element-wise
+/// 
+/// Performs fixed-point multiplication operations with remainder tracking for STARK proving
 #[derive(Clone, Default, PartialEq)]
 struct LuminairMul {}
 impl core::fmt::Debug for LuminairMul {
@@ -987,6 +1031,7 @@ impl core::fmt::Debug for LuminairMul {
 }
 
 impl LuminairMul {
+    /// Creates a new LuminairMul operator
     pub fn new() -> Self {
         Self {}
     }
@@ -1100,6 +1145,9 @@ impl Operator for LuminairMul {
     }
 }
 
+/// Operator for comparing if one tensor is less than another element-wise
+/// 
+/// Performs fixed-point comparison operations with range checking for STARK proving
 #[derive(Clone, Default, PartialEq)]
 struct LuminairLessThan {}
 impl core::fmt::Debug for LuminairLessThan {
@@ -1109,6 +1157,7 @@ impl core::fmt::Debug for LuminairLessThan {
 }
 
 impl LuminairLessThan {
+    /// Creates a new LuminairLessThan operator
     pub fn new() -> Self {
         Self {}
     }
@@ -1252,6 +1301,9 @@ impl Operator for LuminairLessThan {
     }
 }
 
+/// Operator for computing remainder of division between two tensors
+/// 
+/// Performs fixed-point remainder operations with quotient tracking for STARK proving
 #[derive(Clone, Default, PartialEq)]
 struct LuminairRem {}
 impl core::fmt::Debug for LuminairRem {
@@ -1261,6 +1313,7 @@ impl core::fmt::Debug for LuminairRem {
 }
 
 impl LuminairRem {
+    /// Creates a new LuminairRem operator
     pub fn new() -> Self {
         Self {}
     }
@@ -1376,6 +1429,9 @@ impl Operator for LuminairRem {
 
 // ================== REDUCE ==================
 
+/// Operator for reducing a tensor along a specified dimension by summing elements
+/// 
+/// Performs fixed-point sum reduction operations for STARK proving
 #[derive(Clone, Default, PartialEq)]
 struct LuminairSumReduce(pub usize);
 impl core::fmt::Debug for LuminairSumReduce {
@@ -1385,6 +1441,7 @@ impl core::fmt::Debug for LuminairSumReduce {
 }
 
 impl LuminairSumReduce {
+    /// Creates a new LuminairSumReduce operator for the specified dimension
     pub fn new(value: usize) -> Self {
         Self(value)
     }
@@ -1514,6 +1571,9 @@ impl Operator for LuminairSumReduce {
     }
 }
 
+/// Operator for reducing a tensor along a specified dimension by finding maximum elements
+/// 
+/// Performs fixed-point maximum reduction operations for STARK proving
 #[derive(Clone, Default, PartialEq)]
 struct LuminairMaxReduce(pub usize);
 impl core::fmt::Debug for LuminairMaxReduce {
@@ -1522,6 +1582,7 @@ impl core::fmt::Debug for LuminairMaxReduce {
     }
 }
 impl LuminairMaxReduce {
+    /// Creates a new LuminairMaxReduce operator for the specified dimension
     pub fn new(value: usize) -> Self {
         Self(value)
     }
@@ -1681,12 +1742,22 @@ impl Operator for LuminairMaxReduce {
 
 // ================== COMPILER ==================
 
+/// Compiler that replaces Luminal operators with LuminAIR equivalents
+/// 
+/// Handles the conversion of standard deep learning operations to STARK-provable
+/// fixed-point operations with trace generation capabilities
 #[derive(Default)]
 pub struct PrimitiveCompiler();
 
 impl Compiler for PrimitiveCompiler {
     type Output = ();
 
+    /// Compiles a graph by replacing operators with LuminAIR equivalents
+    /// 
+    /// This process involves:
+    /// 1. Adding copy operations for data format conversion
+    /// 2. Replacing standard operators with trace-generating versions
+    /// 3. Maintaining graph connectivity and metadata
     fn compile<T: ToIdsMut>(&self, graph: &mut Graph, mut ids: T) -> Self::Output {
         // Go through the graph and insert copy ops.
         // Copy Function nodes (data input/output)

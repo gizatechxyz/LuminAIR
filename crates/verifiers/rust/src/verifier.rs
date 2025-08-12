@@ -18,6 +18,7 @@ use stwo_prover::{
     },
 };
 
+/// Verifies a LuminAIR proof using the given circuit settings
 pub fn verify(
     LuminairProof {
         claim,

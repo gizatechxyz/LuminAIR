@@ -6,4 +6,5 @@ pub mod utils;
 #[cfg(test)]
 mod tests;
 
+/// Type alias for the STWO compiler used in LuminAIR
 pub type StwoCompiler = (op::prim::PrimitiveCompiler, op::other::CopyCompiler);

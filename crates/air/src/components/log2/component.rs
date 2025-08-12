@@ -6,6 +6,7 @@ use stwo_prover::constraint_framework::{
 
 pub type Log2Component = FrameworkComponent<Log2Eval>;
 
+/// Evaluation structure for logarithm base-2 operations with lookup table support
 pub struct Log2Eval {
     log_size: u32,
     lut_log_size: u32,
@@ -14,6 +15,7 @@ pub struct Log2Eval {
 }
 
 impl Log2Eval {
+    /// Creates a new Log2Eval with the given claim, node elements, lookup elements, and LUT log size
     pub fn new(
         claim: &Log2Claim,
         node_elements: NodeElements,
@@ -30,14 +32,17 @@ impl Log2Eval {
 }
 
 impl FrameworkEval for Log2Eval {
+    /// Returns the log size of the evaluation
     fn log_size(&self) -> u32 {
         self.log_size
     }
 
+    /// Returns the maximum constraint log degree bound
     fn max_constraint_log_degree_bound(&self) -> u32 {
         std::cmp::max(self.log_size, self.lut_log_size) + 1
     }
 
+    /// Evaluates the logarithm base-2 constraints and relations
     fn evaluate<E: EvalAtRow>(&self, mut eval: E) -> E {
         // IDs
         let node_id = eval.next_trace_mask(); // ID of the node in the computational graph.
