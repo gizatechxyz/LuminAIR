@@ -4,10 +4,8 @@ use crate::{
 };
 use num_traits::One;
 use numerair::eval::EvalFixedPoint;
-use stwo_prover::{
-    constraint_framework::{EvalAtRow, FrameworkComponent, FrameworkEval, RelationEntry},
-    core::fields::m31::M31,
-};
+use stwo::core::fields::m31::M31;
+use stwo_constraint_framework::{EvalAtRow, FrameworkComponent, FrameworkEval, RelationEntry};
 
 pub type MulComponent = FrameworkComponent<MulEval>;
 

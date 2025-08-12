@@ -2,14 +2,12 @@ use luminair_utils::TraceError;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use stwo_air_utils::trace::component_trace::ComponentTrace;
 use stwo_air_utils_derive::{IterMut, ParIterMut, Uninitialized};
-use stwo_prover::{
-    constraint_framework::{logup::LogupTraceGenerator, Relation},
-    core::backend::simd::{
-        m31::{PackedM31, LOG_N_LANES, N_LANES},
-        qm31::PackedQM31,
-        SimdBackend,
-    },
+use stwo::prover::backend::simd::{
+    m31::{PackedM31, LOG_N_LANES, N_LANES},
+    qm31::PackedQM31,
+    SimdBackend,
 };
+use stwo_constraint_framework::{LogupTraceGenerator, Relation};
 
 use crate::{
     components::{InteractionClaim, MaxReduceClaim, NodeElements},

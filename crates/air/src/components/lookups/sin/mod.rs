@@ -2,7 +2,8 @@ use std::{collections::BTreeSet, sync::atomic::Ordering};
 
 use numerair::Fixed;
 use serde::{Deserialize, Serialize};
-use stwo_prover::{core::fields::m31::BaseField, relation};
+use stwo::core::fields::m31::BaseField;
+use stwo_constraint_framework::relation;
 use table::{SinLookupTraceTable, SinLookupTraceTableRow};
 
 use crate::{preprocessed::LookupLayout, utils::AtomicMultiplicityColumn, DEFAULT_FP_SCALE};

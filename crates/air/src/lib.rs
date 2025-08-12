@@ -6,7 +6,7 @@ use components::{
     InteractionClaim, MaxReduceClaim, MulClaim, RecipClaim, RemClaim, SinClaim, SinLookupClaim,
     SqrtClaim, SumReduceClaim,
 };
-use stwo_prover::core::{channel::Channel, pcs::TreeVec};
+use stwo::core::{channel::Channel, pcs::TreeVec};
 
 use crate::components::{
     contiguous, inputs, less_than, ContiguousClaim, Exp2Claim, Exp2LookupClaim, InputsClaim,

@@ -12,33 +12,30 @@ use crate::{
 use itertools::Itertools;
 use numerair::Fixed;
 use serde::{Deserialize, Serialize};
-use stwo_prover::{
-    constraint_framework::preprocessed_columns::PreProcessedColumnId,
+use stwo::{
     core::{
-        backend::{
-            simd::{
-                column::BaseColumn,
-                m31::{PackedM31, LOG_N_LANES, N_LANES},
-                SimdBackend,
-            },
-            Column,
-        },
         fields::m31::{BaseField, MODULUS_BITS},
-        poly::{
-            circle::{CanonicCoset, CircleEvaluation},
-            BitReversedOrder,
-        },
+        poly::circle::CanonicCoset,
+    },
+    prover::{
+        backend::{simd::{
+            column::BaseColumn,
+            m31::{PackedM31, LOG_N_LANES, N_LANES},
+            SimdBackend,
+        }, Column},
+        poly::{circle::CircleEvaluation, BitReversedOrder},
     },
 };
+use stwo_constraint_framework::preprocessed_columns::PreProcessedColumnId;
 
 /// Represents a range of fixed-point values for lookup table generation
-/// 
+///
 /// Contains minimum and maximum values (inclusive) for a range of inputs
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Range(pub Fixed<DEFAULT_FP_SCALE>, pub Fixed<DEFAULT_FP_SCALE>);
 
 /// Layout configuration for lookup tables
-/// 
+///
 /// Defines the ranges of values and the logarithmic size for lookup table generation
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct LookupLayout {
@@ -50,7 +47,7 @@ pub struct LookupLayout {
 
 impl LookupLayout {
     /// Creates a new LookupLayout with the specified ranges
-    /// 
+    ///
     /// Automatically calculates the required log_size based on the total number of values
     pub fn new(ranges: Vec<Range>) -> Self {
         let log_size = calculate_log_size(value_count(&ranges) as usize);
@@ -58,7 +55,7 @@ impl LookupLayout {
     }
 
     /// Finds the index of a target value in the lookup table
-    /// 
+    ///
     /// Returns Some(index) if the value is within any of the ranges, None otherwise
     pub fn find_index(&self, target: i64) -> Option<usize> {
         // Binary search to find the range containing the target
@@ -123,7 +120,7 @@ fn value_count(ranges: &Vec<Range>) -> u32 {
 }
 
 /// Trait for preprocessed columns used in STARK proving
-/// 
+///
 /// Defines the interface for generating preprocessed lookup table columns
 /// that are used during the proving process
 pub trait PreProcessedColumn: Any {
@@ -140,7 +137,7 @@ pub trait PreProcessedColumn: Any {
 }
 
 /// Collection of preprocessed columns for STARK proving
-/// 
+///
 /// Manages a sorted collection of preprocessed lookup table columns
 /// that will be used during the proving process
 pub struct PreProcessedTrace {
@@ -150,7 +147,7 @@ pub struct PreProcessedTrace {
 
 impl PreProcessedTrace {
     /// Creates a new PreProcessedTrace with columns sorted by log_size
-    /// 
+    ///
     /// Columns are automatically sorted in descending order by their log_size
     pub fn new(mut columns: Vec<Box<dyn PreProcessedColumn>>) -> Self {
         columns.sort_by_key(|c| Reverse(c.log_size()));
@@ -178,7 +175,7 @@ impl PreProcessedTrace {
 }
 
 /// Converts lookup table configurations to preprocessed columns
-/// 
+///
 /// Creates the appropriate preprocessed column types for each lookup table
 /// that is present in the lookups configuration
 pub fn lookups_to_preprocessed_column(lookups: &Lookups) -> Vec<Box<dyn PreProcessedColumn>> {
@@ -214,7 +211,7 @@ pub const SIMD_ENUMERATION_0: Simd<u32, N_LANES> =
     Simd::from_array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
 
 /// Partitions a SIMD value into N bit segments according to specified bit counts
-/// 
+///
 /// Splits a 32-bit SIMD value into N segments, each with the specified number of bits
 pub fn partition_into_bit_segments<const N: usize>(
     mut value: Simd<u32, N_LANES>,
@@ -230,7 +227,7 @@ pub fn partition_into_bit_segments<const N: usize>(
 }
 
 /// Generates partitioned enumeration values for range checking
-/// 
+///
 /// Creates N vectors of PackedM31 values, each representing a bit segment
 /// for efficient range checking in STARK proofs
 pub fn generate_partitioned_enumeration<const N: usize>(
@@ -251,7 +248,7 @@ pub fn generate_partitioned_enumeration<const N: usize>(
 }
 
 /// Preprocessed column for range checking operations
-/// 
+///
 /// Generates lookup table columns for efficient range checking in STARK proofs
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct RangeCheckPreProcessed<const N: usize> {
@@ -263,7 +260,7 @@ pub struct RangeCheckPreProcessed<const N: usize> {
 
 impl<const N: usize> RangeCheckPreProcessed<N> {
     /// Creates a new RangeCheckPreProcessed with the specified layout and column index
-    /// 
+    ///
     /// Asserts that all ranges are positive and the column index is valid
     pub fn new(layout: RangeCheckLayout<N>, col_index: usize) -> Self {
         assert!(layout.ranges.iter().all(|&r| r > 0));
@@ -310,7 +307,7 @@ impl<const N: usize> PreProcessedColumn for RangeCheckPreProcessed<N> {
 // ================== SIN ==================
 
 /// Preprocessed column for sine lookup table operations
-/// 
+///
 /// Generates lookup table columns for efficient sine computation in STARK proofs
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct SinPreProcessed {
@@ -322,7 +319,7 @@ pub struct SinPreProcessed {
 
 impl SinPreProcessed {
     /// Creates a new SinPreProcessed with the specified layout and column index
-    /// 
+    ///
     /// Asserts that the column index is less than 2 (sine LUT has 2 columns)
     pub fn new(layout: LookupLayout, col_index: usize) -> Self {
         assert!(col_index < 2, "Sin LUT must have 2 columns");
@@ -393,7 +390,7 @@ impl PreProcessedColumn for SinPreProcessed {
 // ================== EXP2 ==================
 
 /// Preprocessed column for exponential base-2 lookup table operations
-/// 
+///
 /// Generates lookup table columns for efficient exponential computation in STARK proofs
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Exp2PreProcessed {
@@ -405,7 +402,7 @@ pub struct Exp2PreProcessed {
 
 impl Exp2PreProcessed {
     /// Creates a new Exp2PreProcessed with the specified layout and column index
-    /// 
+    ///
     /// Asserts that the column index is less than 2 (exp2 LUT has 2 columns)
     pub fn new(layout: LookupLayout, col_index: usize) -> Self {
         assert!(col_index < 2, "Exp2 LUT must have 2 columns");
@@ -476,7 +473,7 @@ impl PreProcessedColumn for Exp2PreProcessed {
 // ================== LOG2 ==================
 
 /// Preprocessed column for logarithm base-2 lookup table operations
-/// 
+///
 /// Generates lookup table columns for efficient logarithm computation in STARK proofs
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Log2PreProcessed {
@@ -488,7 +485,7 @@ pub struct Log2PreProcessed {
 
 impl Log2PreProcessed {
     /// Creates a new Log2PreProcessed with the specified layout and column index
-    /// 
+    ///
     /// Asserts that the column index is less than 2 (log2 LUT has 2 columns)
     pub fn new(layout: LookupLayout, col_index: usize) -> Self {
         assert!(col_index < 2, "Log2 LUT must have 2 columns");

@@ -32,19 +32,26 @@ use sqrt::{
     component::{SqrtComponent, SqrtEval},
     table::SqrtColumn,
 };
-use stwo_prover::{
-    constraint_framework::TraceLocationAllocator,
+use stwo::{
     core::{
-        air::{Component, ComponentProver},
-        backend::simd::SimdBackend,
+        air::Component,
         channel::Channel,
-        fields::{m31::BaseField, qm31::SecureField, secure_column::SECURE_EXTENSION_DEGREE},
+        fields::{
+            m31::BaseField,
+            qm31::{SecureField, SECURE_EXTENSION_DEGREE},
+        },
         pcs::TreeVec,
-        poly::{circle::CircleEvaluation, BitReversedOrder},
         ColumnVec,
     },
-    relation,
+    prover::{
+        backend::simd::SimdBackend,
+        poly::{circle::CircleEvaluation, BitReversedOrder},
+        ComponentProver,
+    },
 };
+use stwo_constraint_framework::relation;
+
+use stwo_constraint_framework::TraceLocationAllocator;
 
 use sum_reduce::{
     component::{SumReduceComponent, SumReduceEval},

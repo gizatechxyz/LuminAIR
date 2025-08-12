@@ -26,7 +26,7 @@ use luminal::{
 use num_traits::{identities::Zero, One};
 use numerair::Fixed;
 use std::{ops::Deref, sync::Arc};
-use stwo_prover::core::fields::m31::{BaseField, M31};
+use stwo::core::fields::m31::{BaseField, M31};
 
 use crate::{
     data::StwoData,

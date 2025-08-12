@@ -1,8 +1,6 @@
 use num_traits::One;
-use stwo_prover::{
-    constraint_framework::{EvalAtRow, FrameworkComponent, FrameworkEval, RelationEntry},
-    core::fields::m31::M31,
-};
+use stwo::core::fields::m31::M31;
+use stwo_constraint_framework::{EvalAtRow, FrameworkComponent, FrameworkEval, RelationEntry};
 
 use crate::{
     components::{lookups::range_check::RangeCheckLookupElements, LessThanClaim, NodeElements},

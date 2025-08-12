@@ -5,7 +5,7 @@ use crate::components::{
     SinClaim,
 };
 use num_traits::One;
-use stwo_prover::constraint_framework::{
+use stwo_constraint_framework::{
     EvalAtRow, FrameworkComponent, FrameworkEval, RelationEntry,
 };
 
