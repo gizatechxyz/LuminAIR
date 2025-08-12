@@ -1,7 +1,7 @@
 use luminair_air::{
     components::{
-        add, contiguous, exp2, inputs, less_than, log2, lookups, max_reduce, mul, recip, sin, sqrt,
-        sum_reduce, rem, LuminairComponents, LuminairInteractionElements,
+        add, contiguous, exp2, inputs, less_than, log2, lookups, max_reduce, mul, recip, rem, sin,
+        sqrt, sum_reduce, LuminairComponents, LuminairInteractionElements,
     },
     pie::{LuminairPie, TraceTable},
     preprocessed::{
@@ -13,12 +13,13 @@ use luminair_air::{
 };
 use luminair_utils::LuminairError;
 use stwo::core::{
-    backend::simd::SimdBackend,
     channel::Blake2sChannel,
-    pcs::{CommitmentSchemeProver, PcsConfig},
-    poly::circle::{CanonicCoset, PolyOps},
-    prover,
+    pcs::PcsConfig,
+    poly::circle::CanonicCoset,
     vcs::blake2_merkle::{Blake2sMerkleChannel, Blake2sMerkleHasher},
+};
+use stwo::prover::{
+    self, backend::simd::SimdBackend, poly::circle::PolyOps, CommitmentSchemeProver,
 };
 
 use crate::LuminairProof;

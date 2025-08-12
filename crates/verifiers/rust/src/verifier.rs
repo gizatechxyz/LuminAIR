@@ -8,14 +8,13 @@ use luminair_prover::LuminairProof;
 use luminair_utils::LuminairError;
 use tracing::{info, span, Level};
 
-use stwo::{
-    constraint_framework::{INTERACTION_TRACE_IDX, ORIGINAL_TRACE_IDX, PREPROCESSED_TRACE_IDX},
-    core::{
-        channel::Blake2sChannel,
-        pcs::{CommitmentSchemeVerifier, PcsConfig},
-        prover,
-        vcs::blake2_merkle::{Blake2sMerkleChannel, Blake2sMerkleHasher},
-    },
+use stwo::core::{
+    channel::Blake2sChannel,
+    pcs::{CommitmentSchemeVerifier, PcsConfig},
+    vcs::blake2_merkle::{Blake2sMerkleChannel, Blake2sMerkleHasher},
+};
+use stwo_constraint_framework::{
+    INTERACTION_TRACE_IDX, ORIGINAL_TRACE_IDX, PREPROCESSED_TRACE_IDX,
 };
 
 /// Verifies a LuminAIR proof using the given circuit settings
@@ -40,7 +39,7 @@ pub fn verify(
     {
         let _span = span!(Level::INFO, "protocol_setup").entered();
         info!("⚙️  Protocol Setup: Initializing verifier components");
-        
+
         let config = PcsConfig::default();
         let channel = &mut Blake2sChannel::default();
         let commitment_scheme_verifier =
@@ -49,7 +48,7 @@ pub fn verify(
         // Prepare log sizes for each phase
         let mut log_sizes = claim.log_sizes();
         log_sizes[PREPROCESSED_TRACE_IDX] = preprocessed_trace.log_sizes();
-        
+
         info!("✅ Protocol Setup: Configuration complete");
 
         // ┌───────────────────────────────────────────────┐
@@ -58,13 +57,13 @@ pub fn verify(
         {
             let _span = span!(Level::INFO, "interaction_phase_0").entered();
             info!("🔄 Interaction Phase 0: Processing preprocessed trace");
-            
+
             commitment_scheme_verifier.commit(
                 proof.commitments[PREPROCESSED_TRACE_IDX],
                 &log_sizes[PREPROCESSED_TRACE_IDX],
                 channel,
             );
-            
+
             info!("✅ Interaction Phase 0: Preprocessed trace committed");
         }
 
@@ -74,14 +73,14 @@ pub fn verify(
         {
             let _span = span!(Level::INFO, "interaction_phase_1").entered();
             info!("🔄 Interaction Phase 1: Processing main trace");
-            
+
             claim.mix_into(channel);
             commitment_scheme_verifier.commit(
                 proof.commitments[ORIGINAL_TRACE_IDX],
                 &log_sizes[ORIGINAL_TRACE_IDX],
                 channel,
             );
-            
+
             info!("✅ Interaction Phase 1: Main trace committed");
         }
 
@@ -91,7 +90,7 @@ pub fn verify(
         {
             let _span = span!(Level::INFO, "interaction_phase_2").entered();
             info!("🔄 Interaction Phase 2: Processing interaction trace");
-            
+
             let interaction_elements = LuminairInteractionElements::draw(channel);
 
             // Validate LogUp sum
@@ -105,7 +104,7 @@ pub fn verify(
                 &log_sizes[INTERACTION_TRACE_IDX],
                 channel,
             );
-            
+
             info!("✅ Interaction Phase 2: Interaction trace committed");
 
             // ┌──────────────────────────┐
@@ -114,7 +113,7 @@ pub fn verify(
             {
                 let _span = span!(Level::INFO, "proof_verification").entered();
                 info!("🔍 Proof Verification: Verifying STARK proof");
-                
+
                 let component_builder = LuminairComponents::new(
                     &claim,
                     &interaction_elements,
@@ -124,14 +123,19 @@ pub fn verify(
                 );
                 let components = component_builder.components();
 
-                let result = prover::verify(&components, channel, commitment_scheme_verifier, proof)
-                    .map_err(LuminairError::StwoVerifierError);
-                
+                let result = stwo::core::verifier::verify(
+                    &components,
+                    channel,
+                    commitment_scheme_verifier,
+                    proof,
+                )
+                .map_err(LuminairError::StwoVerifierError);
+
                 match &result {
                     Ok(()) => info!("✅ Proof Verification: STARK proof is valid"),
                     Err(e) => info!("❌ Proof Verification: STARK proof is invalid - {}", e),
                 }
-                
+
                 result
             }
         }

@@ -1,19 +1,19 @@
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use num_traits::Zero;
-use stwo::core::{
-    backend::{
-        simd::{
-            conversion::Pack,
-            m31::{LOG_N_LANES, N_LANES},
-            qm31::PackedSecureField,
+use stwo::{
+    core::{channel::MerkleChannel, fields::m31::M31, pcs::TreeSubspan},
+    prover::{
+        backend::{
+            simd::{
+                conversion::Pack,
+                m31::{LOG_N_LANES, N_LANES},
+                qm31::PackedSecureField,
+            },
+            Backend, BackendForChannel,
         },
-        Backend, BackendForChannel,
+        poly::{circle::CircleEvaluation, BitReversedOrder},
     },
-    channel::MerkleChannel,
-    fields::m31::M31,
-    pcs::TreeSubspan,
-    poly::{circle::CircleEvaluation, BitReversedOrder},
 };
 
 use crate::LuminairInteractionClaim;
@@ -117,7 +117,7 @@ pub trait TreeBuilder<B: Backend> {
 }
 
 impl<B: BackendForChannel<MC>, MC: MerkleChannel> TreeBuilder<B>
-    for stwo_prover::core::pcs::TreeBuilder<'_, '_, B, MC>
+    for stwo::prover::TreeBuilder<'_, '_, B, MC>
 {
     fn extend_evals(
         &mut self,

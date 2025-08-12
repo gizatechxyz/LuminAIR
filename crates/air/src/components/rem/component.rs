@@ -1,7 +1,7 @@
 use crate::components::{NodeElements, RemClaim};
 use num_traits::One;
 use numerair::eval::EvalFixedPoint;
-use stwo::constraint_framework::{
+use stwo_constraint_framework::{
     EvalAtRow, FrameworkComponent, FrameworkEval, RelationEntry,
 };
 

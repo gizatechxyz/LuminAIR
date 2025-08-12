@@ -1,10 +1,10 @@
 use num_traits::{One, Zero};
-use stwo::core::{
-    backend::simd::{
+use stwo::{
+    core::fields::m31::M31,
+    prover::backend::simd::{
         conversion::{Pack, Unpack},
         m31::{PackedM31, N_LANES},
     },
-    fields::m31::M31,
 };
 
 use crate::components::TraceColumn;

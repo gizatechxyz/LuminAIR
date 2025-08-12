@@ -7,7 +7,7 @@ use std::{
     path::Path,
 };
 use stwo::core::vcs::blake2_merkle::Blake2sMerkleHasher;
-use stwo::core::{prover::StarkProof, vcs::ops::MerkleHasher};
+use stwo::core::{proof::StarkProof, vcs::MerkleHasher};
 
 pub mod prover;
 

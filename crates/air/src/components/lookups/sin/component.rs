@@ -1,4 +1,4 @@
-use stwo::constraint_framework::{
+use stwo_constraint_framework::{
     preprocessed_columns::PreProcessedColumnId, EvalAtRow, FrameworkComponent, FrameworkEval,
     RelationEntry,
 };

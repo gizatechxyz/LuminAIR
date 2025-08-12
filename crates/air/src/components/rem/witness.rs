@@ -4,18 +4,16 @@ use crate::{
 };
 use luminair_utils::TraceError;
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
-use stwo_air_utils:: trace::component_trace::ComponentTrace;
-use stwo_air_utils_derive::{IterMut, ParIterMut, Uninitialized};
-use stwo::{
-    constraint_framework::{logup::LogupTraceGenerator, Relation},
-    core::backend::simd::{
-        m31::{PackedM31, LOG_N_LANES, N_LANES},
-        qm31::PackedQM31,
-        SimdBackend,
-    }
+use stwo::prover::backend::simd::{
+    m31::{PackedM31, LOG_N_LANES, N_LANES},
+    qm31::PackedQM31,
+    SimdBackend,
 };
+use stwo_air_utils::trace::component_trace::ComponentTrace;
+use stwo_air_utils_derive::{IterMut, ParIterMut, Uninitialized};
+use stwo_constraint_framework::{LogupTraceGenerator, Relation};
 
-use super::table::{RemColumn, RemTraceTable, RemTraceTableRow, PackedRemTraceTableRow};
+use super::table::{PackedRemTraceTableRow, RemColumn, RemTraceTable, RemTraceTableRow};
 
 pub(crate) const N_TRACE_COLUMNS: usize = 16;
 
@@ -32,10 +30,10 @@ impl ClaimGenerator {
         mut self,
         tree_builder: &mut impl TreeBuilder<SimdBackend>,
     ) -> Result<(RemClaim, InteractionClaimGenerator), TraceError> {
-        let n_rows = self.inputs.table.len(); 
+        let n_rows = self.inputs.table.len();
 
         if n_rows == 0 {
-            return  Err(TraceError::EmptyTrace);
+            return Err(TraceError::EmptyTrace);
         }
 
         let size = std::cmp::max(n_rows.next_power_of_two(), N_LANES);
@@ -77,7 +75,7 @@ fn write_trace_simd(
         inputs.into_par_iter(),
     )
         .into_par_iter()
-        .for_each(|(mut row, lookup_data, input)|{
+        .for_each(|(mut row, lookup_data, input)| {
             *row[RemColumn::NodeId.index()] = input.node_id;
             *row[RemColumn::LhsId.index()] = input.lhs_id;
             *row[RemColumn::RhsId.index()] = input.rhs_id;
@@ -102,9 +100,8 @@ fn write_trace_simd(
             *lookup_data.out = [input.rem, input.node_id];
             *lookup_data.out_mult = input.out_mult;
         });
-    
-    (trace, lookup_data)
 
+    (trace, lookup_data)
 }
 
 #[derive(Uninitialized, IterMut, ParIterMut)]
@@ -124,7 +121,7 @@ pub struct InteractionClaimGenerator {
 
 impl InteractionClaimGenerator {
     pub fn write_interaction_trace(
-        self, 
+        self,
         tree_builder: &mut impl TreeBuilder<SimdBackend>,
         node_elements: &NodeElements,
     ) -> InteractionClaim {
@@ -160,7 +157,7 @@ impl InteractionClaimGenerator {
         }
         col_gen.finalize_col();
 
-        let (trace, claimed_sum) = logup_gen.finalize_last(); 
+        let (trace, claimed_sum) = logup_gen.finalize_last();
         tree_builder.extend_evals(trace);
 
         InteractionClaim { claimed_sum }
