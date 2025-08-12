@@ -4,7 +4,7 @@ use crate::{
 };
 use num_traits::One;
 use numerair::eval::EvalFixedPoint;
-use stwo_prover::{
+use stwo::{
     constraint_framework::{EvalAtRow, FrameworkComponent, FrameworkEval, RelationEntry},
     core::fields::m31::M31,
 };

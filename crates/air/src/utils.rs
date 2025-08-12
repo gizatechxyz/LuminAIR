@@ -1,7 +1,7 @@
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use num_traits::Zero;
-use stwo_prover::core::{
+use stwo::core::{
     backend::{
         simd::{
             conversion::Pack,

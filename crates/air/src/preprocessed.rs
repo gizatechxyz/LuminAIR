@@ -12,7 +12,7 @@ use crate::{
 use itertools::Itertools;
 use numerair::Fixed;
 use serde::{Deserialize, Serialize};
-use stwo_prover::{
+use stwo::{
     constraint_framework::preprocessed_columns::PreProcessedColumnId,
     core::{
         backend::{

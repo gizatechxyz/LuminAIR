@@ -6,6 +6,6 @@ repository.workspace = true
 license.workspace = true
 
 [dependencies]
-stwo-prover.workspace = true
+stwo.workspace = true
 luminal.workspace = true
 luminair = { path = "../../crates/prelude" }

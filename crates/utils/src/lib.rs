@@ -1,4 +1,4 @@
-use stwo_prover::core::prover::{ProvingError, VerificationError};
+use stwo::core::prover::{ProvingError, VerificationError};
 use thiserror::Error;
 
 /// Main error type for LuminAIR operations

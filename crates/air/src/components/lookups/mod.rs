@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use sin::{SinLookup, SinLookupElements};
-use stwo_prover::core::channel::Channel;
+use stwo::core::channel::Channel;
 
 use crate::components::lookups::{
     exp2::{Exp2Lookup, Exp2LookupElements},

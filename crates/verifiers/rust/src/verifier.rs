@@ -8,7 +8,7 @@ use luminair_prover::LuminairProof;
 use luminair_utils::LuminairError;
 use tracing::{info, span, Level};
 
-use stwo_prover::{
+use stwo::{
     constraint_framework::{INTERACTION_TRACE_IDX, ORIGINAL_TRACE_IDX, PREPROCESSED_TRACE_IDX},
     core::{
         channel::Blake2sChannel,

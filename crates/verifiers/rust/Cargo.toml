@@ -7,7 +7,7 @@ license.workspace = true
 
 [dependencies]
 luminair_air = { path = "../../air" }
-stwo-prover.workspace = true
+stwo.workspace = true
 luminair_utils = { path = "../../utils" }
 luminair_prover = { path = "../../prover" }
 tracing.workspace = true

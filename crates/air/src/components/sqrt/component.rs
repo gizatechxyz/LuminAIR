@@ -1,7 +1,7 @@
 use crate::components::{NodeElements, SqrtClaim};
 use num_traits::One;
 use numerair::eval::EvalFixedPoint;
-use stwo_prover::constraint_framework::{
+use stwo::constraint_framework::{
     EvalAtRow, FrameworkComponent, FrameworkEval, RelationEntry,
 };
 

@@ -18,11 +18,11 @@ repository = "https://github.com/raphaelDkhn/Luminair"
 license = "MIT"
 
 [workspace.dependencies]
-stwo-prover = { git = "https://github.com/starkware-libs/stwo", rev = "045963c", features = [
+stwo = { git = "https://github.com/starkware-libs/stwo", rev = "0790eba", features = [
     "parallel",
 ], default-features = false }
-stwo-air-utils-derive = { git = "https://github.com/starkware-libs/stwo", rev = "045963c" }
-stwo-air-utils = { git = "https://github.com/starkware-libs/stwo", rev = "045963c" }
+stwo-air-utils-derive = { git = "https://github.com/starkware-libs/stwo", rev = "0790eba" }
+stwo-air-utils = { git = "https://github.com/starkware-libs/stwo", rev = "0790eba" }
 luminal = { git = "https://github.com/raphaelDkhn/luminal.git", rev = "80ae0fd" }
 numerair = { git = "https://github.com/gizatechxyz/NumerAir.git", rev = "bb75385" }
 rayon = "1.10.0"

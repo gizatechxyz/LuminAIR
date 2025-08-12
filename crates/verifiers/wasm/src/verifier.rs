@@ -1,7 +1,7 @@
 use luminair_air::settings::CircuitSettings;
 use luminair_prover::LuminairProof;
 use luminair_verifier::verifier::verify as verify_rust;
-use stwo_prover::core::vcs::blake2_merkle::Blake2sMerkleHasher;
+use stwo::core::vcs::blake2_merkle::Blake2sMerkleHasher;
 use wasm_bindgen::prelude::*;
 use tracing::{info, span, Level};
 

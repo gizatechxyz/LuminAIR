@@ -6,7 +6,7 @@ repository.workspace = true
 license.workspace = true
 
 [dependencies]
-stwo-prover.workspace = true
+stwo.workspace = true
 stwo-air-utils-derive.workspace = true
 stwo-air-utils.workspace = true
 luminal.workspace = true

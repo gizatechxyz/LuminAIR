@@ -6,8 +6,8 @@ use std::{
     io::{BufReader, BufWriter, Write},
     path::Path,
 };
-use stwo_prover::core::vcs::blake2_merkle::Blake2sMerkleHasher;
-use stwo_prover::core::{prover::StarkProof, vcs::ops::MerkleHasher};
+use stwo::core::vcs::blake2_merkle::Blake2sMerkleHasher;
+use stwo::core::{prover::StarkProof, vcs::ops::MerkleHasher};
 
 pub mod prover;
 

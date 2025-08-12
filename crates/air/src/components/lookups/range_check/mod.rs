@@ -2,7 +2,7 @@ use std::sync::atomic::Ordering;
 
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
-use stwo_prover::{core::fields::m31::BaseField, relation};
+use stwo::{core::fields::m31::BaseField, relation};
 
 use crate::{
     components::lookups::range_check::table::{

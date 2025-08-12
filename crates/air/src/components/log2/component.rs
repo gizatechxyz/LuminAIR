@@ -1,6 +1,6 @@
 use crate::components::{lookups::log2::Log2LookupElements, Log2Claim, NodeElements};
 use num_traits::One;
-use stwo_prover::constraint_framework::{
+use stwo::constraint_framework::{
     EvalAtRow, FrameworkComponent, FrameworkEval, RelationEntry,
 };
 

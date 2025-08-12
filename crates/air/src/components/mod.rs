@@ -32,7 +32,7 @@ use sqrt::{
     component::{SqrtComponent, SqrtEval},
     table::SqrtColumn,
 };
-use stwo_prover::{
+use stwo::{
     constraint_framework::TraceLocationAllocator,
     core::{
         air::{Component, ComponentProver},

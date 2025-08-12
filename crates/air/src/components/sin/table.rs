@@ -1,6 +1,6 @@
 use num_traits::{One, Zero};
 use serde::{Deserialize, Serialize};
-use stwo_prover::core::{
+use stwo::core::{
     backend::simd::{
         conversion::{Pack, Unpack},
         m31::{PackedM31, N_LANES},

@@ -12,7 +12,7 @@ use luminair_air::{
     LuminairClaim, LuminairInteractionClaim, LuminairInteractionClaimGenerator,
 };
 use luminair_utils::LuminairError;
-use stwo_prover::core::{
+use stwo::core::{
     backend::simd::SimdBackend,
     channel::Blake2sChannel,
     pcs::{CommitmentSchemeProver, PcsConfig},

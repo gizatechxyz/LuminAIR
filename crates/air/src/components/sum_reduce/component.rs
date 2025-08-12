@@ -1,6 +1,6 @@
 use crate::components::{NodeElements, SumReduceClaim};
 use num_traits::One;
-use stwo_prover::constraint_framework::{
+use stwo::constraint_framework::{
     EvalAtRow, FrameworkComponent, FrameworkEval, RelationEntry,
 };
 

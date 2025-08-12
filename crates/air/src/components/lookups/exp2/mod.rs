@@ -1,7 +1,7 @@
 use std::sync::atomic::Ordering;
 
 use serde::{Deserialize, Serialize};
-use stwo_prover::{core::fields::m31::BaseField, relation};
+use stwo::{core::fields::m31::BaseField, relation};
 
 use crate::{
     components::lookups::exp2::table::{Exp2LookupTraceTable, Exp2LookupTraceTableRow},

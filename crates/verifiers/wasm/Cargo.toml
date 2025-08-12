@@ -10,7 +10,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 luminair_air = { path = "../../air" }
-stwo-prover.workspace = true
+stwo.workspace = true
 luminair_prover = { path = "../../prover" }
 luminair_verifier = { path = "../rust" }
 wasm-bindgen = "0.2"
