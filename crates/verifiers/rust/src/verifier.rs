@@ -18,16 +18,6 @@ use stwo_prover::{
     },
 };
 
-/// Verifies a STWO proof.
-///
-/// Takes a `LuminairProof` and `CircuitSettings` as input.
-/// It orchestrates the STWO verification protocol:
-/// 1. Sets up the verifier, channel, and commitment scheme.
-/// 2. Reads commitments for preprocessed, main, and interaction traces from the proof.
-/// 3. Derives interaction elements using Fiat-Shamir.
-/// 4. Constructs the AIR components (constraints) based on the claims and interaction elements.
-/// 5. Verifies the STARK proof.
-/// Returns `Ok(())` if the proof is valid, otherwise returns a `LuminairError`.
 pub fn verify(
     LuminairProof {
         claim,

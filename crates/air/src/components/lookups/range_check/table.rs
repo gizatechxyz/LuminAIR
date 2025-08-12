@@ -30,7 +30,6 @@ impl RangeCheckLookupTraceTableRow {
 
 #[derive(Debug, Copy, Clone)]
 pub struct PackedRangeCheckLookupTraceTableRow {
-    /// Packed multiplicity values.
     pub multiplicity: PackedM31,
 }
 
@@ -57,12 +56,10 @@ impl Unpack for PackedRangeCheckLookupTraceTableRow {
 }
 
 impl RangeCheckLookupTraceTable {
-    /// Creates a new, empty `RangeCheckLookupTraceTable`.
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Appends a single row (multiplicity count) to the trace table.
     pub fn add_row(&mut self, row: RangeCheckLookupTraceTableRow) {
         self.table.push(row);
     }

@@ -11,47 +11,28 @@ use stwo_prover::core::{
 use super::witness::N_TRACE_COLUMNS;
 use crate::components::TraceColumn;
 
-/// Represents the raw trace data collected for Log2 (`log2(x)`) operations.
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct Log2TraceTable {
-    /// Vector containing all rows of the Log2 trace.
     pub table: Vec<Log2TraceTableRow>,
 }
 
-/// Represents a single row in the `Log2TraceTable`.
-///
-/// Contains values for evaluating Log2 AIR constraints: current/next state IDs,
-/// input/output values, and multiplicities for LogUp (input/output) and LUT interaction.
 #[derive(Debug, Copy, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Log2TraceTableRow {
-    /// ID of the current Log2 node.
     pub node_id: M31,
-    /// ID of the node providing the input.
     pub input_id: M31,
-    /// Index within the tensor for this operation.
     pub idx: M31,
-    /// Flag indicating if this is the last element processed for this node (1 if true, 0 otherwise).
     pub is_last_idx: M31,
-    /// ID of the *next* Log2 node processed in the trace.
     pub next_node_id: M31,
-    /// ID of the *next* input provider node.
     pub next_input_id: M31,
-    /// Index of the *next* element processed.
     pub next_idx: M31,
-    /// Value of the input (`x`).
     pub input: M31,
-    /// Value of the output (`log2(x)`).
     pub out: M31,
-    /// Multiplicity contribution for the LogUp argument (input).
     pub input_mult: M31,
-    /// Multiplicity contribution for the LogUp argument (output).
     pub out_mult: M31,
-    /// Multiplicity contribution for the Log2 Lookup Table interaction.
     pub lookup_mult: M31,
 }
 
 impl Log2TraceTableRow {
-    /// Creates a default padding row for the Log2 trace.
     pub(crate) fn padding() -> Self {
         Self {
             node_id: M31::zero(),
@@ -70,32 +51,19 @@ impl Log2TraceTableRow {
     }
 }
 
-/// SIMD-packed representation of a `Log2TraceTableRow`.
 #[derive(Debug, Copy, Clone)]
 pub struct PackedLog2TraceTableRow {
-    /// Packed `node_id` values.
     pub node_id: PackedM31,
-    /// Packed `input_id` values.
     pub input_id: PackedM31,
-    /// Packed `idx` values.
     pub idx: PackedM31,
-    /// Packed `is_last_idx` values.
     pub is_last_idx: PackedM31,
-    /// Packed `next_node_id` values.
     pub next_node_id: PackedM31,
-    /// Packed `next_input_id` values.
     pub next_input_id: PackedM31,
-    /// Packed `next_idx` values.
     pub next_idx: PackedM31,
-    /// Packed `input` values.
     pub input: PackedM31,
-    /// Packed `out` values.
     pub out: PackedM31,
-    /// Packed `input_mult` values.
     pub input_mult: PackedM31,
-    /// Packed `out_mult` values.
     pub out_mult: PackedM31,
-    /// Packed `lookup_mult` values.
     pub lookup_mult: PackedM31,
 }
 
@@ -170,48 +138,32 @@ impl Unpack for PackedLog2TraceTableRow {
 }
 
 impl Log2TraceTable {
-    /// Creates a new, empty `Log2TraceTable`.
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Appends a single row to the trace table.
     pub fn add_row(&mut self, row: Log2TraceTableRow) {
         self.table.push(row);
     }
 }
 
-/// Enum defining the columns of the Log2 AIR component's trace.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Log2Column {
-    /// ID of the current Log2 node.
     NodeId,
-    /// ID of the node providing the input.
     InputId,
-    /// Index within the tensor for this operation.
     Idx,
-    /// Flag indicating if this is the last element processed for this node.
     IsLastIdx,
-    /// ID of the *next* Log2 node processed in the trace.
     NextNodeId,
-    /// ID of the *next* input provider node.
     NextInputId,
-    /// Index of the *next* element processed.
     NextIdx,
-    /// Value of the input (`x`).
     Input,
-    /// Value of the output (`log2(x)`).
     Out,
-    /// Multiplicity for the LogUp argument (input).
     InputMult,
-    /// Multiplicity for the LogUp argument (output).
     OutMult,
-    /// Multiplicity for the Log2 Lookup Table interaction.
     LookupMult,
 }
 
 impl Log2Column {
-    /// Returns the 0-based index for this column within the Log2 trace segment.
     pub const fn index(self) -> usize {
         match self {
             Self::NodeId => 0,
@@ -230,11 +182,7 @@ impl Log2Column {
     }
 }
 
-/// Implements the `TraceColumn` trait for `Log2Column`.
 impl TraceColumn for Log2Column {
-    /// Specifies the number of columns used by the Log2 component.
-    /// Returns `(N_TRACE_COLUMNS, 3)`, indicating the number of main trace columns
-    /// and 3 interaction trace columns (input LogUp, output LogUp, LUT interaction).
     fn count() -> (usize, usize) {
         (N_TRACE_COLUMNS, 3)
     }

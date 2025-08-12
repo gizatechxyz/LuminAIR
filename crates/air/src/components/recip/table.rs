@@ -12,52 +12,29 @@ use crate::components::TraceColumn;
 
 use super::witness::N_TRACE_COLUMNS;
 
-/// Represents the raw trace data collected for Reciprocal operations (`1/x`).
-///
-/// Stores rows capturing inputs, outputs, remainder (for fixed-point reciprocal),
-/// and metadata for each Recip operation.
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct RecipTraceTable {
-    /// Vector containing all rows of the Recip trace.
     pub table: Vec<RecipTraceTableRow>,
 }
 
-/// Represents a single row in the `RecipTraceTable`.
-///
-/// Contains values for evaluating Recip AIR constraints: current/next state IDs,
-/// input/output values, fixed-point remainder, scale factor, and LogUp multiplicities.
 #[derive(Debug, Copy, Clone, serde::Serialize, serde::Deserialize)]
 pub struct RecipTraceTableRow {
-    /// ID of the current Recip node.
     pub node_id: M31,
-    /// ID of the node providing the input.
     pub input_id: M31,
-    /// Index within the tensor for this operation.
     pub idx: M31,
-    /// Flag indicating if this is the last element processed for this node (1 if true, 0 otherwise).
     pub is_last_idx: M31,
-    /// ID of the *next* Recip node processed in the trace.
     pub next_node_id: M31,
-    /// ID of the *next* input provider node.
     pub next_input_id: M31,
-    /// Index of the *next* element processed.
     pub next_idx: M31,
-    /// Value of the input (`x`).
     pub input: M31,
-    /// Value of the output (`SCALE / x`).
     pub out: M31,
-    /// Remainder from fixed-point reciprocal (`SCALE % x`).
     pub rem: M31,
-    /// The scale factor used (typically `numerair::SCALE_FACTOR`).
     pub scale: M31,
-    /// Multiplicity contribution for the LogUp argument (input).
     pub input_mult: M31,
-    /// Multiplicity contribution for the LogUp argument (output).
     pub out_mult: M31,
 }
 
 impl RecipTraceTableRow {
-    /// Creates a default padding row for the Recip trace.
     pub(crate) fn padding() -> Self {
         Self {
             node_id: M31::zero(),
@@ -77,34 +54,20 @@ impl RecipTraceTableRow {
     }
 }
 
-/// SIMD-packed representation of a `RecipTraceTableRow`.
 #[derive(Debug, Copy, Clone)]
 pub struct PackedRecipTraceTableRow {
-    /// Packed `node_id` values.
     pub node_id: PackedM31,
-    /// Packed `input_id` values.
     pub input_id: PackedM31,
-    /// Packed `idx` values.
     pub idx: PackedM31,
-    /// Packed `is_last_idx` values.
     pub is_last_idx: PackedM31,
-    /// Packed `next_node_id` values.
     pub next_node_id: PackedM31,
-    /// Packed `next_input_id` values.
     pub next_input_id: PackedM31,
-    /// Packed `next_idx` values.
     pub next_idx: PackedM31,
-    /// Packed `input` values.
     pub input: PackedM31,
-    /// Packed `out` values.
     pub out: PackedM31,
-    /// Packed `rem` values.
     pub rem: PackedM31,
-    /// Packed `scale` values.
     pub scale: PackedM31,
-    /// Packed `input_mult` values.
     pub input_mult: PackedM31,
-    /// Packed `out_mult` values.
     pub out_mult: PackedM31,
 }
 
@@ -183,50 +146,33 @@ impl Unpack for PackedRecipTraceTableRow {
 }
 
 impl RecipTraceTable {
-    /// Creates a new, empty `RecipTraceTable`.
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Appends a single row to the trace table.
     pub fn add_row(&mut self, row: RecipTraceTableRow) {
         self.table.push(row);
     }
 }
 
-/// Enum defining the columns of the Recip AIR component's trace.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum RecipColumn {
-    /// ID of the current Recip node.
     NodeId,
-    /// ID of the node providing the input.
     InputId,
-    /// Index within the tensor for this operation.
     Idx,
-    /// Flag indicating if this is the last element processed for this node.
     IsLastIdx,
-    /// ID of the *next* Recip node processed in the trace.
     NextNodeId,
-    /// ID of the *next* input provider node.
     NextInputId,
-    /// Index of the *next* element processed.
     NextIdx,
-    /// Value of the input (`x`).
     Input,
-    /// Value of the output (`SCALE / x`).
     Out,
-    /// Remainder from fixed-point reciprocal (`SCALE % x`).
     Rem,
-    /// The scale factor used.
     Scale,
-    /// Multiplicity for the LogUp argument (input).
     InputMult,
-    /// Multiplicity for the LogUp argument (output).
     OutMult,
 }
 
 impl RecipColumn {
-    /// Returns the 0-based index for this column within the Recip trace segment.
     pub const fn index(self) -> usize {
         match self {
             Self::NodeId => 0,
@@ -246,11 +192,7 @@ impl RecipColumn {
     }
 }
 
-/// Implements the `TraceColumn` trait for `RecipColumn`.
 impl TraceColumn for RecipColumn {
-    /// Specifies the number of columns used by the Recip component.
-    /// Returns `(N_TRACE_COLUMNS, 2)`, indicating the number of main trace columns
-    /// and 2 interaction trace columns (for input and output LogUp).
     fn count() -> (usize, usize) {
         (N_TRACE_COLUMNS, 2)
     }

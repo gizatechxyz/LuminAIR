@@ -4,29 +4,16 @@ use stwo_prover::constraint_framework::{
     EvalAtRow, FrameworkComponent, FrameworkEval, RelationEntry,
 };
 
-/// The STWO AIR component for element-wise Exp2 (`exp2(x)`) operations.
-/// Wraps the `Exp2Eval` logic within the STWO `FrameworkComponent`.
-/// Correctness of `exp2(x)` is enforced via a lookup argument into a preprocessed table.
 pub type Exp2Component = FrameworkComponent<Exp2Eval>;
 
-/// Defines the AIR constraints evaluation logic for the Exp2 component.
-/// Implements `FrameworkEval` to define trace layout, degrees, and constraints.
-/// Relies heavily on LogUp arguments for consistency.
 pub struct Exp2Eval {
-    /// Log2 size of the component's main trace segment.
     log_size: u32,
-    /// Log2 size of the preprocessed Exp2 Lookup Table.
     lut_log_size: u32,
-    /// Interaction elements for node relations (used in input/output LogUp).
     node_elements: NodeElements,
-    /// Specific interaction elements for the Exp2 LUT LogUp.
     lookup_elements: Exp2LookupElements,
 }
 
 impl Exp2Eval {
-    /// Creates a new `Exp2Eval` instance.
-    /// Takes the component's claim, interaction elements for nodes and lookups,
-    /// and the log_size of the Exp2 LUT.
     pub fn new(
         claim: &Exp2Claim,
         node_elements: NodeElements,
@@ -42,28 +29,15 @@ impl Exp2Eval {
     }
 }
 
-/// Implements the core constraint evaluation logic for the Exp2 component.
 impl FrameworkEval for Exp2Eval {
-    /// Returns the log2 size of this component's main trace segment.
     fn log_size(&self) -> u32 {
         self.log_size
     }
 
-    /// Returns the max log2 degree bound, considering both main trace and LUT sizes.
     fn max_constraint_log_degree_bound(&self) -> u32 {
         std::cmp::max(self.log_size, self.lut_log_size) + 1
     }
 
-    /// Evaluates the Exp2 AIR constraints on a given evaluation point (`eval`).
-    ///
-    /// Defines constraints for:
-    /// - **Consistency:** Ensures `is_last_idx` is boolean.
-    /// - **Transition:** Correct state transitions (node/input ID, index increment).
-    /// - **Interaction (LogUp):** Three LogUp arguments are crucial here:
-    ///     1. Links `input_val` (from this trace) to where it's defined elsewhere.
-    ///     2. Links `out_val` (from this trace) to where it's used elsewhere.
-    ///     3. Links the pair `(input_val, out_val)` to the preprocessed Exp2 Lookup Table,
-    ///        effectively constraining `out_val` to be `exp2(input_val)`.
     fn evaluate<E: EvalAtRow>(&self, mut eval: E) -> E {
         // IDs
         let node_id = eval.next_trace_mask(); // ID of the node in the computational graph.

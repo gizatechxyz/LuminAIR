@@ -18,12 +18,9 @@ pub mod witness;
 // Interaction elements specifically for the RangeCheck Lookup Table argument.
 relation!(RangeCheckLookupElements, 1);
 
-/// Configuration and data for the RangeCheck Lookup Table (LUT).
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct RangeCheckLookup<const N: usize> {
-    /// The layout defining the structure and value ranges of the RangeCheck LUT.
     pub layout: RangeCheckLayout<N>,
-    /// Atomic counters tracking the number of times each LUT entry is accessed.
     pub multiplicities: AtomicMultiplicityColumn,
 }
 

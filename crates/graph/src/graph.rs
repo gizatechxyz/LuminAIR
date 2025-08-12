@@ -44,28 +44,15 @@ use petgraph::{stable_graph::StableGraph, visit::EdgeRef, Direction};
 use regex::Regex;
 use rustc_hash::FxHashMap;
 
-/// Trait defining the core functionality of a LuminAIR computation graph.
-///
-/// Provides methods to generate execution traces, retrieve outputs, and handle proof
-/// generation and verification using Stwo.
 pub trait LuminairGraph {
-    /// Infers circuit settings using simulated representative inputs.
     fn gen_circuit_settings(&mut self) -> CircuitSettings;
 
-    /// Generates an execution trace for the graph's computation.
     fn gen_trace(&mut self, settings: &mut CircuitSettings) -> Result<LuminairPie, LuminairError>;
 
-    /// View the graph
     fn graph_viz(&self) -> String;
 }
 
-/// Implementation of `LuminairGraph` for the `luminal::Graph` struct.
 impl LuminairGraph for Graph {
-    /// Generates circuit settings, primarily by inferring lookup table requirements.
-    ///
-    /// Runs a pass over the graph to identify the range of values used
-    /// by lookup-based operations (like `sin`).
-    /// This information is crucial for constructing the preprocessed trace later.
     fn gen_circuit_settings(&mut self) -> CircuitSettings {
         // Track the number of views pointing to each tensor so we know when to clear
         if self.linearized_graph.is_none() {
@@ -166,14 +153,6 @@ impl LuminairGraph for Graph {
         }
     }
 
-    /// Generates the execution trace (witness) for the computation graph.
-    ///
-    /// Executes the graph operation by operation, collecting the inputs, outputs,
-    /// and intermediate values for each supported AIR operation (e.g., add, mul, sin).
-    /// It populates specific trace tables for each operation type and gathers
-    /// metadata about the graph structure and execution flow.
-    ///
-    /// Returns a `LuminairPie` containing all the trace tables and execution resources.
     fn gen_trace(&mut self, settings: &mut CircuitSettings) -> Result<LuminairPie, LuminairError> {
         // Track the number of views pointing to each tensor so we know when to clear
         if self.linearized_graph.is_none() {
@@ -678,10 +657,6 @@ impl LuminairGraph for Graph {
     }
 }
 
-/// Merges overlapping or adjacent ranges into a minimal set of disjoint ranges.
-///
-/// Used to consolidate the input ranges identified for lookup operations during
-/// the `gen_circuit_settings` phase, optimizing the lookup table structure.
 fn coalesce_ranges(mut ranges: Vec<Range>) -> Vec<Range> {
     if ranges.is_empty() {
         return Vec::new();
@@ -710,7 +685,6 @@ fn coalesce_ranges(mut ranges: Vec<Range>) -> Vec<Range> {
     result
 }
 
-/// Helper function to recursively check if a node is a final output
 fn is_final_output(graph: &Graph, node_id: NodeIndex) -> bool {
     // Check if the node itself is a final output
     if graph.to_retrieve.contains_key(&node_id) {

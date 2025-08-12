@@ -18,29 +18,17 @@ use crate::{
     utils::{pack_values, TreeBuilder},
 };
 
-/// Number of main trace columns for the Log2 component.
 pub(crate) const N_TRACE_COLUMNS: usize = 12;
 
-/// Generates main trace and interaction data for the Log2 component.
-///
-/// Takes the raw `Log2TraceTable`, processes it into main STARK trace columns,
-/// and prepares `LookupData` for three LogUp arguments: input, output, and LUT interaction.
 pub struct ClaimGenerator {
-    /// The raw trace data for Log2 operations.
     pub inputs: Log2TraceTable,
 }
 
 impl ClaimGenerator {
-    /// Creates a new `ClaimGenerator` with the given `Log2TraceTable`.
     pub fn new(inputs: Log2TraceTable) -> Self {
         Self { inputs }
     }
 
-    /// Writes the main trace columns and returns data for the interaction phase.
-    ///
-    /// Standard procedure: pads table, packs rows, calls `write_trace_simd`,
-    /// adds main trace to `tree_builder`, returns `Log2Claim` and `InteractionClaimGenerator`.
-    /// Returns `TraceError::EmptyTrace` if the input table is empty.
     pub fn write_trace(
         mut self,
         tree_builder: &mut impl TreeBuilder<SimdBackend>,
@@ -71,13 +59,6 @@ impl ClaimGenerator {
     }
 }
 
-/// Populates main trace columns and `LookupData` from SIMD-packed Log2 trace rows.
-///
-/// Processes `PackedLog2TraceTableRow` data in parallel:
-/// - Maps fields to corresponding main trace columns.
-/// - Extracts `[value, id]` pairs and multiplicities for input and output LogUps,
-///   and `lookup_mult` for the LUT interaction, into `LookupData`.
-/// Returns the `ComponentTrace` and `LookupData`.
 fn write_trace_simd(
     inputs: Vec<PackedLog2TraceTableRow>,
 ) -> (ComponentTrace<N_TRACE_COLUMNS>, LookupData) {
@@ -121,48 +102,21 @@ fn write_trace_simd(
     (trace, lookup_data)
 }
 
-/// Intermediate data for Log2 component's LogUp arguments.
-///
-/// Holds value-ID pairs and multiplicities for input and output terms,
-/// plus multiplicities for the interaction with the Log2 Lookup Table.
-/// Derives helper iterators for parallel processing.
 #[derive(Uninitialized, IterMut, ParIterMut)]
 struct LookupData {
-    /// Input value-ID pairs: `[input_value, input_node_id]`.
     input: Vec<[PackedM31; 2]>,
-    /// Multiplicities for input values (LogUp).
     input_mult: Vec<PackedM31>,
-    /// Output value-ID pairs: `[out_value, log2_node_id]`.
     out: Vec<[PackedM31; 2]>,
-    /// Multiplicities for output values (LogUp).
     out_mult: Vec<PackedM31>,
-    /// Multiplicities for Log2 LUT interaction.
     lookup_mult: Vec<PackedM31>,
 }
 
-/// Generates interaction trace columns for the Log2 component's LogUp arguments.
-///
-/// Builds three LogUp interaction columns:
-/// 1. Input term: `(input_value, input_node_id)` with `NodeElements`.
-/// 2. Output term: `(out_value, log2_node_id)` with `NodeElements`.
-/// 3. LUT term: `(input_value, out_value)` with `Log2LookupElements`.
 pub struct InteractionClaimGenerator {
-    /// Log2 size of the trace.
     log_size: u32,
-    /// Data for LogUp arguments.
     lookup_data: LookupData,
 }
 
 impl InteractionClaimGenerator {
-    /// Writes the three LogUp interaction trace columns to the `tree_builder`.
-    ///
-    /// - Initializes a `LogupTraceGenerator`.
-    /// - For Input LogUp: combines `lookup_data.input[i]` with `node_elements` for denominator.
-    /// - For Output LogUp: combines `lookup_data.out[i]` with `node_elements` for denominator.
-    /// - For LUT Interaction: combines `[lookup_data.input[i][0], lookup_data.out[i][0]]` (raw values)
-    ///   with `lookup_elements` for the denominator.
-    /// - Writes `multiplicity / denominator` fractions for each.
-    /// - Finalizes the generator, adds columns to `tree_builder`, returns `InteractionClaim`.
     pub fn write_interaction_trace(
         self,
         tree_builder: &mut impl TreeBuilder<SimdBackend>,

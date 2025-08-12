@@ -5,22 +5,14 @@ use stwo_prover::constraint_framework::{
     EvalAtRow, FrameworkComponent, FrameworkEval, RelationEntry,
 };
 
-/// The STWO AIR component for element-wise sqrt operations.
-/// Wraps the `SqrtEval` logic within the STWO `FrameworkComponent`.
 pub type SqrtComponent = FrameworkComponent<SqrtEval>;
 
-/// Defines the AIR constraints evaluation logic for the Sqrt component.
-/// Implements `FrameworkEval` to define trace layout, degrees, and constraints.
 pub struct SqrtEval {
-    /// Log2 size of the component's trace segment.
     log_size: u32,
-    /// Interaction elements for node relations (used in LogUp).
     node_elements: NodeElements,
 }
 
 impl SqrtEval {
-    /// Creates a new `SqrtEval` instance.
-    /// Takes the component's claim (for `log_size`) and interaction elements.
     pub fn new(claim: &SqrtClaim, node_elements: NodeElements) -> Self {
         Self {
             log_size: claim.log_size,
@@ -29,27 +21,15 @@ impl SqrtEval {
     }
 }
 
-/// Implements the core constraint evaluation logic for the Sqrt component.
 impl FrameworkEval for SqrtEval {
-    /// Returns the log2 size of this component's trace segment.
     fn log_size(&self) -> u32 {
         self.log_size
     }
 
-    /// Returns the maximum expected log2 degree bound for the component's constraints.
     fn max_constraint_log_degree_bound(&self) -> u32 {
         self.log_size + 1
     }
 
-    /// Evaluates the Sqrt AIR constraints on a given evaluation point (`eval`).
-    ///
-    /// Defines constraints for:
-    /// - **Consistency:** Checks the fixed-point sqrt constraint.
-    ///   using `eval_fixed_sqrt`.
-    /// - **Transition:** Ensures correct state transitions between consecutive rows (same node/input ID,
-    ///   index increments by 1) when `is_last_idx` is false.
-    /// - **Interaction (LogUp):** Links input and output values to the global LogUp argument.
-    /// Receives an evaluator `E` and adds constraint evaluations to it.
     fn evaluate<E: EvalAtRow>(&self, mut eval: E) -> E {
         // IDs
         let node_id = eval.next_trace_mask(); // ID of the node in the computational graph.

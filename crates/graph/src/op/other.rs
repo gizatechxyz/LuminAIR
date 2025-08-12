@@ -3,21 +3,12 @@ use luminal::prelude::{petgraph::visit::EdgeRef, *};
 
 use super::prim::{CopyFromStwo, CopyToStwo};
 
-/// A Luminal `Compiler` pass that optimizes redundant copy operations.
-///
-/// After the `PrimitiveCompiler` inserts necessary `CopyToStwo` and `CopyFromStwo` nodes,
-/// this pass identifies and removes consecutive pairs of these operations
-/// (i.e., `CopyToStwo -> CopyFromStwo` or `CopyFromStwo -> CopyToStwo`)
-/// where the intermediate node is not essential.
-/// This simplifies the graph by eliminating unnecessary data format conversions.
 #[derive(Debug, Default)]
 pub struct CopyCompiler();
 
 impl Compiler for CopyCompiler {
     type Output = ();
 
-    /// Executes the copy optimization pass on the graph.
-    /// Modifies the graph in-place by removing redundant copy node pairs.
     fn compile<To: ToIdsMut>(&self, graph: &mut Graph, mut ids: To) {
         for (first, second) in graph
             .edge_indices()

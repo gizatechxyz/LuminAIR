@@ -9,27 +9,16 @@ use crate::{
     DEFAULT_FP_SCALE_FACTOR, TWO_POW_31_MINUS_1,
 };
 
-/// The STWO AIR component for element-wise LessThan operations.
 pub type LessThanComponent = FrameworkComponent<LessThanEval>;
 
-/// Defines the AIR constraints evaluation logic for the LessThan component.
-/// Implements `FrameworkEval` to define trace layout, degrees, and constraints.
-/// Relies heavily on LogUp arguments for consistency.
 pub struct LessThanEval {
-    /// Log2 size of the component's main trace segment.
     log_size: u32,
-    /// Log2 size of the preprocessed RangeCheck Lookup Table.
     range_check_log_size: u32,
-    /// Interaction elements for node relations (used in input/output LogUp).
     node_elements: NodeElements,
-    /// Specific interaction elements for the RangeCheck LUT LogUp.
     range_check_elements: RangeCheckLookupElements,
 }
 
 impl LessThanEval {
-    /// Creates a new ` LessThan2Eval` instance.
-    /// Takes the component's claim, interaction elements for nodes and lookups,
-    /// and the log_size of the RangeCheck LUT.
     pub fn new(
         claim: &LessThanClaim,
         node_elements: NodeElements,
@@ -45,19 +34,15 @@ impl LessThanEval {
     }
 }
 
-/// Implements the core constraint evaluation logic for the LessThan component.
 impl FrameworkEval for LessThanEval {
-    /// Returns the log2 size of this component's main trace segment.
     fn log_size(&self) -> u32 {
         self.log_size
     }
 
-    /// Returns the max log2 degree bound, considering both main trace and LUT sizes.
     fn max_constraint_log_degree_bound(&self) -> u32 {
         std::cmp::max(self.log_size, self.range_check_log_size) + 1
     }
 
-    /// Evaluates the LessThan AIR constraints on a given evaluation point (`eval`).
     fn evaluate<E: EvalAtRow>(&self, mut eval: E) -> E {
         // Use 31 bits for the constraint (maximum for M31 field)
         let two_pow_k = E::F::from(M31::from_u32_unchecked(TWO_POW_31_MINUS_1));

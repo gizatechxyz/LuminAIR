@@ -20,27 +20,17 @@ use crate::{
     utils::{pack_values, TreeBuilder},
 };
 
-/// Number of main trace columns for the LessThan component.
 pub(crate) const N_TRACE_COLUMNS: usize = 22;
 
-/// Generates the main trace columns and initial data for interaction claims for the LessThan component.
 pub struct ClaimGenerator {
-    /// The raw trace data for LessThan operations.
     pub inputs: LessThanTraceTable,
 }
 
 impl ClaimGenerator {
-    /// Creates a new `ClaimGenerator` with the given `LessThanTraceTable`.
     pub fn new(inputs: LessThanTraceTable) -> Self {
         Self { inputs }
     }
 
-    /// Writes the main trace columns to the `tree_builder` and returns data for interaction phase.
-    ///
-    /// Similar to the Add component's `write_trace`, this pads the table, packs rows,
-    /// calls `write_trace_simd` to generate main trace columns and `LookupData`,
-    /// adds the main trace to the `tree_builder`, and returns the `LessThanClaim` and `InteractionClaimGenerator`.
-    /// Returns `TraceError::EmptyTrace` if the input table is empty.
     pub fn write_trace(
         mut self,
         tree_builder: &mut impl TreeBuilder<SimdBackend>,
@@ -73,7 +63,6 @@ impl ClaimGenerator {
     }
 }
 
-/// Populates the main trace columns and `LookupData` from SIMD-packed LessThan trace rows.
 fn write_trace_simd(
     inputs: Vec<PackedLessThanTraceTableRow>,
 ) -> (ComponentTrace<N_TRACE_COLUMNS>, LookupData) {
@@ -133,43 +122,27 @@ fn write_trace_simd(
     (trace, lookup_data)
 }
 
-/// Intermediate data structure holding values and multiplicities for the LessThan LogUp argument.
 #[derive(Uninitialized, IterMut, ParIterMut)]
 struct LookupData {
-    /// LHS value-ID pairs: `[lhs_value, lhs_node_id]`.
     lhs: Vec<[PackedM31; 2]>,
-    /// Multiplicities for LHS values.
     lhs_mult: Vec<PackedM31>,
-    /// RHS value-ID pairs: `[rhs_value, rhs_node_id]`.
     rhs: Vec<[PackedM31; 2]>,
-    /// Multiplicities for RHS values.
     rhs_mult: Vec<PackedM31>,
-    /// Output value-ID pairs: `[out_value, less_than_node_id]`.
     out: Vec<[PackedM31; 2]>,
-    /// Multiplicities for output values.
     out_mult: Vec<PackedM31>,
-    /// First 8-bit limb values
     limb0: Vec<PackedM31>,
-    /// Second 8-bit limb values
     limb1: Vec<PackedM31>,
-    /// Third 8-bit limb values
     limb2: Vec<PackedM31>,
-    /// Fourth 8-bit limb values
     limb3: Vec<PackedM31>,
-    /// Multiplicities for RangeCheck LUT interaction.
     range_check_mult: Vec<PackedM31>,
 }
 
-/// Generates the interaction trace columns for the LessThan component's LogUp argument.
 pub struct InteractionClaimGenerator {
-    /// Log2 size of the trace.
     log_size: u32,
-    /// Data (value-ID pairs and multiplicities) needed for LogUp.
     lookup_data: LookupData,
 }
 
 impl InteractionClaimGenerator {
-    /// Writes the LogUp interaction trace columns to the `tree_builder`.
     pub fn write_interaction_trace(
         self,
         tree_builder: &mut impl TreeBuilder<SimdBackend>,

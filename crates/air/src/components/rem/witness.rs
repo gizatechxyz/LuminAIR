@@ -17,7 +17,6 @@ use stwo_prover::{
 
 use super::table::{RemColumn, RemTraceTable, RemTraceTableRow, PackedRemTraceTableRow};
 
-/// Number of main trace columns for the Rem component.
 pub(crate) const N_TRACE_COLUMNS: usize = 16;
 
 pub struct ClaimGenerator {

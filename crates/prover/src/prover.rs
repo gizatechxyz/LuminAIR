@@ -23,16 +23,6 @@ use stwo_prover::core::{
 
 use crate::LuminairProof;
 
-/// Generates a STWO proof for the computation graph execution.
-///
-/// Takes the `LuminairPie` (containing execution traces) and `CircuitSettings`.
-/// It orchestrates the STWO proving protocol:
-/// 1. Sets up the prover, channel, and commitment scheme.
-/// 2. Commits to the preprocessed trace.
-/// 3. Commits to the main execution trace components (add, mul, sin, etc.).
-/// 4. Commits to the interaction trace.
-/// 5. Executes the Stwo prover.
-/// Returns a `LuminairProof` containing the claims and the STARK proof.
 pub fn prove(
     pie: LuminairPie,
     settings: CircuitSettings,

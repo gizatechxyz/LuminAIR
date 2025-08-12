@@ -4,23 +4,14 @@ use stwo_prover::constraint_framework::{
     EvalAtRow, FrameworkComponent, FrameworkEval, RelationEntry,
 };
 
-/// The STWO AIR component for Sum-Reduce operations.
-/// Wraps the `SumReduceEval` logic within the STWO `FrameworkComponent`.
 pub type SumReduceComponent = FrameworkComponent<SumReduceEval>;
 
-/// Defines the AIR constraints evaluation logic for the SumReduce component.
-/// Implements `FrameworkEval` to define trace layout, degrees, and constraints
-/// for the step-by-step accumulation process.
 pub struct SumReduceEval {
-    /// Log2 size of the component's trace segment.
     log_size: u32,
-    /// Interaction elements for node relations (used in LogUp).
     node_elements: NodeElements,
 }
 
 impl SumReduceEval {
-    /// Creates a new `SumReduceEval` instance.
-    /// Takes the component's claim (for `log_size`) and interaction elements.
     pub fn new(claim: &SumReduceClaim, node_elements: NodeElements) -> Self {
         Self {
             log_size: claim.log_size,
@@ -29,30 +20,15 @@ impl SumReduceEval {
     }
 }
 
-/// Implements the core constraint evaluation logic for the SumReduce component.
 impl FrameworkEval for SumReduceEval {
-    /// Returns the log2 size of this component's trace segment.
     fn log_size(&self) -> u32 {
         self.log_size
     }
 
-    /// Returns the maximum expected log2 degree bound for the component's constraints.
     fn max_constraint_log_degree_bound(&self) -> u32 {
         self.log_size + 1
     }
 
-    /// Evaluates the SumReduce AIR constraints on a given evaluation point (`eval`).
-    ///
-    /// Defines constraints for:
-    /// - **Consistency:**
-    ///   - `is_last_idx` and `is_last_step` are boolean.
-    ///   - Accumulator update: `next_acc = acc + input`.
-    ///   - Output validity: `out = next_acc` only if `is_last_step` is true.
-    /// - **Transition (for output elements):** When `is_last_idx` is false (more output elements for this node):
-    ///   - Node and input tensor IDs remain the same.
-    ///   - `idx` (output element index) increments by 1.
-    /// - **Interaction (LogUp):** Links `input_val` (from input tensor) and `out_val` (final sum)
-    ///   to the global LogUp argument.
     fn evaluate<E: EvalAtRow>(&self, mut eval: E) -> E {
         // IDs
         let node_id = eval.next_trace_mask(); // ID of the node in the computational graph.

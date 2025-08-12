@@ -1,7 +1,6 @@
 use tracing::{error, info, warn};
 use wasm_bindgen::prelude::*;
 
-/// Set up better panic messages for debugging in the browser
 pub fn set_panic_hook() {
     // When the `console_error_panic_hook` feature is enabled, we can call the
     // `set_panic_hook` function at least once during initialization, and then
@@ -13,34 +12,28 @@ pub fn set_panic_hook() {
     console_error_panic_hook::set_once();
 }
 
-/// A wrapper for `console.log` for debugging
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(js_namespace = console)]
     fn log(s: &str);
 }
 
-/// Log an error to the browser console and tracing system
 pub fn console_error(message: &str) {
     web_sys::console::error_1(&message.into());
     error!("{}", message);
 }
 
-/// Log info to the browser console and tracing system
 pub fn console_info(message: &str) {
     web_sys::console::info_1(&message.into());
     info!("{}", message);
 }
 
-/// Log a warning to the browser console and tracing system
 #[allow(dead_code)]
 pub fn console_warn(message: &str) {
     web_sys::console::warn_1(&message.into());
     warn!("{}", message);
 }
 
-/// Configure tracing level from JavaScript
-/// This allows fine-grained control over what verification steps are logged
 #[wasm_bindgen]
 pub fn set_tracing_level(level: &str) -> bool {
     match level.to_lowercase().as_str() {
@@ -76,8 +69,6 @@ pub fn set_tracing_level(level: &str) -> bool {
     }
 }
 
-/// Get current verification step information
-/// This can be called from JavaScript to get more detailed status
 #[wasm_bindgen]
 pub fn get_verification_phases() -> String {
     r#"

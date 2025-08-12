@@ -18,29 +18,17 @@ use crate::{
 
 use super::table::{PackedSqrtTraceTableRow, SqrtColumn, SqrtTraceTable, SqrtTraceTableRow};
 
-/// Number of main trace columns for the Sqrt component.
 pub(crate) const N_TRACE_COLUMNS: usize = 13;
 
-/// Generates the main trace columns and initial data for interaction claims for the Sqrt component.
-///
-/// Takes the raw `SqrtTraceTable`, processes it into the main STARK trace columns
-/// (including input, output, remainder, scale), and prepares `LookupData` for LogUp.
 pub struct ClaimGenerator {
-    /// The raw trace data for Sqrt operations.
     pub inputs: SqrtTraceTable,
 }
 
 impl ClaimGenerator {
-    /// Creates a new `ClaimGenerator` with the given `SqrtTraceTable`.
     pub fn new(inputs: SqrtTraceTable) -> Self {
         Self { inputs }
     }
 
-    /// Writes the main trace columns to the `tree_builder` and returns data for interaction phase.
-    ///
-    /// Follows the standard pattern: pads the table, packs rows, calls `write_trace_simd`,
-    /// adds main trace to `tree_builder`, returns `SqrtClaim` and `InteractionClaimGenerator`.
-    /// Returns `TraceError::EmptyTrace` if the input table is empty.
     pub fn write_trace(
         mut self,
         tree_builder: &mut impl TreeBuilder<SimdBackend>,
@@ -71,13 +59,6 @@ impl ClaimGenerator {
     }
 }
 
-/// Populates the main trace columns and `LookupData` from SIMD-packed Sqrt trace rows.
-///
-/// Processes `PackedSqrtTraceTableRow` data in parallel:
-/// - Maps fields (input, out, rem, scale, etc.) to the corresponding main trace columns.
-/// - Extracts `[value, id]` pairs and multiplicities into `LookupData` for the LogUp argument
-///   (only for input and output, as sqrt is unary).
-/// Returns the `ComponentTrace` (main trace columns) and `LookupData`.
 fn write_trace_simd(
     inputs: Vec<PackedSqrtTraceTableRow>,
 ) -> (ComponentTrace<N_TRACE_COLUMNS>, LookupData) {
@@ -121,42 +102,20 @@ fn write_trace_simd(
     (trace, lookup_data)
 }
 
-/// Intermediate data structure holding values and multiplicities for the Sqrt LogUp argument.
-///
-/// Stores value-ID pairs and multiplicities only for the input and output terms.
-/// Derives helper iterators for parallel processing.
 #[derive(Uninitialized, IterMut, ParIterMut)]
 struct LookupData {
-    /// Input value-ID pairs: `[input_value, input_node_id]`.
     input: Vec<[PackedM31; 2]>,
-    /// Multiplicities for input values.
     input_mult: Vec<PackedM31>,
-    /// Output value-ID pairs: `[out_value, sqrt_node_id]`.
     out: Vec<[PackedM31; 2]>,
-    /// Multiplicities for output values.
     out_mult: Vec<PackedM31>,
 }
 
-/// Generates the interaction trace columns for the Sqrt component's LogUp argument.
-///
-/// Takes `LookupData` and `NodeElements` to build the two LogUp interaction columns
-/// (one for input, one for output) and adds them to the `tree_builder`.
 pub struct InteractionClaimGenerator {
-    /// Log2 size of the trace.
     log_size: u32,
-    /// Data (value-ID pairs and multiplicities) needed for LogUp.
     lookup_data: LookupData,
 }
 
 impl InteractionClaimGenerator {
-    /// Writes the LogUp interaction trace columns to the `tree_builder`.
-    ///
-    /// Logic is similar to Add/Mul, but only generates two columns (Input, Output):
-    /// - Creates a `LogupTraceGenerator`.
-    /// - Generates two columns, writing `multiplicity / denom` fractions.
-    /// - Finalizes the generator, obtaining interaction trace columns and `claimed_sum`.
-    /// - Adds interaction columns to the `tree_builder`.
-    /// - Returns the `InteractionClaim` containing the `claimed_sum`.
     pub fn write_interaction_trace(
         self,
         tree_builder: &mut impl TreeBuilder<SimdBackend>,

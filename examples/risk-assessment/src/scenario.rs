@@ -2,7 +2,6 @@
 pub(crate) struct Scenario {
     _name: &'static str,
     _category: &'static str,
-    /// Percent of TVL (positive = loss, negative = profit)
     pub(crate) loss_pct: f32,
 }
 

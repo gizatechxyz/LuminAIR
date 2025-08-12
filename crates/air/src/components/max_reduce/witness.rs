@@ -20,29 +20,17 @@ use super::table::{
     MaxReduceColumn, MaxReduceTraceTable, MaxReduceTraceTableRow, PackedMaxReduceTraceTableRow,
 };
 
-/// Number of main trace columns for the MaxReduce component.
 pub(crate) const N_TRACE_COLUMNS: usize = 15;
 
-/// Generates main trace columns and interaction data for the MaxReduce component.
-///
-/// Takes `MaxReduceTraceTable`, processes it into main STARK trace columns
-/// (including running max values, input/output), and prepares `LookupData` for LogUp.
 pub struct ClaimGenerator {
-    /// The raw trace data for MaxReduce operations.
     pub inputs: MaxReduceTraceTable,
 }
 
 impl ClaimGenerator {
-    /// Creates a new `ClaimGenerator` with the given `MaxReduceTraceTable`.
     pub fn new(inputs: MaxReduceTraceTable) -> Self {
         Self { inputs }
     }
 
-    /// Writes main trace columns and returns data for interaction phase.
-    ///
-    /// Standard procedure: pads, packs, calls `write_trace_simd`,
-    /// adds main trace to `tree_builder`, returns `MaxReduceClaim` and `InteractionClaimGenerator`.
-    /// Returns `TraceError::EmptyTrace` if the input table is empty.
     pub fn write_trace(
         mut self,
         tree_builder: &mut impl TreeBuilder<SimdBackend>,
@@ -75,12 +63,6 @@ impl ClaimGenerator {
     }
 }
 
-/// Populates main trace columns and `LookupData` from SIMD-packed MaxReduce trace rows.
-///
-/// Processes `PackedMaxReduceTraceTableRow` data in parallel:
-/// - Maps fields (node/input IDs, running max, input/out values, flags) to main trace columns.
-/// - Extracts `[value, id]` pairs and multiplicities for input and output LogUps into `LookupData`.
-/// Returns the `ComponentTrace` (main trace columns) and `LookupData`.
 fn write_trace_simd(
     inputs: Vec<PackedMaxReduceTraceTableRow>,
 ) -> (ComponentTrace<N_TRACE_COLUMNS>, LookupData) {
@@ -126,33 +108,20 @@ fn write_trace_simd(
     (trace, lookup_data)
 }
 
-/// Intermediate data for the MaxReduce LogUp argument (input and output terms).
 #[derive(Uninitialized, IterMut, ParIterMut)]
 struct LookupData {
-    /// Input value-ID pairs: `[input_value, input_node_id]`.
     input: Vec<[PackedM31; 2]>,
-    /// Multiplicities for input values.
     input_mult: Vec<PackedM31>,
-    /// Output value-ID pairs: `[out_value, max_reduce_node_id]`.
     out: Vec<[PackedM31; 2]>,
-    /// Multiplicities for output values.
     out_mult: Vec<PackedM31>,
 }
 
-/// Generates interaction trace columns for the MaxReduce component's LogUp argument.
-/// Builds two LogUp columns (input, output) and adds them to the `tree_builder`.
 pub struct InteractionClaimGenerator {
-    /// Log2 size of the trace.
     log_size: u32,
-    /// Data (value-ID pairs and multiplicities) needed for LogUp.
     lookup_data: LookupData,
 }
 
 impl InteractionClaimGenerator {
-    /// Writes the LogUp interaction trace columns to the `tree_builder`.
-    ///
-    /// Similar to SumReduce/Recip: generates two columns (Input, Output), writing `multiplicity / denom` fractions.
-    /// Finalizes generator, adds columns to `tree_builder`, returns `InteractionClaim`.
     pub fn write_interaction_trace(
         self,
         tree_builder: &mut impl TreeBuilder<SimdBackend>,

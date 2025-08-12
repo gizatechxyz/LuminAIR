@@ -10,58 +10,32 @@ use stwo_prover::core::{
 
 use crate::components::TraceColumn;
 
-/// Represents the raw trace data collected for Multiplication operations.
-///
-/// Stores rows generated during the `gen_trace` phase, capturing the inputs,
-/// outputs, remainder (for fixed-point), and metadata for each Mul operation.
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct MulTraceTable {
-    /// Vector containing all rows of the Mul trace.
     pub table: Vec<MulTraceTableRow>,
 }
 
-/// Represents a single row in the `MulTraceTable`.
-///
-/// Contains values for evaluating Mul AIR constraints, including current/next state IDs,
-/// input/output values, fixed-point remainder, and LogUp multiplicities.
 #[derive(Debug, Copy, Clone, serde::Serialize, serde::Deserialize)]
 pub struct MulTraceTableRow {
-    /// ID of the current Mul node.
     pub node_id: M31,
-    /// ID of the node providing the left-hand side input.
     pub lhs_id: M31,
-    /// ID of the node providing the right-hand side input.
     pub rhs_id: M31,
-    /// Index within the tensor for this operation.
     pub idx: M31,
-    /// Flag indicating if this is the last element processed for this node (1 if true, 0 otherwise).
     pub is_last_idx: M31,
-    /// ID of the *next* Mul node processed in the trace.
     pub next_node_id: M31,
-    /// ID of the *next* LHS provider node.
     pub next_lhs_id: M31,
-    /// ID of the *next* RHS provider node.
     pub next_rhs_id: M31,
-    /// Index of the *next* element processed.
     pub next_idx: M31,
-    /// Value of the left-hand side input.
     pub lhs: M31,
-    /// Value of the right-hand side input.
     pub rhs: M31,
-    /// Value of the output (`(lhs * rhs) / SCALE`).
     pub out: M31,
-    /// Remainder from fixed-point multiplication (`lhs * rhs % SCALE`).
     pub rem: M31,
-    /// Multiplicity contribution for the LogUp argument (LHS input).
     pub lhs_mult: M31,
-    /// Multiplicity contribution for the LogUp argument (RHS input).
     pub rhs_mult: M31,
-    /// Multiplicity contribution for the LogUp argument (output).
     pub out_mult: M31,
 }
 
 impl MulTraceTableRow {
-    /// Creates a default padding row for the Mul trace.
     pub(crate) fn padding() -> Self {
         Self {
             node_id: M31::zero(),
@@ -84,40 +58,23 @@ impl MulTraceTableRow {
     }
 }
 
-/// SIMD-packed representation of a `MulTraceTableRow`.
 #[derive(Debug, Copy, Clone)]
 pub struct PackedMulTraceTableRow {
-    /// Packed `node_id` values.
     pub node_id: PackedM31,
-    /// Packed `lhs_id` values.
     pub lhs_id: PackedM31,
-    /// Packed `rhs_id` values.
     pub rhs_id: PackedM31,
-    /// Packed `idx` values.
     pub idx: PackedM31,
-    /// Packed `is_last_idx` values.
     pub is_last_idx: PackedM31,
-    /// Packed `next_node_id` values.
     pub next_node_id: PackedM31,
-    /// Packed `next_lhs_id` values.
     pub next_lhs_id: PackedM31,
-    /// Packed `next_rhs_id` values.
     pub next_rhs_id: PackedM31,
-    /// Packed `next_idx` values.
     pub next_idx: PackedM31,
-    /// Packed `lhs` values.
     pub lhs: PackedM31,
-    /// Packed `rhs` values.
     pub rhs: PackedM31,
-    /// Packed `out` values.
     pub out: PackedM31,
-    /// Packed `rem` values.
     pub rem: PackedM31,
-    /// Packed `lhs_mult` values.
     pub lhs_mult: PackedM31,
-    /// Packed `rhs_mult` values.
     pub rhs_mult: PackedM31,
-    /// Packed `out_mult` values.
     pub out_mult: PackedM31,
 }
 
@@ -208,56 +165,36 @@ impl Unpack for PackedMulTraceTableRow {
 }
 
 impl MulTraceTable {
-    /// Creates a new, empty `MulTraceTable`.
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Appends a single row to the trace table.
     pub fn add_row(&mut self, row: MulTraceTableRow) {
         self.table.push(row);
     }
 }
 
-/// Enum defining the columns of the Mul AIR component's trace.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MulColumn {
-    /// ID of the current Mul node.
     NodeId,
-    /// ID of the node providing the left-hand side input.
     LhsId,
-    /// ID of the node providing the right-hand side input.
     RhsId,
-    /// Index within the tensor for this operation.
     Idx,
-    /// Flag indicating if this is the last element processed for this node.
     IsLastIdx,
-    /// ID of the *next* Mul node processed in the trace.
     NextNodeId,
-    /// ID of the *next* LHS provider node.
     NextLhsId,
-    /// ID of the *next* RHS provider node.
     NextRhsId,
-    /// Index of the *next* element processed.
     NextIdx,
-    /// Value of the left-hand side input.
     Lhs,
-    /// Value of the right-hand side input.
     Rhs,
-    /// Value of the output.
     Out,
-    /// Remainder from fixed-point multiplication.
     Rem,
-    /// Multiplicity for the LogUp argument (LHS input).
     LhsMult,
-    /// Multiplicity for the LogUp argument (RHS input).
     RhsMult,
-    /// Multiplicity for the LogUp argument (output).
     OutMult,
 }
 
 impl MulColumn {
-    /// Returns the 0-based index for this column within the Mul trace segment.
     pub const fn index(self) -> usize {
         match self {
             Self::NodeId => 0,
@@ -280,10 +217,7 @@ impl MulColumn {
     }
 }
 
-/// Implements the `TraceColumn` trait for `MulColumn`.
 impl TraceColumn for MulColumn {
-    /// Specifies the number of columns used by the Mul component.
-    /// Returns `(16, 3)`, indicating 16 main trace columns and 3 interaction trace columns.
     fn count() -> (usize, usize) {
         (16, 3)
     }

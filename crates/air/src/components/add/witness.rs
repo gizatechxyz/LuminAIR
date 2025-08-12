@@ -21,34 +21,17 @@ use crate::{
 
 use super::table::{AddTraceTable, PackedAddTraceTableRow};
 
-/// Number of main trace columns for the Add component.
 pub(crate) const N_TRACE_COLUMNS: usize = 15;
 
-/// Generates the main trace columns and initial data for interaction claims for the Add component.
-///
-/// Takes the raw `AddTraceTable` collected during graph execution, processes it into
-/// the main STARK trace columns, and prepares the necessary data (`LookupData`)
-/// for generating the LogUp interaction trace columns later.
 pub struct ClaimGenerator {
-    /// The raw trace data for Add operations.
     pub inputs: AddTraceTable,
 }
 
 impl ClaimGenerator {
-    /// Creates a new `ClaimGenerator` with the given `AddTraceTable`.
     pub fn new(inputs: AddTraceTable) -> Self {
         Self { inputs }
     }
 
-    /// Writes the main trace columns to the `tree_builder` and returns data for interaction phase.
-    ///
-    /// 1. Pads the input table to a power-of-two size.
-    /// 2. Converts rows to SIMD-packed format.
-    /// 3. Calls `write_trace_simd` to populate main trace columns and `LookupData`.
-    /// 4. Adds the generated main trace columns to the STWO commitment `tree_builder`.
-    /// 5. Returns an `AddClaim` (with trace log_size) and an `InteractionClaimGenerator`
-    ///    (containing `LookupData` needed for LogUp).
-    /// Returns `TraceError::EmptyTrace` if the input table is empty.
     pub fn write_trace(
         mut self,
         tree_builder: &mut impl TreeBuilder<SimdBackend>,
@@ -79,14 +62,6 @@ impl ClaimGenerator {
     }
 }
 
-/// Populates the main trace columns and `LookupData` from SIMD-packed trace rows.
-///
-/// This function processes the `PackedAddTraceTableRow` data in parallel:
-/// - It directly maps fields from `PackedAddTraceTableRow` to the corresponding main trace columns.
-/// - It extracts and stores `[value, id]` pairs and their multiplicities (from `lhs_mult`, etc.)
-///   into the `LookupData` struct. This data is crucial for building the LogUp argument,
-///   which links these values to where they are defined or used elsewhere in the graph.
-/// Returns the `ComponentTrace` (main trace columns) and `LookupData`.
 fn write_trace_simd(
     inputs: Vec<PackedAddTraceTableRow>,
 ) -> (ComponentTrace<N_TRACE_COLUMNS>, LookupData) {
@@ -134,54 +109,22 @@ fn write_trace_simd(
     (trace, lookup_data)
 }
 
-/// Intermediate data structure holding values and multiplicities for LogUp argument construction.
-///
-/// For each Add operation (LHS, RHS, OUT), it stores:
-/// - `[value, id_of_value_source_or_dest_node]`: The pair used in the LogUp denominator.
-/// - `multiplicity`: The +1 or -1 count for this value in the LogUp sum.
-/// Derives helper iterators for parallel processing.
 #[derive(Uninitialized, IterMut, ParIterMut)]
 struct LookupData {
-    /// LHS value-ID pairs: `[lhs_value, lhs_node_id]`.
     lhs: Vec<[PackedM31; 2]>,
-    /// Multiplicities for LHS values.
     lhs_mult: Vec<PackedM31>,
-    /// RHS value-ID pairs: `[rhs_value, rhs_node_id]`.
     rhs: Vec<[PackedM31; 2]>,
-    /// Multiplicities for RHS values.
     rhs_mult: Vec<PackedM31>,
-    /// Output value-ID pairs: `[out_value, add_node_id]`.
     out: Vec<[PackedM31; 2]>,
-    /// Multiplicities for output values.
     out_mult: Vec<PackedM31>,
 }
 
-/// Generates the interaction trace columns for the Add component's LogUp argument.
-///
-/// Takes the `LookupData` (prepared by `ClaimGenerator`) and `NodeElements` (randomness)
-/// to construct the three LogUp interaction columns (one each for LHS, RHS, OUT).
-/// These columns prove that the values used/produced by Add operations are consistent
-/// with their occurrences elsewhere in the computation graph.
 pub struct InteractionClaimGenerator {
-    /// Log2 size of the trace.
     log_size: u32,
-    /// Data (value-ID pairs and multiplicities) needed for LogUp.
     lookup_data: LookupData,
 }
 
 impl InteractionClaimGenerator {
-    /// Writes the LogUp interaction trace columns to the `tree_builder`.
-    ///
-    /// For each of LHS, RHS, and OUT:
-    /// 1. Initializes a LogUp column generator.
-    /// 2. For each entry in `lookup_data`:
-    ///    a. Combines `[value, id]` with `NodeElements` to form the denominator for LogUp.
-    ///    b. Writes `multiplicity / denominator` to the current LogUp column.
-    /// 3. Finalizes the column.
-    /// After processing all three, finalizes the `LogupTraceGenerator` to get the interaction trace
-    /// columns and the overall `claimed_sum` for the LogUp argument.
-    /// Adds the interaction trace columns to the STWO `tree_builder`.
-    /// Returns the `InteractionClaim` containing the `claimed_sum`.
     pub fn write_interaction_trace(
         self,
         tree_builder: &mut impl TreeBuilder<SimdBackend>,

@@ -4,22 +4,14 @@ use stwo_prover::constraint_framework::{
     EvalAtRow, FrameworkComponent, FrameworkEval, RelationEntry,
 };
 
-/// The STWO AIR component for Max-Reduce operations.
-/// Wraps the `MaxReduceEval` logic within the STWO `FrameworkComponent`.
 pub type MaxReduceComponent = FrameworkComponent<MaxReduceEval>;
 
-/// Defines the AIR constraints evaluation logic for the MaxReduce component.
-/// Implements `FrameworkEval` for the step-by-step max-finding process.
 pub struct MaxReduceEval {
-    /// Log2 size of the component's trace segment.
     log_size: u32,
-    /// Interaction elements for node relations (used in LogUp).
     node_elements: NodeElements,
 }
 
 impl MaxReduceEval {
-    /// Creates a new `MaxReduceEval` instance.
-    /// Takes the component's claim (for `log_size`) and interaction elements.
     pub fn new(claim: &MaxReduceClaim, node_elements: NodeElements) -> Self {
         Self {
             log_size: claim.log_size,
@@ -28,29 +20,15 @@ impl MaxReduceEval {
     }
 }
 
-/// Implements the core constraint evaluation logic for the MaxReduce component.
 impl FrameworkEval for MaxReduceEval {
-    /// Returns the log2 size of this component's trace segment.
     fn log_size(&self) -> u32 {
         self.log_size
     }
 
-    /// Returns the maximum expected log2 degree bound for the component's constraints.
     fn max_constraint_log_degree_bound(&self) -> u32 {
         self.log_size + 1
     }
 
-    /// Evaluates the MaxReduce AIR constraints on a given evaluation point (`eval`).
-    ///
-    /// Defines constraints for:
-    /// - **Consistency:**
-    ///   - `is_last_idx`, `is_last_step`, `is_max` are boolean.
-    ///   - Max update logic:
-    ///     - If `is_max` is 1, then `next_max_val = input_val`.
-    ///     - If `is_max` is 0, then `next_max_val = max_val`.
-    ///   - Output validity: `out = next_max_val` only if `is_last_step` is true.
-    /// - **Transition (for output elements):** Standard logic for node/input IDs and `idx` increment.
-    /// - **Interaction (LogUp):** Links `input_val` and `out_val` to the global LogUp argument.
     fn evaluate<E: EvalAtRow>(&self, mut eval: E) -> E {
         // IDs
         let node_id = eval.next_trace_mask(); // ID of the node in the computational graph.

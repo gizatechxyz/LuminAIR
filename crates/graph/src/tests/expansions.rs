@@ -24,8 +24,6 @@ fn assert_close(a_vec: &[f32], b_vec: &[f32]) {
     }
 }
 
-/// Test proving and verification with various expansion scenarios
-/// to ensure it's proving and verifying e2e without LogUp errors.
 fn test_expansion_scenario<F>(
     name: &str,
     graph_builder: F,

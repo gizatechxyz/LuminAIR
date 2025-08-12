@@ -11,70 +11,39 @@ use stwo_prover::core::{
 use super::witness::N_TRACE_COLUMNS;
 use crate::{components::TraceColumn, DEFAULT_FP_SCALE};
 
-/// Represents the raw trace data collected for LessThan operations.
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct LessThanTraceTable {
-    /// Vector containing all rows of the LessThan trace.
     pub table: Vec<LessThanTraceTableRow>,
     pub(crate) node_id: M31,
 }
 
-/// Represents a single row in the `LessThanTraceTable`.
-///
-/// Contains values for evaluating LessThan AIR constraints: current/next state IDs,
-/// input/output values, and multiplicities for LogUp (input/output) and LUT interaction.
 #[derive(Debug, Copy, Clone, serde::Serialize, serde::Deserialize)]
 pub struct LessThanTraceTableRow {
-    /// ID of the current LessThan node.
     pub node_id: M31,
-    /// ID of the node providing the left-hand side input.
     pub lhs_id: M31,
-    /// ID of the node providing the right-hand side input.
     pub rhs_id: M31,
-    /// Index within the tensor for this operation.
     pub idx: M31,
-    /// Flag indicating if this is the last element processed for this node (1 if true, 0 otherwise).
     pub is_last_idx: M31,
-    /// ID of the *next* LessThan node processed in the trace (often the same as `node_id`).
     pub next_node_id: M31,
-    /// ID of the *next* LHS provider node (often the same as `lhs_id`).
     pub next_lhs_id: M31,
-    /// ID of the *next* RHS provider node (often the same as `rhs_id`).
     pub next_rhs_id: M31,
-    /// Index of the *next* element processed (often `idx + 1`).
     pub next_idx: M31,
-    /// Value of the left-hand side input.
     pub lhs: M31,
-    /// Value of the right-hand side input.
     pub rhs: M31,
-    /// Value of the output (`lhs + rhs`).
     pub out: M31,
-    /// Value of the diff (`diff = b - a + 2^k`)
     pub diff: M31,
-    /// Value of the borrow bit
     pub borrow: M31,
-    /// First 8-bit limb of diff (bits 0-7)
     pub limb0: M31,
-    /// Second 8-bit limb of diff (bits 8-15)
     pub limb1: M31,
-    /// Third 8-bit limb of diff (bits 16-23)
     pub limb2: M31,
-    /// Fourth 8-bit limb of diff (bits 24-31)
     pub limb3: M31,
-    /// Multiplicity contribution for the LogUp argument related to the LHS input.
     pub lhs_mult: M31,
-    /// Multiplicity contribution for the LogUp argument related to the RHS input.
     pub rhs_mult: M31,
-    /// Multiplicity contribution for the LogUp argument related to the output.
     pub out_mult: M31,
-    /// Multiplicity contribution for the RangeCheck Lookup Table interaction.
     pub range_check_mult: M31,
 }
 
 impl LessThanTraceTableRow {
-    /// Creates a default padding row for the LessThan trace.
-    /// Padding rows are added to ensure the trace length is a power of two.
-    /// They should be designed to satisfy constraints trivially.
     pub(crate) fn padding() -> Self {
         Self {
             node_id: M31::zero(),
@@ -103,53 +72,29 @@ impl LessThanTraceTableRow {
     }
 }
 
-/// SIMD-packed representation of an `LessThanTraceTableRow`.
-/// Holds `N_LANES` rows packed into SIMD registers for efficient processing.
 #[derive(Debug, Copy, Clone)]
 pub struct PackedLessThanTraceTableRow {
-    /// Packed `node_id` values.
     pub node_id: PackedM31,
-    /// Packed `lhs_id` values.
     pub lhs_id: PackedM31,
-    /// Packed `rhs_id` values.
     pub rhs_id: PackedM31,
-    /// Packed `idx` values.
     pub idx: PackedM31,
-    /// Packed `is_last_idx` values.
     pub is_last_idx: PackedM31,
-    /// Packed `next_node_id` values.
     pub next_node_id: PackedM31,
-    /// Packed `next_lhs_id` values.
     pub next_lhs_id: PackedM31,
-    /// Packed `next_rhs_id` values.
     pub next_rhs_id: PackedM31,
-    /// Packed `next_idx` values.
     pub next_idx: PackedM31,
-    /// Packed `lhs` values.
     pub lhs: PackedM31,
-    /// Packed `rhs` values.
     pub rhs: PackedM31,
-    /// Packed `out` values.
     pub out: PackedM31,
-    /// Packed `diff` values.
     pub diff: PackedM31,
-    /// Packed `borrow` values.
     pub borrow: PackedM31,
-    /// Packed `limb0` values.
     pub limb0: PackedM31,
-    /// Packed `limb1` values.
     pub limb1: PackedM31,
-    /// Packed `limb2` values.
     pub limb2: PackedM31,
-    /// Packed `limb3` values.
     pub limb3: PackedM31,
-    /// Packed `lhs_mult` values.
     pub lhs_mult: PackedM31,
-    /// Packed `rhs_mult` values.
     pub rhs_mult: PackedM31,
-    /// Packed `out_mult` values.
     pub out_mult: PackedM31,
-    /// Packed `range_check_mult` values.
     pub range_check_mult: PackedM31,
 }
 
@@ -266,69 +211,42 @@ impl Unpack for PackedLessThanTraceTableRow {
 }
 
 impl LessThanTraceTable {
-    /// Creates a new, empty `LessThanTraceTable`.
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Appends a single row to the trace table.
     pub fn add_row(&mut self, row: LessThanTraceTableRow) {
         self.table.push(row);
     }
 }
 
-/// Enum defining the columns of the LessThan AIR component's trace.
-/// Provides a mapping from meaningful names to column indices.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum LessThanColumn {
-    /// ID of the current LessThan node.
     NodeId,
-    /// ID of the node providing the left-hand side input.
     LhsId,
-    /// ID of the node providing the right-hand side input.
     RhsId,
-    /// Index within the tensor for this operation.
     Idx,
-    /// Flag indicating if this is the last element processed for this node.
     IsLastIdx,
-    /// ID of the *next* LessThan node processed in the trace.
     NextNodeId,
-    /// ID of the *next* LHS provider node.
     NextLhsId,
-    /// ID of the *next* RHS provider node.
     NextRhsId,
-    /// Index of the *next* element processed.
     NextIdx,
-    /// Value of the left-hand side input.
     Lhs,
-    /// Value of the right-hand side input.
     Rhs,
-    /// Value of the output (`lhs + rhs`).
     Out,
-    /// Value of the diff (diff = b - a + 2^k)
     Diff,
-    /// Value of the borrow bit
     Borrow,
-    /// First 8-bit limb of diff (bits 0-7)
     Limb0,
-    /// Second 8-bit limb of diff (bits 8-15)
     Limb1,
-    /// Third 8-bit limb of diff (bits 16-23)
     Limb2,
-    /// Fourth 8-bit limb of diff (bits 24-31)
     Limb3,
-    /// Multiplicity for the LogUp argument (LHS input).
     LhsMult,
-    /// Multiplicity for the LogUp argument (RHS input).
     RhsMult,
-    /// Multiplicity for the LogUp argument (output).
     OutMult,
-    /// Multiplicity for the RangeCheck Lookup Table interaction.
     RangeCheckMult,
 }
 
 impl LessThanColumn {
-    /// Returns the 0-based index for this column within the LessThan trace segment.
     pub const fn index(self) -> usize {
         match self {
             Self::NodeId => 0,
@@ -357,11 +275,7 @@ impl LessThanColumn {
     }
 }
 
-/// Implements the `TraceColumn` trait for `LessThanColumn`.
 impl TraceColumn for LessThanColumn {
-    /// Specifies the number of columns used by the LessThan component.
-    /// Returns `(N_TRACE_COLUMNS, 7)`, indicating the number of main trace columns
-    /// and the number of interaction trace columns (for LogUp).
     fn count() -> (usize, usize) {
         (N_TRACE_COLUMNS, 7)
     }

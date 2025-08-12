@@ -5,14 +5,6 @@ use crate::scenario::{scenarios, Scenario};
 
 mod scenario;
 
-/// Verifiable Risk Assessment using VaR and CVaR.
-/// 
-/// This example demonstrates how a DeFi lending protocol can use LuminAIR to:
-/// - Calculate risk metrics for collateralized positions
-/// - Generate ZK proofs of risk calculations. 
-/// - Enable transparent and verifiable risk management.
-///
-/// Use Case: A lending protocol wants to prove its risk management is sound.
 fn main() {
     println!("=== Verfiable CVaR Risk Assessment ===\n");
     println!("Scenario: Analyzing potential losses from liquidation events");

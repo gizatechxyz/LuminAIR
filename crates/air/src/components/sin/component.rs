@@ -9,29 +9,16 @@ use stwo_prover::constraint_framework::{
     EvalAtRow, FrameworkComponent, FrameworkEval, RelationEntry,
 };
 
-/// The STWO AIR component for element-wise Sine (`sin(x)`) operations.
-/// Wraps the `SinEval` logic within the STWO `FrameworkComponent`.
-/// Correctness of `sin(x)` is enforced via a lookup argument into a preprocessed table.
 pub type SinComponent = FrameworkComponent<SinEval>;
 
-/// Defines the AIR constraints evaluation logic for the Sin component.
-/// Implements `FrameworkEval` to define trace layout, degrees, and constraints.
-/// Relies heavily on LogUp arguments for consistency.
 pub struct SinEval {
-    /// Log2 size of the component's main trace segment.
     log_size: u32,
-    /// Log2 size of the preprocessed Sine Lookup Table.
     lut_log_size: u32,
-    /// Interaction elements for node relations (used in input/output LogUp).
     node_elements: NodeElements,
-    /// Specific interaction elements for the Sine LUT LogUp.
     lookup_elements: SinLookupElements,
 }
 
 impl SinEval {
-    /// Creates a new `SinEval` instance.
-    /// Takes the component's claim, interaction elements for nodes and lookups,
-    /// and the log_size of the Sine LUT.
     pub fn new(
         claim: &SinClaim,
         node_elements: NodeElements,
@@ -47,28 +34,15 @@ impl SinEval {
     }
 }
 
-/// Implements the core constraint evaluation logic for the Sin component.
 impl FrameworkEval for SinEval {
-    /// Returns the log2 size of this component's main trace segment.
     fn log_size(&self) -> u32 {
         self.log_size
     }
 
-    /// Returns the max log2 degree bound, considering both main trace and LUT sizes.
     fn max_constraint_log_degree_bound(&self) -> u32 {
         std::cmp::max(self.log_size, self.lut_log_size) + 1
     }
 
-    /// Evaluates the Sin AIR constraints on a given evaluation point (`eval`).
-    ///
-    /// Defines constraints for:
-    /// - **Consistency:** Ensures `is_last_idx` is boolean.
-    /// - **Transition:** Correct state transitions (node/input ID, index increment).
-    /// - **Interaction (LogUp):** Three LogUp arguments are crucial here:
-    ///     1. Links `input_val` (from this trace) to where it's defined elsewhere.
-    ///     2. Links `out_val` (from this trace) to where it's used elsewhere.
-    ///     3. Links the pair `(input_val, out_val)` to the preprocessed Sine Lookup Table,
-    ///        effectively constraining `out_val` to be `sin(input_val)`.
     fn evaluate<E: EvalAtRow>(&self, mut eval: E) -> E {
         // IDs
         let node_id = eval.next_trace_mask(); // ID of the node in the computational graph.

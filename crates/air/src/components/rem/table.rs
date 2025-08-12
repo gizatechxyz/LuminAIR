@@ -63,37 +63,21 @@ impl RemTraceTableRow {
 
 #[derive(Debug, Copy, Clone)]
 pub struct PackedRemTraceTableRow {
-    /// Packed `node_id` values.
     pub node_id: PackedM31,
-    /// Packed `lhs_id` values.
     pub lhs_id: PackedM31,
-    /// Packed `rhs_id` values.
     pub rhs_id: PackedM31,
-    /// Packed `idx` values.
     pub idx: PackedM31,
-    /// Packed `is_last_idx` values.
     pub is_last_idx: PackedM31,
-    /// Packed `next_node_id` values.
     pub next_node_id: PackedM31,
-    /// Packed `next_lhs_id` values.
     pub next_lhs_id: PackedM31,
-    /// Packed `next_rhs_id` values.
     pub next_rhs_id: PackedM31,
-    /// Packed `next_idx` values.
     pub next_idx: PackedM31,
-    /// Packed `lhs` values.
     pub lhs: PackedM31,
-    /// Packed `rhs` values.
     pub rhs: PackedM31,
-    /// Packed `rem` values.
     pub rem: PackedM31,
-    /// Packed `quotient` values.
     pub quotient: PackedM31,
-    /// Packed `lhs_mult` values.
     pub lhs_mult: PackedM31,
-    /// Packed `rhs_mult` values.
     pub rhs_mult: PackedM31,
-    /// Packed `out_mult` values.
     pub out_mult: PackedM31,
 }
 
@@ -184,57 +168,36 @@ impl Unpack for PackedRemTraceTableRow {
 }
 
 impl RemTraceTable {
-    /// Creates a new, empty `RemTraceTable`.
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Appends a single row to the trace table.
     pub fn add_row(&mut self, row: RemTraceTableRow) {
         self.table.push(row);
     }
 }
 
-/// Enum defining the columns of the Rem AIR component's trace.
-/// Provides a mapping from meaningful names to column indices.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum RemColumn {
-    /// ID of the current Rem node.
     NodeId,
-    /// ID of the node providing the left-hand side input.
     LhsId,
-    /// ID of the node providing the right-hand side input.
     RhsId,
-    /// Index within the tensor for this operation.
     Idx,
-    /// Flag indicating if this is the last element processed for this node.
     IsLastIdx,
-    /// ID of the *next* Rem node processed in the trace.
     NextNodeId,
-    /// ID of the *next* LHS provider node.
     NextLhsId,
-    /// ID of the *next* RHS provider node.
     NextRhsId,
-    /// Index of the *next* element processed.
     NextIdx,
-    /// Value of the left-hand side input.
     Lhs,
-    /// Value of the right-hand side input.
     Rhs,
-    /// Remainder from fixed-point division.
     Rem,
-    /// Quotient from fixed-point division.
     Quotient,
-    /// Multiplicity for the LogUp argument (LHS input).
     LhsMult,
-    /// Multiplicity for the LogUp argument (RHS input).
     RhsMult,
-    /// Multiplicity for the LogUp argument (output).
     OutMult,
 }
 
 impl RemColumn {
-    /// Returns the 0-based index for this column within the Rem trace segment.
     pub const fn index(self) -> usize {
         match self {
             Self::NodeId => 0,
@@ -257,11 +220,7 @@ impl RemColumn {
     }
 }
 
-/// Implements the `TraceColumn` trait for `RemColumn`.
 impl TraceColumn for RemColumn {
-    /// Specifies the number of columns used by the Rem component.
-    /// Returns `(N_TRACE_COLUMNS, 3)`, indicating the number of main trace columns
-    /// and the number of interaction trace columns (for LogUp).
     fn count() -> (usize, usize) {
         (N_TRACE_COLUMNS, 3)
     }

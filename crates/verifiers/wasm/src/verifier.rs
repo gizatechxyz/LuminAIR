@@ -7,7 +7,6 @@ use tracing::{info, span, Level};
 
 use crate::utils::{console_error, console_info};
 
-/// WASM-exposed verification result
 #[wasm_bindgen]
 #[derive(Debug, Clone)]
 pub struct VerificationResult {
@@ -28,10 +27,6 @@ impl VerificationResult {
     }
 }
 
-/// Verifies a LuminAIR proof in WASM.
-///
-/// Takes binary data for both `LuminairProof` and `CircuitSettings` and returns a verification result.
-/// This is the main entry point for WASM-based proof verification.
 #[wasm_bindgen]
 pub fn verify(proof_bytes: &[u8], settings_bytes: &[u8]) -> VerificationResult {
     let _span = span!(Level::INFO, "wasm_verification_wrapper").entered();
@@ -99,14 +94,12 @@ pub fn verify(proof_bytes: &[u8], settings_bytes: &[u8]) -> VerificationResult {
     }
 }
 
-/// Utility function to check if the WASM module is working correctly
 #[wasm_bindgen]
 pub fn test_wasm_module() -> String {
     console_info("WASM module is working correctly!");
     "LuminAIR WASM Verifier loaded successfully!".to_string()
 }
 
-/// Get version information
 #[wasm_bindgen]
 pub fn get_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()

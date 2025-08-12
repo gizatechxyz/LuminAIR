@@ -1,7 +1,6 @@
 use stwo_prover::core::prover::{ProvingError, VerificationError};
 use thiserror::Error;
 
-/// Errors that can occur during LuminAIR graph processing, proof generation, or verification.
 #[derive(Clone, Debug, Error)]
 pub enum LuminairError {
     #[error(transparent)]
@@ -26,10 +25,8 @@ pub enum LuminairError {
     SerializationError(String),
 }
 
-/// Errors that can occur during AIR trace generation or processing.
 #[derive(Debug, Clone, Error, Eq, PartialEq)]
 pub enum TraceError {
-    /// Indicates that a component trace was unexpectedly empty.
     #[error("The trace is empty.")]
     EmptyTrace,
 }

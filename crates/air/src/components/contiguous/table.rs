@@ -157,7 +157,6 @@ pub enum ContiguousColumn {
 }
 
 impl ContiguousColumn {
-    /// Returns the 0-based index for this column within the Sqrt trace segment.
     pub const fn index(self) -> usize {
         match self {
             Self::NodeId => 0,
