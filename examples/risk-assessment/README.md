@@ -32,8 +32,6 @@ Loss percentages range from catastrophic events (24% TVL loss) to profitable sce
 The risk calculations are performed within a ZK circuit using LuminAIR, providing:
 - Mathematical soundness verification
 - Transparent risk assessment
-- On-chain verifiable proofs
-- Protection of sensitive position data
 
 ## Usage
 
