@@ -13,7 +13,7 @@ mod scenario;
 /// - Conditional Value at Risk (CVaR): The expected loss in tail scenarios
 /// - Maximum Loss: The worst-case scenario loss
 /// 
-/// All calculations are proven using STARK proofs, ensuring mathematical correctness.
+/// All calculations are proven using STARK proofs.
 fn main() {
     println!("=== Verfifiable CVaR Risk Assessment ===\n");
     println!("Scenario: Analyzing potential losses from liquidation events");
