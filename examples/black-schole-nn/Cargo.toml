@@ -1,0 +1,14 @@
+[package]
+name = "black-schole-nn"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[dependencies]
+stwo.workspace = true
+luminal.workspace = true
+luminair = { path = "../../crates/prelude" }
+serde_json.workspace = true
+ndarray = "0.15"
+ndarray-npy = "0.8"

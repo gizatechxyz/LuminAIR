@@ -1,0 +1,14 @@
+{
+    "K": 20,
+    "T": 1.0,
+    "r": 0.05,
+    "sigma": 0.25,
+    "N_data": 3000,
+    "min_S": 1,
+    "max_S": 40,
+    "bias": 1.0,
+    "noise_variance": 0.5,
+    "epochs": 2000,
+    "lr": 1e-3,
+    "log_interval" : 200
+  }
