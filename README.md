@@ -69,6 +69,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 ```
+### Running Examples for Beginners
+If you’re new to Rust or Git, follow these steps to get started easily:
+
+1. Install Rust: https://www.rust-lang.org/tools/install
+2. Clone the repo:
+   git clone https://github.com/ragefye/LuminAIR.git
+3. Navigate into the repo folder:
+   cd LuminAIR
+4. Run a simple example:
+   cargo run --example hello_world
+5. Explore other examples in the examples/ folder   
 
 ## 📖 Documentation
 
