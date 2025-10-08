@@ -23,7 +23,7 @@ macro_rules! single_unary_test {
                 // Compilation and execution using StwoCompiler
                 cx.compile(<(GenericCompiler, StwoCompiler)>::default(), &mut c);
 
-                let mut settings = cx.gen_circuit_settings();
+                let mut settings = cx.gen_circuit_settings(12);
                 c.drop();
                 let trace = cx.gen_trace(&mut settings).expect("Trace generation failed");
                  let proof =prove(trace, settings.clone()).expect("Proof generation failed");
@@ -116,7 +116,7 @@ macro_rules! single_binary_test {
 
                 // Compilation and execution using StwoCompiler
                 cx.compile(<(GenericCompiler, StwoCompiler)>::default(), &mut c);
-                let mut settings = cx.gen_circuit_settings();
+                let mut settings = cx.gen_circuit_settings(12);
                 c.drop();
                 let trace = cx.gen_trace(&mut settings).expect("Trace generation failed");
                  let proof =prove(trace, settings.clone()).expect("Proof generation failed");

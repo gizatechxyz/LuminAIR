@@ -44,7 +44,7 @@ fn test_sum_reduce() {
         (&mut b, &mut c, &mut d),
     );
 
-    let mut settings = cx.gen_circuit_settings();
+    let mut settings = cx.gen_circuit_settings(12);
     b.drop();
     c.drop();
     d.drop();
@@ -89,7 +89,7 @@ fn test_max_reduce() {
         <(GenericCompiler, StwoCompiler)>::default(),
         (&mut b, &mut c, &mut d),
     );
-    let mut settings = cx.gen_circuit_settings();
+    let mut settings = cx.gen_circuit_settings(12);
     b.drop();
     c.drop();
     d.drop();
@@ -132,7 +132,7 @@ fn test_less_than_32x32_32x32() {
 
     // Compilation and execution using StwoCompiler
     cx.compile(<(GenericCompiler, StwoCompiler)>::default(), &mut c);
-    let mut settings = cx.gen_circuit_settings();
+    let mut settings = cx.gen_circuit_settings(12);
     c.drop();
     let trace = cx
         .gen_trace(&mut settings)
@@ -167,7 +167,7 @@ fn test_less_than_17x3_17x3() {
 
     // Compilation and execution using StwoCompiler
     cx.compile(<(GenericCompiler, StwoCompiler)>::default(), &mut c);
-    let mut settings = cx.gen_circuit_settings();
+    let mut settings = cx.gen_circuit_settings(12);
     c.drop();
     let trace = cx
         .gen_trace(&mut settings)
@@ -202,7 +202,7 @@ fn test_less_than_3x4_3x4() {
 
     // Compilation and execution using StwoCompiler
     cx.compile(<(GenericCompiler, StwoCompiler)>::default(), &mut c);
-    let mut settings = cx.gen_circuit_settings();
+    let mut settings = cx.gen_circuit_settings(12);
     c.drop();
     let trace = cx
         .gen_trace(&mut settings)
@@ -235,7 +235,7 @@ fn test_contiguous() {
 
     // Compilation and execution using StwoCompiler
     cx.compile(<(GenericCompiler, StwoCompiler)>::default(), &mut b);
-    let mut settings = cx.gen_circuit_settings();
+    let mut settings = cx.gen_circuit_settings(12);
     b.drop();
     let trace = cx
         .gen_trace(&mut settings)

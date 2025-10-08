@@ -9,7 +9,7 @@ use stwo::{
 };
 
 use super::witness::N_TRACE_COLUMNS;
-use crate::{components::TraceColumn, DEFAULT_FP_SCALE};
+use crate::{components::TraceColumn};
 
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct LessThanTraceTable {
@@ -37,6 +37,7 @@ pub struct LessThanTraceTableRow {
     pub limb1: M31,
     pub limb2: M31,
     pub limb3: M31,
+    pub scale: M31,
     pub lhs_mult: M31,
     pub rhs_mult: M31,
     pub out_mult: M31,
@@ -57,13 +58,15 @@ impl LessThanTraceTableRow {
             next_idx: M31::zero(),
             lhs: M31::zero(),
             rhs: M31::one(),
-            out: M31::from_u32_unchecked(1 << DEFAULT_FP_SCALE),
+            // Use consistent default scale (matches CircuitSettings typical value)
+            out: M31::zero(),
             diff: M31::one(),
             borrow: M31::zero(),
             limb0: M31::one(),
             limb1: M31::zero(),
             limb2: M31::zero(),
             limb3: M31::zero(),
+            scale: M31::zero(),
             lhs_mult: M31::zero(),
             rhs_mult: M31::zero(),
             out_mult: M31::zero(),
@@ -92,6 +95,7 @@ pub struct PackedLessThanTraceTableRow {
     pub limb1: PackedM31,
     pub limb2: PackedM31,
     pub limb3: PackedM31,
+    pub scale: PackedM31,
     pub lhs_mult: PackedM31,
     pub rhs_mult: PackedM31,
     pub out_mult: PackedM31,
@@ -121,6 +125,7 @@ impl Pack for LessThanTraceTableRow {
             limb1: PackedM31::from_array(std::array::from_fn(|i| inputs[i].limb1)),
             limb2: PackedM31::from_array(std::array::from_fn(|i| inputs[i].limb2)),
             limb3: PackedM31::from_array(std::array::from_fn(|i| inputs[i].limb3)),
+            scale: PackedM31::from_array(std::array::from_fn(|i| inputs[i].scale)),
             lhs_mult: PackedM31::from_array(std::array::from_fn(|i| inputs[i].lhs_mult)),
             rhs_mult: PackedM31::from_array(std::array::from_fn(|i| inputs[i].rhs_mult)),
             out_mult: PackedM31::from_array(std::array::from_fn(|i| inputs[i].out_mult)),
@@ -154,6 +159,7 @@ impl Unpack for PackedLessThanTraceTableRow {
             limb1,
             limb2,
             limb3,
+            scale,
             lhs_mult,
             rhs_mult,
             out_mult,
@@ -177,6 +183,7 @@ impl Unpack for PackedLessThanTraceTableRow {
             self.limb1.to_array(),
             self.limb2.to_array(),
             self.limb3.to_array(),
+            self.scale.to_array(),
             self.lhs_mult.to_array(),
             self.rhs_mult.to_array(),
             self.out_mult.to_array(),
@@ -202,6 +209,7 @@ impl Unpack for PackedLessThanTraceTableRow {
             limb1: limb1[i],
             limb2: limb2[i],
             limb3: limb3[i],
+            scale: scale[i],
             lhs_mult: lhs_mult[i],
             rhs_mult: rhs_mult[i],
             out_mult: out_mult[i],
@@ -240,6 +248,7 @@ pub enum LessThanColumn {
     Limb1,
     Limb2,
     Limb3,
+    Scale,
     LhsMult,
     RhsMult,
     OutMult,
@@ -267,10 +276,11 @@ impl LessThanColumn {
             Self::Limb1 => 15,
             Self::Limb2 => 16,
             Self::Limb3 => 17,
-            Self::LhsMult => 18,
-            Self::RhsMult => 19,
-            Self::OutMult => 20,
-            Self::RangeCheckMult => 21,
+            Self::Scale => 18,
+            Self::LhsMult => 19,
+            Self::RhsMult => 20,
+            Self::OutMult => 21,
+            Self::RangeCheckMult => 22,
         }
     }
 }

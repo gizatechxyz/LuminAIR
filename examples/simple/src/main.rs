@@ -30,7 +30,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // ======= Generate circuit settings =======
     println!("Generating circuits settings...");
-    let mut settings = cx.gen_circuit_settings();
+    let mut settings = cx.gen_circuit_settings(12);
     println!("Settings generated successfully. ✅");
 
     // ======= Execute graph & generate trace =======

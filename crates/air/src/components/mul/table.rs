@@ -30,6 +30,7 @@ pub struct MulTraceTableRow {
     pub rhs: M31,
     pub out: M31,
     pub rem: M31,
+    pub scale: M31,
     pub lhs_mult: M31,
     pub rhs_mult: M31,
     pub out_mult: M31,
@@ -51,6 +52,7 @@ impl MulTraceTableRow {
             rhs: M31::zero(),
             out: M31::zero(),
             rem: M31::zero(),
+            scale: M31::zero(),
             lhs_mult: M31::zero(),
             rhs_mult: M31::zero(),
             out_mult: M31::zero(),
@@ -73,6 +75,7 @@ pub struct PackedMulTraceTableRow {
     pub rhs: PackedM31,
     pub out: PackedM31,
     pub rem: PackedM31,
+    pub scale: PackedM31,
     pub lhs_mult: PackedM31,
     pub rhs_mult: PackedM31,
     pub out_mult: PackedM31,
@@ -96,6 +99,7 @@ impl Pack for MulTraceTableRow {
             rhs: PackedM31::from_array(std::array::from_fn(|i| inputs[i].rhs)),
             out: PackedM31::from_array(std::array::from_fn(|i| inputs[i].out)),
             rem: PackedM31::from_array(std::array::from_fn(|i| inputs[i].rem)),
+            scale: PackedM31::from_array(std::array::from_fn(|i| inputs[i].scale)),
             lhs_mult: PackedM31::from_array(std::array::from_fn(|i| inputs[i].lhs_mult)),
             rhs_mult: PackedM31::from_array(std::array::from_fn(|i| inputs[i].rhs_mult)),
             out_mult: PackedM31::from_array(std::array::from_fn(|i| inputs[i].out_mult)),
@@ -121,6 +125,7 @@ impl Unpack for PackedMulTraceTableRow {
             rhs,
             out,
             rem,
+            scale,
             lhs_mult,
             rhs_mult,
             out_mult,
@@ -138,6 +143,7 @@ impl Unpack for PackedMulTraceTableRow {
             self.rhs.to_array(),
             self.out.to_array(),
             self.rem.to_array(),
+            self.scale.to_array(),
             self.lhs_mult.to_array(),
             self.rhs_mult.to_array(),
             self.out_mult.to_array(),
@@ -157,6 +163,7 @@ impl Unpack for PackedMulTraceTableRow {
             rhs: rhs[i],
             out: out[i],
             rem: rem[i],
+            scale: scale[i],
             lhs_mult: lhs_mult[i],
             rhs_mult: rhs_mult[i],
             out_mult: out_mult[i],
@@ -189,6 +196,7 @@ pub enum MulColumn {
     Rhs,
     Out,
     Rem,
+    Scale,
     LhsMult,
     RhsMult,
     OutMult,
@@ -210,15 +218,16 @@ impl MulColumn {
             Self::Rhs => 10,
             Self::Out => 11,
             Self::Rem => 12,
-            Self::LhsMult => 13,
-            Self::RhsMult => 14,
-            Self::OutMult => 15,
+            Self::Scale => 13,
+            Self::LhsMult => 14,
+            Self::RhsMult => 15,
+            Self::OutMult => 16,
         }
     }
 }
 
 impl TraceColumn for MulColumn {
     fn count() -> (usize, usize) {
-        (16, 3)
+        (17, 3)
     }
 }

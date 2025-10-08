@@ -6,13 +6,13 @@ use crate::scenario::{scenarios, Scenario};
 mod scenario;
 
 /// DeFi Protocol Risk Assessment with ZK Proofs
-/// 
+///
 /// This example demonstrates how to use LuminAIR to create verifiable risk calculations
 /// for DeFi protocols. It computes:
 /// - Value at Risk (VaR): The maximum expected loss at a given confidence level
 /// - Conditional Value at Risk (CVaR): The expected loss in tail scenarios
 /// - Maximum Loss: The worst-case scenario loss
-/// 
+///
 /// All calculations are proven using STARK proofs.
 fn main() {
     println!("=== Verfifiable CVaR Risk Assessment ===\n");
@@ -20,8 +20,8 @@ fn main() {
     println!("during a market downturn and diverse DeFi-specific stressors\n");
 
     // ======= DeFi Context: Scenario Set =======
-    // Positive = loss, 
-    // Negative = profit; 
+    // Positive = loss,
+    // Negative = profit;
     // we will sort worst→best before ZK.
     let scenarios: Vec<Scenario> = scenarios();
 
@@ -47,9 +47,7 @@ fn main() {
     let mut cx = Graph::new();
 
     // Define tensors for protocol loss scenarios
-    let losses = cx
-        .tensor((n_scenarios,))
-        .set(protocol_losses.clone());
+    let losses = cx.tensor((n_scenarios,)).set(protocol_losses.clone());
     let indices: Vec<f32> = (0..n_scenarios).map(|i| i as f32).collect();
     let idx = cx.tensor((n_scenarios,)).set(indices);
     let tail_t = cx
@@ -87,7 +85,7 @@ fn main() {
         &mut (&mut cvar_out, &mut var_out, &mut max_loss_out),
     );
 
-    let mut settings = cx.gen_circuit_settings();
+    let mut settings = cx.gen_circuit_settings(16);
     let trace = cx.gen_trace(&mut settings).unwrap();
     let t_prove = Instant::now();
     let zk_proof = prove(trace, settings.clone()).unwrap();
@@ -95,7 +93,11 @@ fn main() {
 
     // Verify the proof
     let t_verify = Instant::now();
-    let is_verified = verify(zk_proof, settings).is_ok();
+    let verify_result = verify(zk_proof, settings);
+    let is_verified = verify_result.is_ok();
+    if let Err(e) = verify_result {
+        println!("Verification error: {:?}", e);
+    }
     let dt_verify = t_verify.elapsed();
 
     // ======= Display Risk Metrics for Protocol Governance =======

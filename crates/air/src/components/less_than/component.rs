@@ -4,7 +4,7 @@ use stwo_constraint_framework::{EvalAtRow, FrameworkComponent, FrameworkEval, Re
 
 use crate::{
     components::{lookups::range_check::RangeCheckLookupElements, LessThanClaim, NodeElements},
-    DEFAULT_FP_SCALE_FACTOR, TWO_POW_31_MINUS_1,
+    TWO_POW_31_MINUS_1,
 };
 
 pub type LessThanComponent = FrameworkComponent<LessThanEval>;
@@ -49,7 +49,6 @@ impl FrameworkEval for LessThanEval {
     fn evaluate<E: EvalAtRow>(&self, mut eval: E) -> E {
         // Use 31 bits for the constraint (maximum for M31 field)
         let two_pow_k = E::F::from(M31::from_u32_unchecked(TWO_POW_31_MINUS_1));
-        let scale_factor = E::F::from(M31::from_u32_unchecked(DEFAULT_FP_SCALE_FACTOR));
 
         // IDs
         let node_id = eval.next_trace_mask();
@@ -76,6 +75,9 @@ impl FrameworkEval for LessThanEval {
         let limb1 = eval.next_trace_mask();
         let limb2 = eval.next_trace_mask();
         let limb3 = eval.next_trace_mask();
+
+        // Extract dynamic scale from trace data (consistent with CircuitSettings)  
+        let scale_factor = eval.next_trace_mask();
 
         // Multiplicities for interaction constraints
         let lhs_mult = eval.next_trace_mask();

@@ -6,7 +6,7 @@ use stwo::core::fields::m31::BaseField;
 use stwo_constraint_framework::relation;
 use table::{SinLookupTraceTable, SinLookupTraceTableRow};
 
-use crate::{preprocessed::LookupLayout, utils::AtomicMultiplicityColumn, DEFAULT_FP_SCALE};
+use crate::{preprocessed::LookupLayout, utils::AtomicMultiplicityColumn};
 
 pub mod component;
 pub mod table;
@@ -46,27 +46,33 @@ impl SinLookup {
 /// Data structure for sine lookup table columns
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct SinLookupData {
-    pub col_0: Vec<Fixed<DEFAULT_FP_SCALE>>,
-    pub col_1: Vec<Fixed<DEFAULT_FP_SCALE>>,
+    pub col_0: Vec<Fixed>,
+    pub col_1: Vec<Fixed>,
+    pub scale: u32,
 }
 
 impl SinLookupData {
-    /// Creates new sine lookup table data from the given layout
-    pub fn new(layout: &LookupLayout) -> Self {
+    /// Creates new sine lookup table data from the given layout with scale
+    pub fn new(layout: &LookupLayout, scale: u32) -> Self {
         let mut uniq = BTreeSet::<i64>::new();
         for range in &layout.ranges {
-            uniq.extend(range.0 .0..=range.1 .0);
+            uniq.extend(range.0.value..=range.1.value);
         }
 
         let mut col_0 = Vec::with_capacity(uniq.len());
         let mut col_1 = Vec::with_capacity(uniq.len());
 
         for &raw in &uniq {
-            let x = Fixed(raw);
+            let x = Fixed::new(raw, scale);
             col_0.push(x);
-            col_1.push(Fixed::from_f64(x.to_f64().sin()));
+            col_1.push(Fixed::from_f64(x.to_f64().sin(), scale));
         }
 
-        Self { col_0, col_1 }
+        Self { col_0, col_1, scale }
+    }
+
+    /// Creates new sine lookup table data from the given layout using default scale (backward compatibility)
+    pub fn new_default(layout: &LookupLayout) -> Self {
+        Self::new(layout, 12)
     }
 }

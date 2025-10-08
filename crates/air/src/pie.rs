@@ -224,7 +224,7 @@ pub struct OutputInfo {
 }
 
 /// Information about a node in the computation graph
-#[derive(Debug, Clone, Serialize, Default, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct NodeInfo {
     /// Information about input tensors to this node
     pub inputs: Vec<InputInfo>,
@@ -234,4 +234,18 @@ pub struct NodeInfo {
     pub num_consumers: u32,
     /// Unique identifier for this node
     pub id: u32,
+    /// Fixed-point scale for this computation
+    pub fixed_point_scale: u32,
+}
+
+impl Default for NodeInfo {
+    fn default() -> Self {
+        NodeInfo {
+            inputs: Vec::new(),
+            output: OutputInfo { is_final_output: false },
+            num_consumers: 0,
+            id: 0,
+            fixed_point_scale: 12, // Default scale, will be overridden by CircuitSettings
+        }
+    }
 }

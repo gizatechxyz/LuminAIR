@@ -1,9 +1,8 @@
 use std::any::{Any, TypeId};
 
 use crate::data::StwoData;
-use luminair_air::{preprocessed::Range, DEFAULT_FP_SCALE};
+use luminair_air::preprocessed::Range;
 use luminal::prelude::*;
-use num_traits::Zero;
 use numerair::Fixed;
 
 /// Checks if a TypeId matches the specified type T
@@ -29,12 +28,12 @@ pub(crate) fn get_index(
     (ind, val): &(Expression, Expression),
     stack: &mut Vec<i64>,
     index: usize,
-) -> Fixed<DEFAULT_FP_SCALE> {
+) -> Fixed {
     if val.exec_single_var_stack(index, stack) != 0 {
         let i = ind.exec_single_var_stack(index, stack);
-        data.0[i]
+        data.data[i]
     } else {
-        Fixed::zero()
+        Fixed::zero(data.scale)
     }
 }
 
@@ -43,30 +42,32 @@ pub(crate) fn get_index(
 /// Analyzes all input tensors to determine the global min/max range,
 /// then applies padding for lookup table generation
 pub(crate) fn compute_padded_range_from_srcs(srcs: &Vec<(InputTensor<'_>, ShapeTracker)>) -> Range {
-    let mut min = Fixed(i64::MAX);
-    let mut max = Fixed(i64::MIN);
+    let mut min = Fixed::new(i64::MAX, 0);
+    let mut max = Fixed::new(i64::MIN, 0);
+    let mut scale = 0u32;
 
     for (tensor, _) in srcs {
         if let Some(buffer) = get_buffer_from_tensor(tensor) {
             let (src_min, src_max) = buffer.min_max();
+            scale = buffer.scale;
 
-            if src_min.0 < min.0 {
+            if src_min.value < min.value {
                 min = src_min;
             }
-            if src_max.0 > max.0 {
+            if src_max.value > max.value {
                 max = src_max;
             }
         }
     }
 
-    buffer_range(Range(min, max))
+    buffer_range(Range(min, max), scale)
 }
 
 /// Applies padding to a range for lookup table generation
 /// 
 /// Adds a configurable margin (currently 10%) around the min/max values
 /// to ensure lookup tables can handle edge cases
-fn buffer_range(range: Range) -> Range {
+fn buffer_range(range: Range, scale: u32) -> Range {
     // TODO (@raphaelDkhn): make it parametizeable maybe.
     const RANGE_MARGIN: f64 = 0.10;
 
@@ -75,8 +76,8 @@ fn buffer_range(range: Range) -> Range {
     let span = max - min;
 
     let delta = span * RANGE_MARGIN;
-    let low = Fixed::from_f64(min - delta);
-    let high = Fixed::from_f64(max + delta);
+    let low = Fixed::from_f64(min - delta, scale);
+    let high = Fixed::from_f64(max + delta, scale);
 
     Range(low, high)
 }

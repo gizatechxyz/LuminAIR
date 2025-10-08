@@ -51,7 +51,7 @@ pub fn prove(
 
     tracing::info!("Preprocessed Trace");
     // Convert lookups in circuit settings to preprocessed column.
-    let lut_cols = lookups_to_preprocessed_column(&settings.lookups);
+    let lut_cols = lookups_to_preprocessed_column(&settings.lookups, settings.fixed_point_scale);
     let preprocessed_trace = PreProcessedTrace::new(lut_cols);
     let mut tree_builder = commitment_scheme.tree_builder();
     tree_builder.extend_evals(preprocessed_trace.gen_trace());

@@ -18,7 +18,7 @@ use crate::{
     utils::{pack_values, TreeBuilder},
 };
 
-pub(crate) const N_TRACE_COLUMNS: usize = 22;
+pub(crate) const N_TRACE_COLUMNS: usize = 23;
 
 pub struct ClaimGenerator {
     pub inputs: LessThanTraceTable,
@@ -99,6 +99,7 @@ fn write_trace_simd(
             *row[LessThanColumn::Limb1.index()] = input.limb1;
             *row[LessThanColumn::Limb2.index()] = input.limb2;
             *row[LessThanColumn::Limb3.index()] = input.limb3;
+            *row[LessThanColumn::Scale.index()] = input.scale;
             *row[LessThanColumn::LhsMult.index()] = input.lhs_mult;
             *row[LessThanColumn::RhsMult.index()] = input.rhs_mult;
             *row[LessThanColumn::OutMult.index()] = input.out_mult;
@@ -173,6 +174,7 @@ impl InteractionClaimGenerator {
         for row in 0..1 << (self.log_size - LOG_N_LANES) {
             let values = &self.lookup_data.out[row];
             let multiplicity = &self.lookup_data.out_mult[row];
+
 
             let denom: PackedQM31 = node_elements.combine(values);
             col_gen.write_frac(row, (*multiplicity).into(), denom);

@@ -116,7 +116,7 @@ fn generate_and_verify_proof(
     // Generate circuit settings for ZK proof
     // Note: In real-world applications, circuit settings should be generated once and reused for multiple inferences.
     println!("Generating Circuit Settings...");
-    let mut settings = graph.gen_circuit_settings();
+    let mut settings = graph.gen_circuit_settings(8);
     println!("✅ Circuit Settings generated");
 
     // Generate execution trace

@@ -37,7 +37,7 @@ where
     let mut result = graph_builder(&mut cx).retrieve();
 
     cx.compile(<(GenericCompiler, StwoCompiler)>::default(), &mut result);
-    let mut settings = cx.gen_circuit_settings();
+    let mut settings = cx.gen_circuit_settings(12);
 
     let trace = cx
         .gen_trace(&mut settings)

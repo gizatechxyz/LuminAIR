@@ -51,7 +51,9 @@ impl FrameworkEval for RecipEval {
         let input_val = eval.next_trace_mask(); // Value from the tensor at index.
         let out_val = eval.next_trace_mask(); // Value in output tensor at index.
         let rem_val = eval.next_trace_mask(); // Rem value in result tensor at index.
-        let scale = eval.next_trace_mask(); // Scale
+        
+        // Extract dynamic scale from trace data (consistent with other components)
+        let scale_factor = eval.next_trace_mask();
 
         // Multiplicities for interaction constraints
         let input_mult = eval.next_trace_mask();
@@ -65,7 +67,7 @@ impl FrameworkEval for RecipEval {
         eval.add_constraint(is_last_idx.clone() * (is_last_idx.clone() - E::F::one()));
 
         // Evaluates fixed point recip.
-        eval.eval_fixed_recip(input_val.clone(), scale, out_val.clone(), rem_val);
+        eval.eval_fixed_recip(input_val.clone(), scale_factor.clone(), out_val.clone(), rem_val);
 
         // ┌────────────────────────────┐
         // │   Transition Constraints   │

@@ -30,7 +30,7 @@ pub fn verify(
     info!("🚀 Starting LuminAIR proof verification");
 
     // Convert lookups in circuit settings to preprocessed column.
-    let lut_cols = lookups_to_preprocessed_column(&settings.lookups);
+    let lut_cols = lookups_to_preprocessed_column(&settings.lookups, settings.fixed_point_scale);
     let preprocessed_trace = PreProcessedTrace::new(lut_cols);
 
     // ┌──────────────────────────┐
@@ -93,9 +93,12 @@ pub fn verify(
 
             let interaction_elements = LuminairInteractionElements::draw(channel);
 
-            // Validate LogUp sum
-            if !log_sum_valid(&interaction_claim) {
-                return Err(LuminairError::InvalidLogUp("Invalid LogUp sum".to_string()));
+            // Validate LogUp sum - this is mandatory for security
+            let log_sum_valid_result = log_sum_valid(&interaction_claim);
+            if !log_sum_valid_result {
+                return Err(LuminairError::InvalidLogUp(
+                    "LogUp sum validation failed - interaction claims don't sum to zero".to_string(),
+                ));
             }
 
             interaction_claim.mix_into(channel);
